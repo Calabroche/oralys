@@ -4,12 +4,13 @@ import { useState } from "react";
 import { ActivityType, SpecialSlot, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { minutesToDurationLabel } from "@/utils/date";
-import { NouveauTypeModal } from "./NouveauTypeModal";
+import { ActivityTypeModal } from "./ActivityTypeModal";
 
 interface Props {
   activityTypes: ActivityType[];
   referenceDate: Date;
   onAddType: (type: ActivityType) => void;
+  onUpdateType: (type: ActivityType) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
 }
@@ -18,10 +19,11 @@ export function TypesActiviteSection({
   activityTypes,
   referenceDate,
   onAddType,
+  onUpdateType,
   upsertWeekSlot,
   upsertSpecialSlot,
 }: Props) {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalState, setModalState] = useState<null | "new" | ActivityType>(null);
   const tousMotifs = activityTypes.find((t) => t.id === "tous-motifs");
   const others = activityTypes.filter((t) => t.id !== "tous-motifs");
 
@@ -36,16 +38,25 @@ export function TypesActiviteSection({
         {others.map((type) => {
           const colors = ACTIVITY_COLOR_CLASSES[type.color];
           return (
-            <div
+            <button
               key={type.id}
-              className={`rounded-lg border ${colors.border} ${colors.bg} p-3`}
+              type="button"
+              disabled={type.locked}
+              onClick={() => setModalState(type)}
+              className={`rounded-lg border p-3 text-left ${colors.border} ${colors.bg} ${
+                type.locked ? "cursor-default" : "hover:brightness-95"
+              }`}
             >
               <div className="flex items-start justify-between">
                 <p className={`text-sm font-medium ${colors.text}`}>{type.name}</p>
-                {type.locked && <span className="text-xs text-slate-400">🔒</span>}
+                {type.locked ? (
+                  <span className="text-xs text-slate-400">🔒</span>
+                ) : (
+                  <span className="text-xs text-slate-400">✎</span>
+                )}
               </div>
               <p className={`mt-1 text-xs ${colors.text} opacity-80`}>{type.description}</p>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -62,21 +73,23 @@ export function TypesActiviteSection({
           </div>
         )}
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setModalState("new")}
           className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500 hover:border-slate-400 hover:text-slate-700"
         >
           + Nouveau type
         </button>
       </div>
 
-      {modalOpen && (
-        <NouveauTypeModal
-          usedColors={activityTypes.map((t) => t.color)}
+      {modalState && (
+        <ActivityTypeModal
+          existing={modalState === "new" ? undefined : modalState}
+          usedColors={activityTypes.filter((t) => modalState === "new" || t.id !== modalState.id).map((t) => t.color)}
           referenceDate={referenceDate}
-          onClose={() => setModalOpen(false)}
+          onClose={() => setModalState(null)}
           onSave={(type) => {
-            onAddType(type);
-            setModalOpen(false);
+            if (modalState === "new") onAddType(type);
+            else onUpdateType(type);
+            setModalState(null);
           }}
           upsertWeekSlot={upsertWeekSlot}
           upsertSpecialSlot={upsertSpecialSlot}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, createContext, useContext, useState } from "react";
+import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
 import {
   absencePeriods as initialAbsencePeriods,
@@ -10,13 +10,19 @@ import {
   weekSlots as initialWeekSlots,
 } from "@/data/mockData";
 
-interface AgendaDataContextValue {
+const STORAGE_KEY = "oralys-agenda-data-v1";
+
+interface PersistedData {
   activityTypes: ActivityType[];
   weekSlots: WeekSlot[];
   specialSlots: SpecialSlot[];
   absencePeriods: AbsencePeriod[];
   appointments: Appointment[];
+}
+
+interface AgendaDataContextValue extends PersistedData {
   addActivityType: (type: ActivityType) => void;
+  updateActivityType: (type: ActivityType) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   deleteWeekSlot: (id: string) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
@@ -38,6 +44,43 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>(initialSpecialSlots);
   const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>(initialAbsencePeriods);
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Recharge ce qui a été sauvegardé localement, une fois monté côté client.
+  // localStorage n'existe pas côté serveur : on ne peut lire la valeur sauvegardée
+  // qu'après le montage, d'où le setState en effet (sinon le rendu serveur et le
+  // premier rendu client ne correspondraient plus, ce qu'une init paresseuse de
+  // useState provoquerait).
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<PersistedData>;
+        if (parsed.activityTypes) setActivityTypes(parsed.activityTypes);
+        if (parsed.weekSlots) setWeekSlots(parsed.weekSlots);
+        if (parsed.specialSlots) setSpecialSlots(parsed.specialSlots);
+        if (parsed.absencePeriods) setAbsencePeriods(parsed.absencePeriods);
+        if (parsed.appointments) setAppointments(parsed.appointments);
+      }
+    } catch {
+      // localStorage indisponible ou données corrompues : on garde les données de démo.
+    }
+    setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  // Persiste après chaque changement, une fois le chargement initial terminé
+  // (sinon on écraserait les données sauvegardées avec les données de démo).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      const data: PersistedData = { activityTypes, weekSlots, specialSlots, absencePeriods, appointments };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // quota dépassé ou stockage désactivé : on continue sans persister.
+    }
+  }, [hydrated, activityTypes, weekSlots, specialSlots, absencePeriods, appointments]);
 
   const value: AgendaDataContextValue = {
     activityTypes,
@@ -46,6 +89,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     absencePeriods,
     appointments,
     addActivityType: (type) => setActivityTypes((prev) => [...prev, type]),
+    updateActivityType: (type) => setActivityTypes((prev) => upsertById(prev, type)),
     upsertWeekSlot: (slot) => setWeekSlots((prev) => upsertById(prev, slot)),
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
     upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),
