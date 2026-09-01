@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AgendaToolbar, AgendaViewMode } from "@/components/agenda/AgendaToolbar";
 import { CalendarGrid } from "@/components/agenda/CalendarGrid";
 import { MonthView } from "@/components/agenda/MonthView";
@@ -15,6 +15,7 @@ import {
   formatWeekRange,
   startOfMonth,
   startOfWeek,
+  withLiveTime,
 } from "@/utils/date";
 
 export default function AgendaPage() {
@@ -22,6 +23,14 @@ export default function AgendaPage() {
   const [viewMode, setViewMode] = useState<AgendaViewMode>("semaine");
   const [anchorDate, setAnchorDate] = useState(REFERENCE_TODAY);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Date de démo fixe (pour que les données restent cohérentes), mais heure
+  // réelle en direct pour le repère "maintenant" dans l'agenda.
+  const [now, setNow] = useState(() => withLiveTime(REFERENCE_TODAY));
+  useEffect(() => {
+    const id = setInterval(() => setNow(withLiveTime(REFERENCE_TODAY)), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   function handleToday() {
     setAnchorDate(REFERENCE_TODAY);
@@ -71,7 +80,7 @@ export default function AgendaPage() {
         {viewMode === "mois" ? (
           <MonthView
             month={anchorDate}
-            now={REFERENCE_TODAY}
+            now={now}
             appointments={appointments}
             activityTypes={activityTypes}
             specialSlots={specialSlots}
@@ -84,7 +93,7 @@ export default function AgendaPage() {
         ) : (
           <CalendarGrid
             days={days}
-            now={REFERENCE_TODAY}
+            now={now}
             appointments={appointments}
             activityTypes={activityTypes}
             weekSlots={weekSlots}

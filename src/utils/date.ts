@@ -34,6 +34,14 @@ export function nextWeekdayOccurrence(from: Date, weekday: Weekday): Date {
   return addDays(from, offset);
 }
 
+/** `baseDate` (la date de démo, fixe) avec l'heure réelle de l'horloge en direct. */
+export function withLiveTime(baseDate: Date): Date {
+  const live = new Date();
+  const result = new Date(baseDate);
+  result.setHours(live.getHours(), live.getMinutes(), live.getSeconds(), 0);
+  return result;
+}
+
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, "0");
