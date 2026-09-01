@@ -1,0 +1,69 @@
+export type ActivityColor = "green" | "red" | "blue" | "purple" | "gray";
+
+export interface ActivityType {
+  id: string;
+  name: string;
+  description: string;
+  color: ActivityColor;
+  durationMinutes: number;
+  locked?: boolean;
+}
+
+export type Weekday = "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi";
+
+export interface WeekSlot {
+  id: string;
+  day: Weekday;
+  activityTypeId: string;
+  start: string; // "08:00"
+  end: string; // "12:00"
+}
+
+export type RecurrenceFrequency = "none" | "weekly" | "biweekly" | "monthly" | "custom";
+export type RecurrenceUnit = "weeks" | "months";
+
+export interface Recurrence {
+  frequency: RecurrenceFrequency;
+  customInterval?: number;
+  customUnit?: RecurrenceUnit;
+  endDate?: string | null; // ISO date, null/undefined = jamais
+}
+
+export interface SpecialSlot {
+  id: string;
+  activityTypeId: string;
+  label: string; // ex: "Indisponible", ou nom du type d'activité
+  startDate: string; // ISO date "2026-06-15"
+  endDate: string; // ISO date, ponctuel = startDate === endDate
+  allDay: boolean;
+  start?: string; // heure, absente si allDay
+  end?: string;
+  recurrence: Recurrence;
+}
+
+export type AbsenceMotif = "Congés" | "Formation" | "Maladie" | "Fermeture cabinet" | "Autre";
+
+export interface AbsencePeriod {
+  id: string;
+  motif: AbsenceMotif;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+}
+
+export interface Patient {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  activityTypeId: string;
+  date: string; // ISO date
+  start: string;
+  end: string;
+  notes?: string;
+}
