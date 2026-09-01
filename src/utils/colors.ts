@@ -138,3 +138,12 @@ export function firstUnusedColor(usedColors: ActivityColor[]): ActivityColor {
   const unused = COLOR_OPTIONS.find((opt) => !usedColors.includes(opt.value));
   return unused?.value ?? COLOR_OPTIONS[0].value;
 }
+
+/**
+ * Comme ACTIVITY_COLOR_CLASSES[color], mais tolère une couleur absente ou
+ * invalide (ex. donnée persistée avant l'ajout du champ `color`) en
+ * retombant sur le gris plutôt que de planter le rendu.
+ */
+export function getColorClasses(color: ActivityColor | undefined | null): ColorClasses {
+  return ACTIVITY_COLOR_CLASSES[color as ActivityColor] ?? ACTIVITY_COLOR_CLASSES.gray;
+}

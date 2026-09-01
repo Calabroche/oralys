@@ -10,7 +10,11 @@ import {
   weekSlots as initialWeekSlots,
 } from "@/data/mockData";
 
-const STORAGE_KEY = "oralys-agenda-data-v1";
+// Incrémenter ce numéro de version à chaque changement de schéma qui
+// casserait la compatibilité avec des données déjà persistées (ex. ajout
+// d'un champ requis) : les anciennes données sont alors ignorées plutôt
+// que de faire planter le rendu, et les données de démo repartent à jour.
+const STORAGE_KEY = "oralys-agenda-data-v2";
 
 interface PersistedData {
   activityTypes: ActivityType[];

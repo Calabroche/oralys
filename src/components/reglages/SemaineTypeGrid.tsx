@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AbsencePeriod, ActivityColor, ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
-import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
+import { getColorClasses } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
 import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
 
@@ -178,7 +178,7 @@ export function SemaineTypeGrid({
               ))}
 
               {overlaysForDay(day).map((overlay) => {
-                const colors = ACTIVITY_COLOR_CLASSES[overlay.color];
+                const colors = getColorClasses(overlay.color);
                 return (
                   <div
                     key={overlay.key}
@@ -193,7 +193,7 @@ export function SemaineTypeGrid({
               {blocksForDay(day).map((block) => {
                 const type = activityTypes.find((t) => t.id === block.activityTypeId);
                 if (!type) return null;
-                const colors = ACTIVITY_COLOR_CLASSES[block.color];
+                const colors = getColorClasses(block.color);
                 const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
                 const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
                 return (

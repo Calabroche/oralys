@@ -1,7 +1,7 @@
 "use client";
 
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot } from "@/types";
-import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
+import { ACTIVITY_COLOR_CLASSES, getColorClasses } from "@/utils/colors";
 import { addDays, startOfMonth, startOfWeek, toISODate } from "@/utils/date";
 import { expandRecurrence } from "@/utils/recurrence";
 
@@ -65,7 +65,7 @@ export function MonthView({ month, now, appointments, activityTypes, specialSlot
 
               {blockedAllDay && <span className="text-[10px] text-slate-400">🔁 Indisponible</span>}
               {dayAbsences.map((absence) => (
-                <span key={absence.id} className={`text-[10px] ${ACTIVITY_COLOR_CLASSES[absence.color].text}`}>
+                <span key={absence.id} className={`text-[10px] ${getColorClasses(absence.color).text}`}>
                   🏖 {absence.motif}
                 </span>
               ))}

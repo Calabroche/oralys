@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, Patient, SpecialSlot, WeekSlot } from "@/types";
-import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
+import { ACTIVITY_COLOR_CLASSES, getColorClasses } from "@/utils/colors";
 import { WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes, toISODate, toWeekday } from "@/utils/date";
 import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 
@@ -51,7 +51,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
                   <p className="flex items-center gap-1 text-[11px] text-slate-400">🔁 Indisponible</p>
                 )}
                 {dayAbsences.map((absence) => (
-                  <p key={absence.id} className={`flex items-center gap-1 text-[11px] ${ACTIVITY_COLOR_CLASSES[absence.color].text}`}>
+                  <p key={absence.id} className={`flex items-center gap-1 text-[11px] ${getColorClasses(absence.color).text}`}>
                     🏖 {absence.motif}
                   </p>
                 ))}
@@ -103,7 +103,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
 
               {blockingAbsences.map((absence) => {
                 const recurrenceLabel = describeRecurrence(absence.recurrence);
-                const colors = ACTIVITY_COLOR_CLASSES[absence.color];
+                const colors = getColorClasses(absence.color);
                 return (
                   <div
                     key={absence.id}
@@ -118,7 +118,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
 
               {blockingSlots.map((slot) => {
                 const recurrenceLabel = slot.recurrence.frequency !== "none" ? " 🔁" : "";
-                const colors = ACTIVITY_COLOR_CLASSES[slot.color];
+                const colors = getColorClasses(slot.color);
                 if (slot.allDay) {
                   return (
                     <div
