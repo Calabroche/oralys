@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActivityType, SpecialSlot } from "@/types";
 import { formatShortDate } from "@/utils/date";
+import { describeRecurrence } from "@/utils/recurrence";
 import { CreneauSpecialModal } from "./CreneauSpecialModal";
 
 interface Props {
@@ -22,7 +23,9 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave }:
       </div>
 
       <div className="space-y-2">
-        {specialSlots.map((slot) => (
+        {specialSlots.map((slot) => {
+          const recurrenceLabel = describeRecurrence(slot.recurrence);
+          return (
           <div
             key={slot.id}
             className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
@@ -35,6 +38,11 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave }:
                 {!slot.allDay && slot.start && slot.end && ` · ${slot.start} - ${slot.end}`}
                 {slot.allDay && " · Toute la journée"}
               </span>
+              {recurrenceLabel && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                  🔁 {recurrenceLabel}
+                </span>
+              )}
             </div>
             <button
               onClick={() => setModalState(slot)}
@@ -44,7 +52,8 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave }:
               ✎
             </button>
           </div>
-        ))}
+          );
+        })}
 
         <button
           onClick={() => setModalState("new")}

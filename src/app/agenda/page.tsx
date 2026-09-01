@@ -8,6 +8,7 @@ import {
   appointments as initialAppointments,
   getPatient,
   patients,
+  specialSlots,
   weekSlots,
 } from "@/data/mockData";
 import { Appointment } from "@/types";
@@ -28,6 +29,7 @@ export default function AgendaPage() {
         now={REFERENCE_TODAY}
         appointments={appointments}
         activityTypes={activityTypes}
+        specialSlots={specialSlots}
         getPatient={getPatient}
         onNewAppointment={() => setModalOpen(true)}
       />

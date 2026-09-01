@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType, Appointment, Patient } from "@/types";
+import { ActivityType, Appointment, Patient, SpecialSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import {
   WEEKDAYS,
@@ -13,6 +13,7 @@ import {
   toISODate,
   toWeekday,
 } from "@/utils/date";
+import { expandRecurrence } from "@/utils/recurrence";
 
 const START_HOUR = 7;
 const END_HOUR = 19;
@@ -25,6 +26,7 @@ interface Props {
   now: Date;
   appointments: Appointment[];
   activityTypes: ActivityType[];
+  specialSlots: SpecialSlot[];
   getPatient: (id: string) => Patient;
   onNewAppointment: () => void;
 }
@@ -35,6 +37,7 @@ export function WeekCalendar({
   now,
   appointments,
   activityTypes,
+  specialSlots,
   getPatient,
   onNewAppointment,
 }: Props) {
@@ -88,11 +91,17 @@ export function WeekCalendar({
         <div />
         {days.map((day) => {
           const isToday = toISODate(day) === toISODate(now);
+          const blockingAllDay = specialSlots.some(
+            (slot) => slot.allDay && expandRecurrence(slot, day, day).length > 0
+          );
           return (
             <div key={day.toISOString()} className="border-l border-slate-200 px-2 py-2 text-xs text-slate-500">
               <p className={isToday ? "font-semibold text-sky-600" : "font-medium text-slate-700"}>
                 {WEEKDAY_LABELS[toWeekday(day)!].slice(0, 3)}. {day.getDate()}
               </p>
+              {blockingAllDay && (
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">🔁 Indisponible</p>
+              )}
             </div>
           );
         })}
@@ -110,11 +119,43 @@ export function WeekCalendar({
         {days.map((day) => {
           const dateIso = toISODate(day);
           const dayAppointments = appointments.filter((a) => a.date === dateIso);
+          const blockingSlots = specialSlots.filter((slot) => expandRecurrence(slot, day, day).length > 0);
           return (
             <div key={dateIso} className="relative border-l border-slate-200" style={{ height: HOUR_HEIGHT * HOURS.length }}>
               {HOURS.map((h) => (
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
+
+              {blockingSlots.map((slot) => {
+                const recurrenceLabel = slot.recurrence.frequency !== "none" ? " 🔁" : "";
+                if (slot.allDay) {
+                  return (
+                    <div
+                      key={slot.id}
+                      className="absolute inset-x-0 top-0 z-0 flex items-start justify-center border-b border-slate-200 bg-slate-50 px-1 pt-2 text-center text-[11px] text-slate-400"
+                      style={{ height: HOUR_HEIGHT * HOURS.length }}
+                    >
+                      {slot.label}
+                      {recurrenceLabel}
+                    </div>
+                  );
+                }
+                const top = ((timeToMinutes(slot.start ?? "00:00") - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                const height = Math.max(
+                  ((timeToMinutes(slot.end ?? "00:00") - timeToMinutes(slot.start ?? "00:00")) / 60) * HOUR_HEIGHT,
+                  18
+                );
+                return (
+                  <div
+                    key={slot.id}
+                    style={{ top, height }}
+                    className="absolute inset-x-1 z-0 rounded-md border border-dashed border-slate-300 bg-slate-50 px-1.5 py-1 text-left text-[11px] leading-tight text-slate-400"
+                  >
+                    {slot.label}
+                    {recurrenceLabel}
+                  </div>
+                );
+              })}
 
               {dayAppointments.map((apt) => {
                 const type = activityTypes.find((t) => t.id === apt.activityTypeId);
