@@ -9,21 +9,29 @@ import { ActivityTypeModal } from "./ActivityTypeModal";
 interface Props {
   activityTypes: ActivityType[];
   referenceDate: Date;
+  weekSlots: WeekSlot[];
+  specialSlots: SpecialSlot[];
   onAddType: (type: ActivityType) => void;
   onUpdateType: (type: ActivityType) => void;
   onDeleteType: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
+  deleteWeekSlot: (id: string) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
+  deleteSpecialSlot: (id: string) => void;
 }
 
 export function TypesActiviteSection({
   activityTypes,
   referenceDate,
+  weekSlots,
+  specialSlots,
   onAddType,
   onUpdateType,
   onDeleteType,
   upsertWeekSlot,
+  deleteWeekSlot,
   upsertSpecialSlot,
+  deleteSpecialSlot,
 }: Props) {
   const [modalState, setModalState] = useState<null | "new" | ActivityType>(null);
   const tousMotifs = activityTypes.find((t) => t.id === "tous-motifs");
@@ -87,6 +95,8 @@ export function TypesActiviteSection({
           existing={modalState === "new" ? undefined : modalState}
           usedColors={activityTypes.filter((t) => modalState === "new" || t.id !== modalState.id).map((t) => t.color)}
           referenceDate={referenceDate}
+          weekSlots={weekSlots}
+          specialSlots={specialSlots}
           onClose={() => setModalState(null)}
           onSave={(type) => {
             if (modalState === "new") onAddType(type);
@@ -98,7 +108,9 @@ export function TypesActiviteSection({
             setModalState(null);
           }}
           upsertWeekSlot={upsertWeekSlot}
+          deleteWeekSlot={deleteWeekSlot}
           upsertSpecialSlot={upsertSpecialSlot}
+          deleteSpecialSlot={deleteSpecialSlot}
         />
       )}
     </section>

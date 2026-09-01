@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityColor, ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
+import { AbsencePeriod, ActivityColor, ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
 import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
@@ -21,9 +21,17 @@ interface DisplayBlock {
   recurring: boolean;
 }
 
+interface OverlayBlock {
+  key: string;
+  label: string;
+  color: ActivityColor;
+  icon: string;
+}
+
 interface Props {
   weekSlots: WeekSlot[];
   specialSlots: SpecialSlot[];
+  absencePeriods: AbsencePeriod[];
   activityTypes: ActivityType[];
   referenceDate: Date;
   upsertWeekSlot: (slot: WeekSlot) => void;
@@ -35,6 +43,7 @@ interface Props {
 export function SemaineTypeGrid({
   weekSlots,
   specialSlots,
+  absencePeriods,
   activityTypes,
   referenceDate,
   upsertWeekSlot,
@@ -48,6 +57,13 @@ export function SemaineTypeGrid({
   // activité programmée (ex. "Urgences toutes les 2 semaines"), pas une simple absence,
   // donc ils apparaissent aussi dans l'aperçu de la Semaine type.
   const recurringSpecials = specialSlots.filter((s) => !s.allDay && s.recurrence.frequency !== "none");
+
+  // Créneaux spéciaux "toute la journée" et absences qui reviennent CHAQUE semaine :
+  // au même rythme que la Semaine type elle-même, donc affichés en fond de colonne
+  // (ex. "je ne suis jamais là le lundi"). Les récurrences plus longues (2 semaines,
+  // mois, personnalisé) restent volontairement des exceptions, pas montrées ici.
+  const weeklyAllDaySpecials = specialSlots.filter((s) => s.allDay && s.recurrence.frequency === "weekly");
+  const weeklyAbsences = absencePeriods.filter((a) => a.recurrence.frequency === "weekly");
 
   function blocksForDay(day: Weekday): DisplayBlock[] {
     const fromWeek: DisplayBlock[] = weekSlots
@@ -97,6 +113,18 @@ export function SemaineTypeGrid({
     return [...fromWeek, ...fromSpecial];
   }
 
+  function overlaysForDay(day: Weekday): OverlayBlock[] {
+    const fromSpecials: OverlayBlock[] = weeklyAllDaySpecials
+      .filter((s) => toWeekday(fromISODate(s.startDate)) === day)
+      .map((s) => ({ key: `special-allday-${s.id}`, label: s.label, color: s.color, icon: "🔁" }));
+
+    const fromAbsences: OverlayBlock[] = weeklyAbsences
+      .filter((a) => toWeekday(fromISODate(a.startDate)) === day)
+      .map((a) => ({ key: `absence-${a.id}`, label: a.motif, color: a.color, icon: "🏖" }));
+
+    return [...fromSpecials, ...fromAbsences];
+  }
+
   const dayTotalMinutes = (day: Weekday) =>
     blocksForDay(day).reduce((sum, b) => sum + (timeToMinutes(b.end) - timeToMinutes(b.start)), 0);
 
@@ -104,7 +132,7 @@ export function SemaineTypeGrid({
     <section id="semaine-type" className="scroll-mt-20">
       <div className="mb-3 flex items-center gap-1.5">
         <h2 className="text-sm font-semibold text-slate-900">Semaine type</h2>
-        <span className="text-slate-400" title="Grille appliquée chaque semaine. Les créneaux à récurrence non hebdomadaire (toutes les 2 semaines, mensuel, personnalisé) y apparaissent aussi, avec un badge 🔁.">
+        <span className="text-slate-400" title="Grille appliquée chaque semaine. Les créneaux spéciaux et absences qui reviennent chaque semaine y apparaissent aussi en fond de colonne ; les récurrences moins fréquentes (2 semaines, mois, personnalisé) restent des exceptions visibles uniquement dans leurs sections dédiées.">
           ⓘ
         </span>
       </div>
@@ -148,6 +176,19 @@ export function SemaineTypeGrid({
               {HOURS.map((h) => (
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
+
+              {overlaysForDay(day).map((overlay) => {
+                const colors = ACTIVITY_COLOR_CLASSES[overlay.color];
+                return (
+                  <div
+                    key={overlay.key}
+                    className={`absolute inset-x-0 top-0 z-0 flex items-start justify-center gap-1 border-b ${colors.border} ${colors.bg} px-1 pt-2 text-center text-[11px] ${colors.text}`}
+                    style={{ height: HOUR_HEIGHT * HOURS.length }}
+                  >
+                    {overlay.icon} {overlay.label}
+                  </div>
+                );
+              })}
 
               {blocksForDay(day).map((block) => {
                 const type = activityTypes.find((t) => t.id === block.activityTypeId);

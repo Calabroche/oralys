@@ -38,15 +38,20 @@ export default function ReglagesAgendaPage() {
           <TypesActiviteSection
             activityTypes={activityTypes}
             referenceDate={REFERENCE_TODAY}
+            weekSlots={weekSlots}
+            specialSlots={specialSlots}
             onAddType={addActivityType}
             onUpdateType={updateActivityType}
             onDeleteType={deleteActivityType}
             upsertWeekSlot={upsertWeekSlot}
+            deleteWeekSlot={deleteWeekSlot}
             upsertSpecialSlot={upsertSpecialSlot}
+            deleteSpecialSlot={deleteSpecialSlot}
           />
           <SemaineTypeGrid
             weekSlots={weekSlots}
             specialSlots={specialSlots}
+            absencePeriods={absencePeriods}
             activityTypes={activityTypes}
             referenceDate={REFERENCE_TODAY}
             upsertWeekSlot={upsertWeekSlot}
