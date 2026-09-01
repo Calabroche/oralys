@@ -62,10 +62,23 @@ export function addMonths(date: Date, months: number): Date {
   return result;
 }
 
-const MONTH_LABELS = [
+export const MONTH_LABELS = [
   "janvier", "février", "mars", "avril", "mai", "juin",
   "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ];
+
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+export function formatMonthLabel(date: Date): string {
+  return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+export function formatDayHeader(date: Date): string {
+  const weekday = WEEKDAY_LABELS[toWeekday(date) ?? "lundi"];
+  return `${weekday} ${date.getDate()} ${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
 
 export function formatLongDate(iso: string): string {
   const date = fromISODate(iso);

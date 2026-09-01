@@ -3,16 +3,7 @@
 import { useState } from "react";
 import { ActivityType, Appointment, Patient, SpecialSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
-import {
-  WEEKDAYS,
-  WEEKDAY_LABELS,
-  addDays,
-  formatWeekRange,
-  minutesToDurationLabel,
-  timeToMinutes,
-  toISODate,
-  toWeekday,
-} from "@/utils/date";
+import { WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes, toISODate, toWeekday } from "@/utils/date";
 import { expandRecurrence } from "@/utils/recurrence";
 
 const START_HOUR = 7;
@@ -21,73 +12,24 @@ const HOUR_HEIGHT = 48; // px
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
 
 interface Props {
-  weekStart: Date;
-  onWeekStartChange: (date: Date) => void;
+  days: Date[];
   now: Date;
   appointments: Appointment[];
   activityTypes: ActivityType[];
   specialSlots: SpecialSlot[];
   getPatient: (id: string) => Patient;
-  onNewAppointment: () => void;
 }
 
-export function WeekCalendar({
-  weekStart,
-  onWeekStartChange,
-  now,
-  appointments,
-  activityTypes,
-  specialSlots,
-  getPatient,
-  onNewAppointment,
-}: Props) {
+export function CalendarGrid({ days, now, appointments, activityTypes, specialSlots, getPatient }: Props) {
   const [openAppointmentId, setOpenAppointmentId] = useState<string | null>(null);
 
-  const days = WEEKDAYS.filter((d) => d !== "samedi").map((_, i) => addDays(weekStart, i));
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const showNowLine = nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60;
+  const gridCols = `56px repeat(${days.length}, 1fr)`;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onWeekStartChange(new Date(now))}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Aujourd&apos;hui
-          </button>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onWeekStartChange(addDays(weekStart, -7))}
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
-              aria-label="Semaine précédente"
-            >
-              ‹
-            </button>
-            <button
-              onClick={() => onWeekStartChange(addDays(weekStart, 7))}
-              className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
-              aria-label="Semaine suivante"
-            >
-              ›
-            </button>
-          </div>
-          <span className="text-sm font-medium text-slate-700">{formatWeekRange(weekStart)}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Semaine</span>
-          <button
-            onClick={onNewAppointment}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-800"
-            aria-label="Nouveau rendez-vous"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[56px_repeat(5,1fr)]">
+    <div className="bg-white">
+      <div className="grid" style={{ gridTemplateColumns: gridCols }}>
         <div />
         {days.map((day) => {
           const isToday = toISODate(day) === toISODate(now);
@@ -107,7 +49,7 @@ export function WeekCalendar({
         })}
       </div>
 
-      <div className="relative grid grid-cols-[56px_repeat(5,1fr)]">
+      <div className="relative grid" style={{ gridTemplateColumns: gridCols }}>
         <div>
           {HOURS.map((h) => (
             <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100 pr-2 text-right text-[11px] text-slate-400">

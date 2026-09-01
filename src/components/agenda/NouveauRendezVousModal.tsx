@@ -99,88 +99,98 @@ export function NouveauRendezVousModal({
         <div className="grid grid-cols-2 gap-6 px-5 py-4">
           {/* Left: patient / motif / notes */}
           <div className="space-y-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Patient</label>
-              {selectedPatient ? (
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-800">
-                    {selectedPatient.firstName} {selectedPatient.lastName}
-                    <button onClick={() => setPatientId(null)} className="text-slate-400 hover:text-slate-600">
-                      ✕
-                    </button>
-                  </span>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input
-                    value={patientQuery}
-                    onChange={(e) => setPatientQuery(e.target.value)}
-                    placeholder="Rechercher un patient..."
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-                  />
-                  {matchingPatients.length > 0 && (
-                    <ul className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg">
-                      {matchingPatients.map((p) => (
-                        <li key={p.id}>
-                          <button
-                            onClick={() => {
-                              setPatientId(p.id);
-                              setPatientQuery("");
-                            }}
-                            className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                          >
-                            {p.firstName} {p.lastName}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
-              <div className="flex flex-wrap gap-1.5">
-                {activityTypes.filter((t) => t.id !== "tous-motifs").map((type) => {
-                  const colors = ACTIVITY_COLOR_CLASSES[type.color];
-                  const isSelected = activityTypeId === type.id;
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => {
-                        setActivityTypeId(type.id);
-                        setDuration(type.durationMinutes);
-                        setSelectedDate(null);
-                        setSelectedStart(null);
-                      }}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
-                        isSelected ? colors.chip : "border-slate-200 text-slate-500 hover:bg-slate-50"
-                      }`}
-                    >
-                      {type.name}
-                    </button>
-                  );
-                })}
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Patient</label>
+                {selectedPatient ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-800">
+                      {selectedPatient.firstName} {selectedPatient.lastName}
+                      <button onClick={() => setPatientId(null)} className="text-slate-400 hover:text-slate-600">
+                        ✕
+                      </button>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      value={patientQuery}
+                      onChange={(e) => setPatientQuery(e.target.value)}
+                      placeholder="Rechercher un patient..."
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                    />
+                    {matchingPatients.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg">
+                        {matchingPatients.map((p) => (
+                          <li key={p.id}>
+                            <button
+                              onClick={() => {
+                                setPatientId(p.id);
+                                setPatientQuery("");
+                              }}
+                              className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            >
+                              {p.firstName} {p.lastName}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Praticien</label>
+                <span className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  {PRATICIEN_NAME}
+                  <span className="text-xs text-slate-400">▾</span>
+                </span>
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Durée</label>
-              <select
-                value={duration}
-                onChange={(e) => {
-                  setDuration(Number(e.target.value));
-                  setSelectedStart(null);
-                }}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-              >
-                {DURATIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {minutesToDurationLabel(d)}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {activityTypes.filter((t) => t.id !== "tous-motifs").map((type) => {
+                    const colors = ACTIVITY_COLOR_CLASSES[type.color];
+                    const isSelected = activityTypeId === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => {
+                          setActivityTypeId(type.id);
+                          setDuration(type.durationMinutes);
+                          setSelectedDate(null);
+                          setSelectedStart(null);
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                          isSelected ? colors.chip : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                        }`}
+                      >
+                        {type.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Durée</label>
+                <select
+                  value={duration}
+                  onChange={(e) => {
+                    setDuration(Number(e.target.value));
+                    setSelectedStart(null);
+                  }}
+                  className="rounded-md border border-slate-300 px-2.5 py-2 text-sm focus:border-slate-500 focus:outline-none"
+                >
+                  {DURATIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {minutesToDurationLabel(d)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
@@ -196,24 +206,22 @@ export function NouveauRendezVousModal({
 
           {/* Right: date + slot picker */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Jour de la semaine</label>
-            <div className="mb-3 flex gap-1">
+            <label className="mb-1 block text-xs font-medium text-slate-600">Créneaux</label>
+            <select
+              value={weekday}
+              onChange={(e) => {
+                setWeekday(e.target.value as Weekday);
+                setSelectedDate(null);
+                setSelectedStart(null);
+              }}
+              className="mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            >
               {WEEKDAYS.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    setWeekday(d);
-                    setSelectedDate(null);
-                    setSelectedStart(null);
-                  }}
-                  className={`h-7 w-7 rounded-full text-xs font-medium ${
-                    weekday === d ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {WEEKDAY_LABELS[d][0]}
-                </button>
+                <option key={d} value={d}>
+                  {WEEKDAY_LABELS[d]}
+                </option>
               ))}
-            </div>
+            </select>
 
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
               {occurrenceDates.map((date) => {
