@@ -57,11 +57,9 @@ export interface SpecialSlot {
   recurrence: Recurrence;
 }
 
-export type AbsenceMotif = "Congés" | "Formation" | "Maladie" | "Fermeture cabinet" | "Autre";
-
 export interface AbsencePeriod {
   id: string;
-  motif: AbsenceMotif;
+  motif: string; // libre : quelques motifs usuels sont suggérés, mais on peut en saisir un autre
   color: ActivityColor;
   startDate: string;
   startTime: string;

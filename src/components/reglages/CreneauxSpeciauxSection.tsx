@@ -12,9 +12,10 @@ interface Props {
   activityTypes: ActivityType[];
   onSave: (slot: SpecialSlot) => void;
   onDelete: (id: string) => void;
+  onCreateType: (type: ActivityType) => void;
 }
 
-export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, onDelete }: Props) {
+export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, onDelete, onCreateType }: Props) {
   const [modalState, setModalState] = useState<null | "new" | SpecialSlot>(null);
 
   return (
@@ -87,6 +88,7 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, o
             onSave(slot);
             setModalState(null);
           }}
+          onCreateType={onCreateType}
         />
       )}
     </section>

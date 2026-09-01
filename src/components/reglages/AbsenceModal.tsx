@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { AbsenceMotif, AbsencePeriod, ActivityColor, RecurrenceFrequency, RecurrenceUnit } from "@/types";
+import { AbsencePeriod, ActivityColor, RecurrenceFrequency, RecurrenceUnit } from "@/types";
 import { Modal, ModalActions } from "@/components/ui/Modal";
 import { ColorSwatchPicker } from "@/components/ui/ColorSwatchPicker";
 import { RecurrenceFields } from "./RecurrenceFields";
 import { firstUnusedColor } from "@/utils/colors";
 
-const MOTIFS: AbsenceMotif[] = ["Congés", "Formation", "Maladie", "Fermeture cabinet", "Autre"];
+const MOTIF_SUGGESTIONS = ["Congés", "Formation", "Maladie", "Fermeture cabinet", "Autre"];
 
 export function AbsenceModal({
   absence,
@@ -24,7 +24,7 @@ export function AbsenceModal({
   const [startTime, setStartTime] = useState(absence?.startTime ?? "00:00");
   const [endDate, setEndDate] = useState(absence?.endDate ?? "");
   const [endTime, setEndTime] = useState(absence?.endTime ?? "23:59");
-  const [motif, setMotif] = useState<AbsenceMotif | "">(absence?.motif ?? "");
+  const [motif, setMotif] = useState(absence?.motif ?? "");
   const [color, setColor] = useState<ActivityColor>(() => absence?.color ?? firstUnusedColor(usedColors));
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(absence?.recurrence.frequency ?? "none");
@@ -33,7 +33,7 @@ export function AbsenceModal({
   const [endsNever, setEndsNever] = useState(!absence?.recurrence.endDate);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(absence?.recurrence.endDate ?? "");
 
-  const canSave = startDate && endDate && motif;
+  const canSave = startDate && endDate && motif.trim().length > 0;
 
   function applyAlternerRaccourci() {
     setFrequency("biweekly");
@@ -88,21 +88,22 @@ export function AbsenceModal({
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Motif</label>
-          <select
+          <label className="mb-1 block text-xs font-medium text-slate-600">
+            Motif
+            <span className="ml-1 font-normal text-slate-400">— choisissez une suggestion ou écrivez le vôtre</span>
+          </label>
+          <input
+            list="motif-suggestions"
             value={motif}
-            onChange={(e) => setMotif(e.target.value as AbsenceMotif)}
+            onChange={(e) => setMotif(e.target.value)}
+            placeholder="Ex : Congés, Formation, RDV personnel..."
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          >
-            <option value="" disabled>
-              Sélectionner un motif
-            </option>
-            {MOTIFS.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
+          />
+          <datalist id="motif-suggestions">
+            {MOTIF_SUGGESTIONS.map((m) => (
+              <option key={m} value={m} />
             ))}
-          </select>
+          </datalist>
         </div>
 
         <div>
@@ -133,7 +134,7 @@ export function AbsenceModal({
           if (!canSave) return;
           onSave({
             id: absence?.id ?? `abs-${Date.now()}`,
-            motif: motif as AbsenceMotif,
+            motif: motif.trim(),
             color,
             startDate,
             startTime,

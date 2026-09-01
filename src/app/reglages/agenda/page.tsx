@@ -64,6 +64,7 @@ export default function ReglagesAgendaPage() {
             activityTypes={activityTypes}
             onSave={upsertSpecialSlot}
             onDelete={deleteSpecialSlot}
+            onCreateType={addActivityType}
           />
           <AbsencesSection absencePeriods={absencePeriods} onSave={upsertAbsence} onDelete={deleteAbsence} />
         </div>

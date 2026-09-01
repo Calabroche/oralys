@@ -6,6 +6,7 @@ import { Modal, ModalActions } from "@/components/ui/Modal";
 import { ColorSwatchPicker } from "@/components/ui/ColorSwatchPicker";
 import { RecurrenceFields } from "./RecurrenceFields";
 import { firstUnusedColor } from "@/utils/colors";
+import { timeToMinutes } from "@/utils/date";
 
 export function CreneauSpecialModal({
   slot,
@@ -13,19 +14,24 @@ export function CreneauSpecialModal({
   usedColors,
   onClose,
   onSave,
+  onCreateType,
 }: {
   slot?: SpecialSlot;
   activityTypes: ActivityType[];
   usedColors: ActivityColor[];
   onClose: () => void;
   onSave: (slot: SpecialSlot) => void;
+  onCreateType: (type: ActivityType) => void;
 }) {
   const [startDate, setStartDate] = useState(slot?.startDate ?? "");
   const [endDate, setEndDate] = useState(slot?.endDate ?? "");
   const [allDay, setAllDay] = useState(slot?.allDay ?? false);
   const [start, setStart] = useState(slot?.start ?? "08:00");
   const [end, setEnd] = useState(slot?.end ?? "12:00");
-  const [activityTypeId, setActivityTypeId] = useState(slot?.activityTypeId ?? activityTypes[0]?.id ?? "");
+  const initialTypeName = slot
+    ? activityTypes.find((t) => t.id === slot.activityTypeId)?.name ?? ""
+    : activityTypes[0]?.name ?? "";
+  const [typeName, setTypeName] = useState(initialTypeName);
   const [color, setColor] = useState<ActivityColor>(() => slot?.color ?? firstUnusedColor(usedColors));
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(slot?.recurrence.frequency ?? "none");
@@ -34,7 +40,7 @@ export function CreneauSpecialModal({
   const [endsNever, setEndsNever] = useState(!slot?.recurrence.endDate);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(slot?.recurrence.endDate ?? "");
 
-  const canSave = startDate && endDate && (allDay || (start && end));
+  const canSave = startDate && endDate && typeName.trim().length > 0 && (allDay || (start && end));
 
   function applyAlternerRaccourci() {
     setFrequency("biweekly");
@@ -98,18 +104,22 @@ export function CreneauSpecialModal({
         )}
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Type d&apos;activité</label>
-          <select
-            value={activityTypeId}
-            onChange={(e) => setActivityTypeId(e.target.value)}
+          <label className="mb-1 block text-xs font-medium text-slate-600">
+            Type d&apos;activité
+            <span className="ml-1 font-normal text-slate-400">— choisissez-en un ou écrivez-en un nouveau</span>
+          </label>
+          <input
+            list="activity-type-suggestions"
+            value={typeName}
+            onChange={(e) => setTypeName(e.target.value)}
+            placeholder="Ex : Consultation, Urgences..."
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          >
+          />
+          <datalist id="activity-type-suggestions">
             {activityTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+              <option key={t.id} value={t.name} />
             ))}
-          </select>
+          </datalist>
         </div>
 
         <div>
@@ -138,11 +148,22 @@ export function CreneauSpecialModal({
         onCancel={onClose}
         onSave={() => {
           if (!canSave) return;
-          const type = activityTypes.find((t) => t.id === activityTypeId);
+          const trimmedTypeName = typeName.trim();
+          let type = activityTypes.find((t) => t.name.toLowerCase() === trimmedTypeName.toLowerCase());
+          if (!type) {
+            type = {
+              id: `type-${Date.now()}`,
+              name: trimmedTypeName,
+              description: trimmedTypeName,
+              color: firstUnusedColor(activityTypes.map((t) => t.color)),
+              durationMinutes: allDay ? 30 : Math.max(timeToMinutes(end) - timeToMinutes(start), 5),
+            };
+            onCreateType(type);
+          }
           onSave({
             id: slot?.id ?? `ss-${Date.now()}`,
-            activityTypeId,
-            label: type?.name ?? "Créneau",
+            activityTypeId: type.id,
+            label: type.name,
             color,
             startDate,
             endDate,
