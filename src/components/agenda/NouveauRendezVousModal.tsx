@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ActivityType, Appointment, Patient, Weekday, WeekSlot } from "@/types";
+import { ActivityType, Appointment, Patient, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { PRATICIEN_NAME } from "@/data/mockData";
 import {
@@ -24,6 +24,7 @@ interface Props {
   activityTypes: ActivityType[];
   patients: Patient[];
   weekSlots: WeekSlot[];
+  specialSlots: SpecialSlot[];
   appointments: Appointment[];
   onClose: () => void;
   onSave: (appointment: Appointment) => void;
@@ -34,6 +35,7 @@ export function NouveauRendezVousModal({
   activityTypes,
   patients,
   weekSlots,
+  specialSlots,
   appointments,
   onClose,
   onSave,
@@ -69,10 +71,10 @@ export function NouveauRendezVousModal({
   const availableStartsByDate = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const date of occurrenceDates) {
-      map.set(date, getAvailableStarts(weekday, date, activityTypeId ?? "", duration, weekSlots, appointments));
+      map.set(date, getAvailableStarts(weekday, date, activityTypeId ?? "", duration, weekSlots, specialSlots, appointments));
     }
     return map;
-  }, [occurrenceDates, weekday, activityTypeId, duration, weekSlots, appointments]);
+  }, [occurrenceDates, weekday, activityTypeId, duration, weekSlots, specialSlots, appointments]);
 
   const canSave = patientId && activityTypeId && selectedDate && selectedStart;
 

@@ -6,7 +6,7 @@ import { CalendarGrid } from "@/components/agenda/CalendarGrid";
 import { MonthView } from "@/components/agenda/MonthView";
 import { NouveauRendezVousModal } from "@/components/agenda/NouveauRendezVousModal";
 import { useAgendaData } from "@/context/AgendaDataContext";
-import { getPatient, patients } from "@/data/mockData";
+import { REFERENCE_TODAY, getPatient, patients } from "@/data/mockData";
 import {
   addDays,
   addMonths,
@@ -16,8 +16,6 @@ import {
   startOfMonth,
   startOfWeek,
 } from "@/utils/date";
-
-const REFERENCE_TODAY = new Date(2026, 8, 1, 10, 30); // 1 septembre 2026, 10h30
 
 export default function AgendaPage() {
   const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment } = useAgendaData();
@@ -103,6 +101,7 @@ export default function AgendaPage() {
           activityTypes={activityTypes}
           patients={patients}
           weekSlots={weekSlots}
+          specialSlots={specialSlots}
           appointments={appointments}
           onClose={() => setModalOpen(false)}
           onSave={(appointment) => {

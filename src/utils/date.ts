@@ -25,6 +25,15 @@ export function toWeekday(date: Date): Weekday | null {
   return JS_DAY_TO_WEEKDAY[date.getDay()];
 }
 
+/** Prochaine date (à partir de `from` inclus) correspondant au jour de semaine donné. */
+export function nextWeekdayOccurrence(from: Date, weekday: Weekday): Date {
+  const fromIndex = WEEKDAYS.indexOf(toWeekday(from) ?? "lundi");
+  const targetIndex = WEEKDAYS.indexOf(weekday);
+  let offset = targetIndex - fromIndex;
+  if (offset < 0) offset += 7;
+  return addDays(from, offset);
+}
+
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, "0");

@@ -21,7 +21,9 @@ interface Props {
   onEndsNeverChange: (endsNever: boolean) => void;
   recurrenceEndDate: string;
   onRecurrenceEndDateChange: (date: string) => void;
-  onAlternerRaccourci: () => void;
+  onAlternerRaccourci?: () => void;
+  /** Masque "Ne se répète pas" — utile quand l'entité est par nature récurrente (ex. semaine type). */
+  allowNone?: boolean;
 }
 
 export function RecurrenceFields({
@@ -36,25 +38,30 @@ export function RecurrenceFields({
   recurrenceEndDate,
   onRecurrenceEndDateChange,
   onAlternerRaccourci,
+  allowNone = true,
 }: Props) {
+  const options = allowNone ? FREQUENCY_OPTIONS : FREQUENCY_OPTIONS.filter((opt) => opt.value !== "none");
+
   return (
     <div className="border-t border-slate-100 pt-3">
       <div className="mb-1.5 flex items-center justify-between">
         <label className="block text-xs font-medium text-slate-600">Se répète</label>
-        <button
-          type="button"
-          onClick={onAlternerRaccourci}
-          className="text-xs font-medium text-sky-600 hover:text-sky-700"
-        >
-          Alterner avec ma semaine type
-        </button>
+        {onAlternerRaccourci && (
+          <button
+            type="button"
+            onClick={onAlternerRaccourci}
+            className="text-xs font-medium text-sky-600 hover:text-sky-700"
+          >
+            Alterner avec ma semaine type
+          </button>
+        )}
       </div>
       <select
         value={frequency}
         onChange={(e) => onFrequencyChange(e.target.value as RecurrenceFrequency)}
         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
       >
-        {FREQUENCY_OPTIONS.map((opt) => (
+        {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType, Weekday, WeekSlot } from "@/types";
+import { ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
-import { WEEKDAYS, WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes } from "@/utils/date";
-import { WeekSlotModal } from "./WeekSlotModal";
+import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
+import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
 import { getActivityType } from "@/data/mockData";
 
 const START_HOUR = 7;
@@ -12,26 +12,99 @@ const END_HOUR = 19;
 const HOUR_HEIGHT = 40; // px
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
 
-interface Props {
-  weekSlots: WeekSlot[];
-  activityTypes: ActivityType[];
-  onSave: (slot: WeekSlot) => void;
-  onDelete: (id: string) => void;
+interface DisplayBlock {
+  key: string;
+  editable: EditableSlot;
+  activityTypeId: string;
+  start: string;
+  end: string;
+  recurring: boolean;
 }
 
-export function SemaineTypeGrid({ weekSlots, activityTypes, onSave, onDelete }: Props) {
-  const [editing, setEditing] = useState<WeekSlot | { day: Weekday } | null>(null);
+interface Props {
+  weekSlots: WeekSlot[];
+  specialSlots: SpecialSlot[];
+  activityTypes: ActivityType[];
+  referenceDate: Date;
+  upsertWeekSlot: (slot: WeekSlot) => void;
+  deleteWeekSlot: (id: string) => void;
+  upsertSpecialSlot: (slot: SpecialSlot) => void;
+  deleteSpecialSlot: (id: string) => void;
+}
+
+export function SemaineTypeGrid({
+  weekSlots,
+  specialSlots,
+  activityTypes,
+  referenceDate,
+  upsertWeekSlot,
+  deleteWeekSlot,
+  upsertSpecialSlot,
+  deleteSpecialSlot,
+}: Props) {
+  const [editing, setEditing] = useState<EditableSlot | null>(null);
+
+  // Créneaux spéciaux récurrents et non "toute la journée" : ils représentent une
+  // activité programmée (ex. "Urgences toutes les 2 semaines"), pas une simple absence,
+  // donc ils apparaissent aussi dans l'aperçu de la Semaine type.
+  const recurringSpecials = specialSlots.filter((s) => !s.allDay && s.recurrence.frequency !== "none");
+
+  function blocksForDay(day: Weekday): DisplayBlock[] {
+    const fromWeek: DisplayBlock[] = weekSlots
+      .filter((s) => s.day === day)
+      .map((s) => ({
+        key: `week-${s.id}`,
+        activityTypeId: s.activityTypeId,
+        start: s.start,
+        end: s.end,
+        recurring: false,
+        editable: {
+          origin: "week",
+          id: s.id,
+          day: s.day,
+          activityTypeId: s.activityTypeId,
+          start: s.start,
+          end: s.end,
+          frequency: "weekly",
+          recurrenceEndDate: null,
+        },
+      }));
+
+    const fromSpecial: DisplayBlock[] = recurringSpecials
+      .filter((s) => toWeekday(fromISODate(s.startDate)) === day)
+      .map((s) => ({
+        key: `special-${s.id}`,
+        activityTypeId: s.activityTypeId,
+        start: s.start ?? "00:00",
+        end: s.end ?? "00:00",
+        recurring: true,
+        editable: {
+          origin: "special",
+          id: s.id,
+          day,
+          activityTypeId: s.activityTypeId,
+          start: s.start ?? "09:00",
+          end: s.end ?? "10:00",
+          frequency: s.recurrence.frequency,
+          customInterval: s.recurrence.customInterval,
+          customUnit: s.recurrence.customUnit,
+          recurrenceEndDate: s.recurrence.endDate,
+        },
+      }));
+
+    return [...fromWeek, ...fromSpecial];
+  }
 
   const dayTotalMinutes = (day: Weekday) =>
-    weekSlots
-      .filter((s) => s.day === day)
-      .reduce((sum, s) => sum + (timeToMinutes(s.end) - timeToMinutes(s.start)), 0);
+    blocksForDay(day).reduce((sum, b) => sum + (timeToMinutes(b.end) - timeToMinutes(b.start)), 0);
 
   return (
     <section id="semaine-type" className="scroll-mt-20">
       <div className="mb-3 flex items-center gap-1.5">
         <h2 className="text-sm font-semibold text-slate-900">Semaine type</h2>
-        <span className="text-slate-400" title="Grille appliquée chaque semaine">ⓘ</span>
+        <span className="text-slate-400" title="Grille appliquée chaque semaine. Les créneaux à récurrence non hebdomadaire (toutes les 2 semaines, mensuel, personnalisé) y apparaissent aussi, avec un badge 🔁.">
+          ⓘ
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -59,36 +132,49 @@ export function SemaineTypeGrid({ weekSlots, activityTypes, onSave, onDelete }: 
               key={day}
               className="relative border-l border-slate-200"
               style={{ height: HOUR_HEIGHT * HOURS.length }}
-              onDoubleClick={() => setEditing({ day })}
+              onDoubleClick={() =>
+                setEditing({
+                  day,
+                  activityTypeId: activityTypes[0]?.id ?? "",
+                  start: "09:00",
+                  end: "10:00",
+                  frequency: "weekly",
+                  recurrenceEndDate: null,
+                })
+              }
             >
               {HOURS.map((h) => (
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
 
-              {weekSlots
-                .filter((s) => s.day === day)
-                .map((slot) => {
-                  const type = getActivityType(slot.activityTypeId);
-                  const colors = ACTIVITY_COLOR_CLASSES[type.color];
-                  const top = ((timeToMinutes(slot.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                  const height = ((timeToMinutes(slot.end) - timeToMinutes(slot.start)) / 60) * HOUR_HEIGHT;
-                  return (
-                    <button
-                      key={slot.id}
-                      onClick={() => setEditing(slot)}
-                      style={{ top, height }}
-                      className={`absolute inset-x-1 rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text} hover:brightness-95`}
-                    >
-                      <p className="font-medium">{type.name}</p>
-                      <p className="opacity-80">
-                        {slot.start} - {slot.end}
-                      </p>
-                      {height > 32 && (
-                        <p className="opacity-60">⏱ {minutesToDurationLabel(timeToMinutes(slot.end) - timeToMinutes(slot.start))}</p>
-                      )}
-                    </button>
-                  );
-                })}
+              {blocksForDay(day).map((block) => {
+                const type = getActivityType(block.activityTypeId);
+                const colors = ACTIVITY_COLOR_CLASSES[type.color];
+                const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
+                return (
+                  <button
+                    key={block.key}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(block.editable);
+                    }}
+                    style={{ top, height }}
+                    className={`absolute inset-x-1 rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text} hover:brightness-95`}
+                  >
+                    <p className="flex items-center gap-1 font-medium">
+                      {type.name}
+                      {block.recurring && <span title="Récurrence non hebdomadaire">🔁</span>}
+                    </p>
+                    <p className="opacity-80">
+                      {block.start} - {block.end}
+                    </p>
+                    {height > 32 && (
+                      <p className="opacity-60">⏱ {minutesToDurationLabel(timeToMinutes(block.end) - timeToMinutes(block.start))}</p>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -97,17 +183,14 @@ export function SemaineTypeGrid({ weekSlots, activityTypes, onSave, onDelete }: 
 
       {editing && (
         <WeekSlotModal
-          slot={editing}
+          initial={editing}
           activityTypes={activityTypes}
+          referenceDate={referenceDate}
           onClose={() => setEditing(null)}
-          onSave={(slot) => {
-            onSave(slot);
-            setEditing(null);
-          }}
-          onDelete={(id) => {
-            onDelete(id);
-            setEditing(null);
-          }}
+          upsertWeekSlot={upsertWeekSlot}
+          deleteWeekSlot={deleteWeekSlot}
+          upsertSpecialSlot={upsertSpecialSlot}
+          deleteSpecialSlot={deleteSpecialSlot}
         />
       )}
     </section>

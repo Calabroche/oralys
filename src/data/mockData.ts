@@ -9,6 +9,7 @@ import {
 
 export const CABINET_NAME = "Cabinet Oralys";
 export const PRATICIEN_NAME = "Flore Perche";
+export const REFERENCE_TODAY = new Date(2026, 8, 1, 10, 30); // 1 septembre 2026, 10h30
 
 export const activityTypes: ActivityType[] = [
   {

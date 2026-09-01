@@ -6,6 +6,7 @@ import { SemaineTypeGrid } from "@/components/reglages/SemaineTypeGrid";
 import { CreneauxSpeciauxSection } from "@/components/reglages/CreneauxSpeciauxSection";
 import { AbsencesSection } from "@/components/reglages/AbsencesSection";
 import { useAgendaData } from "@/context/AgendaDataContext";
+import { REFERENCE_TODAY } from "@/data/mockData";
 
 export default function ReglagesAgendaPage() {
   const {
@@ -35,9 +36,13 @@ export default function ReglagesAgendaPage() {
           <TypesActiviteSection activityTypes={activityTypes} onAddType={addActivityType} />
           <SemaineTypeGrid
             weekSlots={weekSlots}
+            specialSlots={specialSlots}
             activityTypes={activityTypes}
-            onSave={upsertWeekSlot}
-            onDelete={deleteWeekSlot}
+            referenceDate={REFERENCE_TODAY}
+            upsertWeekSlot={upsertWeekSlot}
+            deleteWeekSlot={deleteWeekSlot}
+            upsertSpecialSlot={upsertSpecialSlot}
+            deleteSpecialSlot={deleteSpecialSlot}
           />
           <CreneauxSpeciauxSection
             specialSlots={specialSlots}

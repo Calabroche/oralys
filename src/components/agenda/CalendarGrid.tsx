@@ -135,11 +135,13 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
                   ((timeToMinutes(slot.end ?? "00:00") - timeToMinutes(slot.start ?? "00:00")) / 60) * HOUR_HEIGHT,
                   18
                 );
+                const type = activityTypes.find((t) => t.id === slot.activityTypeId);
+                const colors = type ? ACTIVITY_COLOR_CLASSES[type.color] : ACTIVITY_COLOR_CLASSES.gray;
                 return (
                   <div
                     key={slot.id}
                     style={{ top, height }}
-                    className="absolute inset-x-1 z-0 rounded-md border border-dashed border-slate-300 bg-slate-50 px-1.5 py-1 text-left text-[11px] leading-tight text-slate-400"
+                    className={`absolute inset-x-1 z-0 rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text}`}
                   >
                     {slot.label}
                     {recurrenceLabel}
