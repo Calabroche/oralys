@@ -37,7 +37,7 @@ export function NouveauTypeModal({
   const [duration, setDuration] = useState(30);
   const [color, setColor] = useState<ActivityColor>(() => firstUnusedColor(usedColors));
 
-  const [day, setDay] = useState<Weekday>("lundi");
+  const [days, setDays] = useState<Weekday[]>(["lundi"]);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
   const [frequency, setFrequency] = useState<RecurrenceFrequency>("weekly");
@@ -46,7 +46,16 @@ export function NouveauTypeModal({
   const [endsNever, setEndsNever] = useState(true);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
-  const canSave = name.trim().length > 0;
+  function toggleDay(d: Weekday) {
+    setDays((prev) => {
+      if (prev.includes(d)) {
+        return prev.length > 1 ? prev.filter((x) => x !== d) : prev;
+      }
+      return [...prev, d];
+    });
+  }
+
+  const canSave = name.trim().length > 0 && days.length > 0;
 
   return (
     <Modal title="Nouveau type d'activité" onClose={onClose}>
@@ -90,40 +99,49 @@ export function NouveauTypeModal({
 
         <div className="border-t border-slate-100 pt-3">
           <p className="mb-2 text-xs font-medium text-slate-600">Placer ce type dans la semaine type</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Jour</label>
-              <select
-                value={day}
-                onChange={(e) => setDay(e.target.value as Weekday)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-              >
-                {WEEKDAYS.map((d) => (
-                  <option key={d} value={d}>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              Jour(s)
+              <span className="ml-1 font-normal text-slate-400">— sélection multiple possible</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {WEEKDAYS.map((d) => {
+                const isSelected = days.includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(d)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                      isSelected
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
                     {WEEKDAY_LABELS[d]}
-                  </option>
-                ))}
-              </select>
+                  </button>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Début</label>
-                <input
-                  type="time"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Fin</label>
-                <input
-                  type="time"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-                />
-              </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Début</label>
+              <input
+                type="time"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600">Fin</label>
+              <input
+                type="time"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              />
             </div>
           </div>
         </div>
@@ -163,23 +181,27 @@ export function NouveauTypeModal({
             durationMinutes: duration,
           });
 
-          const result = buildSlotFromChoice(
-            {
-              day,
-              activityTypeId: id,
-              activityTypeName: trimmedName,
-              start,
-              end,
-              frequency,
-              customInterval,
-              customUnit,
-              endsNever,
-              recurrenceEndDate,
-            },
-            referenceDate
-          );
-          if (result.kind === "week") upsertWeekSlot(result.slot);
-          else upsertSpecialSlot(result.slot);
+          const savedAt = Date.now();
+          days.forEach((day) => {
+            const result = buildSlotFromChoice(
+              {
+                day,
+                activityTypeId: id,
+                activityTypeName: trimmedName,
+                start,
+                end,
+                frequency,
+                customInterval,
+                customUnit,
+                endsNever,
+                recurrenceEndDate,
+              },
+              referenceDate,
+              `slot-${savedAt}-${day}`
+            );
+            if (result.kind === "week") upsertWeekSlot(result.slot);
+            else upsertSpecialSlot(result.slot);
+          });
         }}
       />
     </Modal>
