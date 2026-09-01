@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AbsencePeriod, ActivityType, Appointment, Patient, SpecialSlot } from "@/types";
+import { AbsencePeriod, ActivityType, Appointment, Patient, SpecialSlot, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes, toISODate, toWeekday } from "@/utils/date";
 import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
@@ -16,12 +16,13 @@ interface Props {
   now: Date;
   appointments: Appointment[];
   activityTypes: ActivityType[];
+  weekSlots: WeekSlot[];
   specialSlots: SpecialSlot[];
   absencePeriods: AbsencePeriod[];
   getPatient: (id: string) => Patient;
 }
 
-export function CalendarGrid({ days, now, appointments, activityTypes, specialSlots, absencePeriods, getPatient }: Props) {
+export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots, specialSlots, absencePeriods, getPatient }: Props) {
   const [openAppointmentId, setOpenAppointmentId] = useState<string | null>(null);
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -82,6 +83,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
         {days.map((day) => {
           const dateIso = toISODate(day);
           const dayAppointments = appointments.filter((a) => a.date === dateIso);
+          const dayAvailability = weekSlots.filter((slot) => slot.day === toWeekday(day));
           const blockingSlots = specialSlots.filter((slot) => expandRecurrence(slot, day, day).length > 0);
           const blockingAbsences = absencePeriods.filter((absence) => expandRecurrence(absence, day, day).length > 0);
           return (
@@ -89,6 +91,15 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
               {HOURS.map((h) => (
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
+
+              {dayAvailability.map((slot) => {
+                const type = activityTypes.find((t) => t.id === slot.activityTypeId);
+                if (!type) return null;
+                const colors = ACTIVITY_COLOR_CLASSES[type.color];
+                const top = ((timeToMinutes(slot.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                const height = ((timeToMinutes(slot.end) - timeToMinutes(slot.start)) / 60) * HOUR_HEIGHT;
+                return <div key={slot.id} className={`absolute inset-x-0 ${colors.bg}`} style={{ top, height }} />;
+              })}
 
               {blockingAbsences.map((absence) => {
                 const recurrenceLabel = describeRecurrence(absence.recurrence);

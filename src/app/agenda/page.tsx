@@ -89,6 +89,7 @@ export default function AgendaPage() {
             now={REFERENCE_TODAY}
             appointments={appointments}
             activityTypes={activityTypes}
+            weekSlots={weekSlots}
             specialSlots={specialSlots}
             absencePeriods={absencePeriods}
             getPatient={getPatient}
