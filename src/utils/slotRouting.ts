@@ -1,10 +1,11 @@
-import { RecurrenceFrequency, RecurrenceUnit, SpecialSlot, Weekday, WeekSlot } from "@/types";
+import { ActivityColor, RecurrenceFrequency, RecurrenceUnit, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { nextWeekdayOccurrence, toISODate } from "@/utils/date";
 
 export interface RecurrenceChoice {
   day: Weekday;
   activityTypeId: string;
   activityTypeName: string;
+  activityColor: ActivityColor;
   start: string;
   end: string;
   frequency: RecurrenceFrequency;
@@ -47,6 +48,7 @@ export function buildSlotFromChoice(
       id: existingId ?? `ss-${Date.now()}`,
       activityTypeId: choice.activityTypeId,
       label: choice.activityTypeName,
+      color: choice.activityColor,
       startDate: anchor,
       endDate: anchor,
       allDay: false,

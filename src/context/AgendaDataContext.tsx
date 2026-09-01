@@ -23,6 +23,7 @@ interface PersistedData {
 interface AgendaDataContextValue extends PersistedData {
   addActivityType: (type: ActivityType) => void;
   updateActivityType: (type: ActivityType) => void;
+  deleteActivityType: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   deleteWeekSlot: (id: string) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
@@ -90,6 +91,12 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     appointments,
     addActivityType: (type) => setActivityTypes((prev) => [...prev, type]),
     updateActivityType: (type) => setActivityTypes((prev) => upsertById(prev, type)),
+    deleteActivityType: (id) => {
+      setActivityTypes((prev) => prev.filter((t) => t.id !== id));
+      // Nettoie les créneaux qui référençaient ce type, pour éviter des créneaux fantômes.
+      setWeekSlots((prev) => prev.filter((s) => s.activityTypeId !== id));
+      setSpecialSlots((prev) => prev.filter((s) => s.activityTypeId !== id));
+    },
     upsertWeekSlot: (slot) => setWeekSlots((prev) => upsertById(prev, slot)),
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
     upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),

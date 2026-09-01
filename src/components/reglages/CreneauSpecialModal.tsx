@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType, RecurrenceFrequency, RecurrenceUnit, SpecialSlot } from "@/types";
+import { ActivityColor, ActivityType, RecurrenceFrequency, RecurrenceUnit, SpecialSlot } from "@/types";
 import { Modal, ModalActions } from "@/components/ui/Modal";
+import { ColorSwatchPicker } from "@/components/ui/ColorSwatchPicker";
 import { RecurrenceFields } from "./RecurrenceFields";
+import { firstUnusedColor } from "@/utils/colors";
 
 export function CreneauSpecialModal({
   slot,
   activityTypes,
+  usedColors,
   onClose,
   onSave,
 }: {
   slot?: SpecialSlot;
   activityTypes: ActivityType[];
+  usedColors: ActivityColor[];
   onClose: () => void;
   onSave: (slot: SpecialSlot) => void;
 }) {
@@ -22,6 +26,7 @@ export function CreneauSpecialModal({
   const [start, setStart] = useState(slot?.start ?? "08:00");
   const [end, setEnd] = useState(slot?.end ?? "12:00");
   const [activityTypeId, setActivityTypeId] = useState(slot?.activityTypeId ?? activityTypes[0]?.id ?? "");
+  const [color, setColor] = useState<ActivityColor>(() => slot?.color ?? firstUnusedColor(usedColors));
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(slot?.recurrence.frequency ?? "none");
   const [customInterval, setCustomInterval] = useState(slot?.recurrence.customInterval ?? 2);
@@ -107,6 +112,14 @@ export function CreneauSpecialModal({
           </select>
         </div>
 
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">
+            Couleur
+            <span className="ml-1 font-normal text-slate-400">— les couleurs déjà utilisées sont marquées !</span>
+          </label>
+          <ColorSwatchPicker value={color} onChange={setColor} usedColors={usedColors} />
+        </div>
+
         <RecurrenceFields
           frequency={frequency}
           onFrequencyChange={setFrequency}
@@ -130,6 +143,7 @@ export function CreneauSpecialModal({
             id: slot?.id ?? `ss-${Date.now()}`,
             activityTypeId,
             label: type?.name ?? "Créneau",
+            color,
             startDate,
             endDate,
             allDay,

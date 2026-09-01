@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
+import { ActivityColor, ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
 import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
@@ -15,6 +15,7 @@ interface DisplayBlock {
   key: string;
   editable: EditableSlot;
   activityTypeId: string;
+  color: ActivityColor;
   start: string;
   end: string;
   recurring: boolean;
@@ -54,6 +55,7 @@ export function SemaineTypeGrid({
       .map((s) => ({
         key: `week-${s.id}`,
         activityTypeId: s.activityTypeId,
+        color: activityTypes.find((t) => t.id === s.activityTypeId)?.color ?? "gray",
         start: s.start,
         end: s.end,
         recurring: false,
@@ -74,6 +76,7 @@ export function SemaineTypeGrid({
       .map((s) => ({
         key: `special-${s.id}`,
         activityTypeId: s.activityTypeId,
+        color: s.color,
         start: s.start ?? "00:00",
         end: s.end ?? "00:00",
         recurring: true,
@@ -149,7 +152,7 @@ export function SemaineTypeGrid({
               {blocksForDay(day).map((block) => {
                 const type = activityTypes.find((t) => t.id === block.activityTypeId);
                 if (!type) return null;
-                const colors = ACTIVITY_COLOR_CLASSES[type.color];
+                const colors = ACTIVITY_COLOR_CLASSES[block.color];
                 const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
                 const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
                 return (

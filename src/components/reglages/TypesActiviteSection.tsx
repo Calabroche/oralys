@@ -11,6 +11,7 @@ interface Props {
   referenceDate: Date;
   onAddType: (type: ActivityType) => void;
   onUpdateType: (type: ActivityType) => void;
+  onDeleteType: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
 }
@@ -20,6 +21,7 @@ export function TypesActiviteSection({
   referenceDate,
   onAddType,
   onUpdateType,
+  onDeleteType,
   upsertWeekSlot,
   upsertSpecialSlot,
 }: Props) {
@@ -89,6 +91,10 @@ export function TypesActiviteSection({
           onSave={(type) => {
             if (modalState === "new") onAddType(type);
             else onUpdateType(type);
+            setModalState(null);
+          }}
+          onDelete={(id) => {
+            onDeleteType(id);
             setModalState(null);
           }}
           upsertWeekSlot={upsertWeekSlot}

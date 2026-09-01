@@ -16,6 +16,7 @@ export default function ReglagesAgendaPage() {
     absencePeriods,
     addActivityType,
     updateActivityType,
+    deleteActivityType,
     upsertWeekSlot,
     deleteWeekSlot,
     upsertSpecialSlot,
@@ -39,6 +40,7 @@ export default function ReglagesAgendaPage() {
             referenceDate={REFERENCE_TODAY}
             onAddType={addActivityType}
             onUpdateType={updateActivityType}
+            onDeleteType={deleteActivityType}
             upsertWeekSlot={upsertWeekSlot}
             upsertSpecialSlot={upsertSpecialSlot}
           />

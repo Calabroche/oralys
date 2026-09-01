@@ -73,6 +73,7 @@ export function WeekSlotModal({
         day,
         activityTypeId,
         activityTypeName: activityType?.name ?? "Créneau",
+        activityColor: activityType?.color ?? "gray",
         start,
         end,
         frequency,

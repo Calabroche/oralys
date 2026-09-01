@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ActivityType, SpecialSlot } from "@/types";
+import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { formatShortDate } from "@/utils/date";
 import { describeRecurrence } from "@/utils/recurrence";
 import { CreneauSpecialModal } from "./CreneauSpecialModal";
@@ -32,6 +33,7 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, o
             className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
           >
             <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${ACTIVITY_COLOR_CLASSES[slot.color].dot}`} />
               <span className="font-medium text-slate-800">{slot.label}</span>
               <span className="text-slate-400">
                 {formatShortDate(slot.startDate)}
@@ -79,6 +81,7 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, o
         <CreneauSpecialModal
           slot={modalState === "new" ? undefined : modalState}
           activityTypes={activityTypes}
+          usedColors={specialSlots.map((s) => s.color)}
           onClose={() => setModalState(null)}
           onSave={(slot) => {
             onSave(slot);

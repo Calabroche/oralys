@@ -48,6 +48,7 @@ export interface SpecialSlot {
   id: string;
   activityTypeId: string;
   label: string; // ex: "Indisponible", ou nom du type d'activité
+  color: ActivityColor;
   startDate: string; // ISO date "2026-06-15"
   endDate: string; // ISO date, ponctuel = startDate === endDate
   allDay: boolean;

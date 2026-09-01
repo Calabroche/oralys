@@ -23,6 +23,7 @@ export function ActivityTypeModal({
   referenceDate,
   onClose,
   onSave,
+  onDelete,
   upsertWeekSlot,
   upsertSpecialSlot,
 }: {
@@ -31,6 +32,7 @@ export function ActivityTypeModal({
   referenceDate: Date;
   onClose: () => void;
   onSave: (type: ActivityType) => void;
+  onDelete?: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
 }) {
@@ -179,7 +181,20 @@ export function ActivityTypeModal({
           </>
         )}
       </div>
-      <ModalActions
+      <div className="mt-5 flex items-center justify-between">
+        {isEditing && existing && onDelete ? (
+          <button
+            onClick={() => {
+              if (window.confirm(`Supprimer le type "${existing.name}" ?`)) onDelete(existing.id);
+            }}
+            className="text-sm font-medium text-rose-600 hover:text-rose-700"
+          >
+            Supprimer
+          </button>
+        ) : (
+          <span />
+        )}
+        <ModalActions
         onCancel={onClose}
         onSave={() => {
           if (!canSave) return;
@@ -213,6 +228,7 @@ export function ActivityTypeModal({
                 day,
                 activityTypeId: id,
                 activityTypeName: trimmedName,
+                activityColor: color,
                 start,
                 end,
                 frequency,
@@ -228,7 +244,8 @@ export function ActivityTypeModal({
             else upsertSpecialSlot(result.slot);
           });
         }}
-      />
+        />
+      </div>
     </Modal>
   );
 }

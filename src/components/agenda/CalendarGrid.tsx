@@ -118,11 +118,12 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
 
               {blockingSlots.map((slot) => {
                 const recurrenceLabel = slot.recurrence.frequency !== "none" ? " 🔁" : "";
+                const colors = ACTIVITY_COLOR_CLASSES[slot.color];
                 if (slot.allDay) {
                   return (
                     <div
                       key={slot.id}
-                      className="absolute inset-x-0 top-0 z-0 flex items-start justify-center border-b border-slate-200 bg-slate-50 px-1 pt-2 text-center text-[11px] text-slate-400"
+                      className={`absolute inset-x-0 top-0 z-0 flex items-start justify-center border-b ${colors.border} ${colors.bg} px-1 pt-2 text-center text-[11px] ${colors.text}`}
                       style={{ height: HOUR_HEIGHT * HOURS.length }}
                     >
                       {slot.label}
@@ -135,8 +136,6 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
                   ((timeToMinutes(slot.end ?? "00:00") - timeToMinutes(slot.start ?? "00:00")) / 60) * HOUR_HEIGHT,
                   18
                 );
-                const type = activityTypes.find((t) => t.id === slot.activityTypeId);
-                const colors = type ? ACTIVITY_COLOR_CLASSES[type.color] : ACTIVITY_COLOR_CLASSES.gray;
                 return (
                   <div
                     key={slot.id}
