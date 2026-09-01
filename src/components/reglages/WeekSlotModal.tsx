@@ -11,7 +11,8 @@ import {
 } from "@/types";
 import { Modal, ModalActions } from "@/components/ui/Modal";
 import { RecurrenceFields } from "./RecurrenceFields";
-import { WEEKDAYS, WEEKDAY_LABELS, nextWeekdayOccurrence, toISODate } from "@/utils/date";
+import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
+import { buildSlotFromChoice } from "@/utils/slotRouting";
 
 export interface EditableSlot {
   origin?: "week" | "special";
@@ -67,35 +68,28 @@ export function WeekSlotModal({
   }
 
   function handleSave() {
-    const isPermanentWeekly = frequency === "weekly" && endsNever;
-
-    if (isPermanentWeekly) {
-      upsertWeekSlot({
-        id: initial.origin === "week" && initial.id ? initial.id : `ws-${Date.now()}`,
+    const result = buildSlotFromChoice(
+      {
         day,
         activityTypeId,
+        activityTypeName: activityType?.name ?? "Créneau",
         start,
         end,
-      });
+        frequency,
+        customInterval,
+        customUnit,
+        endsNever,
+        recurrenceEndDate,
+      },
+      referenceDate,
+      initial.id
+    );
+
+    if (result.kind === "week") {
+      upsertWeekSlot(result.slot);
       if (initial.origin === "special" && initial.id) deleteSpecialSlot(initial.id);
     } else {
-      const anchor = toISODate(nextWeekdayOccurrence(referenceDate, day));
-      upsertSpecialSlot({
-        id: initial.origin === "special" && initial.id ? initial.id : `ss-${Date.now()}`,
-        activityTypeId,
-        label: activityType?.name ?? "Créneau",
-        startDate: anchor,
-        endDate: anchor,
-        allDay: false,
-        start,
-        end,
-        recurrence: {
-          frequency,
-          customInterval: frequency === "custom" ? customInterval : undefined,
-          customUnit: frequency === "custom" ? customUnit : undefined,
-          endDate: endsNever ? null : recurrenceEndDate || null,
-        },
-      });
+      upsertSpecialSlot(result.slot);
       if (initial.origin === "week" && initial.id) deleteWeekSlot(initial.id);
     }
     onClose();

@@ -1,17 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType } from "@/types";
+import { ActivityType, SpecialSlot, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { minutesToDurationLabel } from "@/utils/date";
 import { NouveauTypeModal } from "./NouveauTypeModal";
 
 interface Props {
   activityTypes: ActivityType[];
+  referenceDate: Date;
   onAddType: (type: ActivityType) => void;
+  upsertWeekSlot: (slot: WeekSlot) => void;
+  upsertSpecialSlot: (slot: SpecialSlot) => void;
 }
 
-export function TypesActiviteSection({ activityTypes, onAddType }: Props) {
+export function TypesActiviteSection({
+  activityTypes,
+  referenceDate,
+  onAddType,
+  upsertWeekSlot,
+  upsertSpecialSlot,
+}: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const tousMotifs = activityTypes.find((t) => t.id === "tous-motifs");
   const others = activityTypes.filter((t) => t.id !== "tous-motifs");
@@ -63,11 +72,14 @@ export function TypesActiviteSection({ activityTypes, onAddType }: Props) {
       {modalOpen && (
         <NouveauTypeModal
           usedColors={activityTypes.map((t) => t.color)}
+          referenceDate={referenceDate}
           onClose={() => setModalOpen(false)}
           onSave={(type) => {
             onAddType(type);
             setModalOpen(false);
           }}
+          upsertWeekSlot={upsertWeekSlot}
+          upsertSpecialSlot={upsertSpecialSlot}
         />
       )}
     </section>

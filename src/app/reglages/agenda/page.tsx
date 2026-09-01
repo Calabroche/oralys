@@ -33,7 +33,13 @@ export default function ReglagesAgendaPage() {
         </p>
 
         <div className="mt-6 space-y-8">
-          <TypesActiviteSection activityTypes={activityTypes} onAddType={addActivityType} />
+          <TypesActiviteSection
+            activityTypes={activityTypes}
+            referenceDate={REFERENCE_TODAY}
+            onAddType={addActivityType}
+            upsertWeekSlot={upsertWeekSlot}
+            upsertSpecialSlot={upsertSpecialSlot}
+          />
           <SemaineTypeGrid
             weekSlots={weekSlots}
             specialSlots={specialSlots}

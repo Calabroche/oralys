@@ -5,7 +5,6 @@ import { ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
 import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
-import { getActivityType } from "@/data/mockData";
 
 const START_HOUR = 7;
 const END_HOUR = 19;
@@ -148,7 +147,8 @@ export function SemaineTypeGrid({
               ))}
 
               {blocksForDay(day).map((block) => {
-                const type = getActivityType(block.activityTypeId);
+                const type = activityTypes.find((t) => t.id === block.activityTypeId);
+                if (!type) return null;
                 const colors = ACTIVITY_COLOR_CLASSES[type.color];
                 const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
                 const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
