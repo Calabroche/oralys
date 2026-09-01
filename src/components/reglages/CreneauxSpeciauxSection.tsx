@@ -10,9 +10,10 @@ interface Props {
   specialSlots: SpecialSlot[];
   activityTypes: ActivityType[];
   onSave: (slot: SpecialSlot) => void;
+  onDelete: (id: string) => void;
 }
 
-export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave }: Props) {
+export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave, onDelete }: Props) {
   const [modalState, setModalState] = useState<null | "new" | SpecialSlot>(null);
 
   return (
@@ -44,13 +45,24 @@ export function CreneauxSpeciauxSection({ specialSlots, activityTypes, onSave }:
                 </span>
               )}
             </div>
-            <button
-              onClick={() => setModalState(slot)}
-              className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Modifier"
-            >
-              ✎
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setModalState(slot)}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Modifier"
+              >
+                ✎
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm("Supprimer ce créneau spécial ?")) onDelete(slot.id);
+                }}
+                className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                aria-label="Supprimer"
+              >
+                🗑
+              </button>
+            </div>
           </div>
           );
         })}

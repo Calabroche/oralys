@@ -102,6 +102,7 @@ export const absencePeriods: AbsencePeriod[] = [
     startTime: "00:00",
     endDate: "2026-08-15",
     endTime: "23:59",
+    recurrence: { frequency: "none" },
   },
 ];
 

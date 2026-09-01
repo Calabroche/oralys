@@ -1,9 +1,15 @@
-import { Recurrence, SpecialSlot } from "@/types";
+import { Recurrence } from "@/types";
 import { addDays, addMonths, addWeeks, fromISODate, toISODate } from "@/utils/date";
 
 export interface RecurrenceOccurrence {
   startDate: string;
   endDate: string;
+}
+
+export interface RecurringDateRange {
+  startDate: string;
+  endDate: string;
+  recurrence: Recurrence;
 }
 
 const MAX_OCCURRENCES = 104; // garde-fou (~2 ans en hebdomadaire)
@@ -34,7 +40,7 @@ function nextOccurrenceStart(current: Date, recurrence: Recurrence): Date {
  * la plage [rangeStart, rangeEnd]. Chaque occurrence conserve la durée
  * (en jours) du créneau d'origine.
  */
-export function expandRecurrence(slot: SpecialSlot, rangeStart: Date, rangeEnd: Date): RecurrenceOccurrence[] {
+export function expandRecurrence(slot: RecurringDateRange, rangeStart: Date, rangeEnd: Date): RecurrenceOccurrence[] {
   const baseStart = fromISODate(slot.startDate);
   const baseEnd = fromISODate(slot.endDate);
   const spanDays = Math.round((baseEnd.getTime() - baseStart.getTime()) / 86400000);

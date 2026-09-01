@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ActivityType, Appointment, Patient, SpecialSlot } from "@/types";
+import { AbsencePeriod, ActivityType, Appointment, Patient, SpecialSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes, toISODate, toWeekday } from "@/utils/date";
-import { expandRecurrence } from "@/utils/recurrence";
+import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 
 const START_HOUR = 7;
 const END_HOUR = 19;
@@ -17,10 +17,11 @@ interface Props {
   appointments: Appointment[];
   activityTypes: ActivityType[];
   specialSlots: SpecialSlot[];
+  absencePeriods: AbsencePeriod[];
   getPatient: (id: string) => Patient;
 }
 
-export function CalendarGrid({ days, now, appointments, activityTypes, specialSlots, getPatient }: Props) {
+export function CalendarGrid({ days, now, appointments, activityTypes, specialSlots, absencePeriods, getPatient }: Props) {
   const [openAppointmentId, setOpenAppointmentId] = useState<string | null>(null);
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -36,6 +37,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
           const blockingAllDay = specialSlots.some(
             (slot) => slot.allDay && expandRecurrence(slot, day, day).length > 0
           );
+          const dayAbsences = absencePeriods.filter((absence) => expandRecurrence(absence, day, day).length > 0);
           return (
             <div key={day.toISOString()} className="border-l border-slate-200 px-2 py-2 text-xs text-slate-500">
               <p className={isToday ? "font-semibold text-sky-600" : "font-medium text-slate-700"}>
@@ -44,6 +46,11 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
               {blockingAllDay && (
                 <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">🔁 Indisponible</p>
               )}
+              {dayAbsences.map((absence) => (
+                <p key={absence.id} className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-600">
+                  🏖 {absence.motif}
+                </p>
+              ))}
             </div>
           );
         })}
@@ -62,11 +69,26 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
           const dateIso = toISODate(day);
           const dayAppointments = appointments.filter((a) => a.date === dateIso);
           const blockingSlots = specialSlots.filter((slot) => expandRecurrence(slot, day, day).length > 0);
+          const blockingAbsences = absencePeriods.filter((absence) => expandRecurrence(absence, day, day).length > 0);
           return (
             <div key={dateIso} className="relative border-l border-slate-200" style={{ height: HOUR_HEIGHT * HOURS.length }}>
               {HOURS.map((h) => (
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
+
+              {blockingAbsences.map((absence) => {
+                const recurrenceLabel = describeRecurrence(absence.recurrence);
+                return (
+                  <div
+                    key={absence.id}
+                    className="absolute inset-x-0 top-0 z-0 flex flex-col items-center justify-start gap-0.5 border-b border-amber-200 bg-amber-50 px-1 pt-2 text-center text-[11px] text-amber-700"
+                    style={{ height: HOUR_HEIGHT * HOURS.length }}
+                  >
+                    <span>🏖 {absence.motif}</span>
+                    {recurrenceLabel && <span className="text-[10px] text-amber-500">🔁 {recurrenceLabel}</span>}
+                  </div>
+                );
+              })}
 
               {blockingSlots.map((slot) => {
                 const recurrenceLabel = slot.recurrence.frequency !== "none" ? " 🔁" : "";

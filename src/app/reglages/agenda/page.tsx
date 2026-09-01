@@ -1,45 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { SidebarReglages } from "@/components/reglages/SidebarReglages";
 import { TypesActiviteSection } from "@/components/reglages/TypesActiviteSection";
 import { SemaineTypeGrid } from "@/components/reglages/SemaineTypeGrid";
 import { CreneauxSpeciauxSection } from "@/components/reglages/CreneauxSpeciauxSection";
 import { AbsencesSection } from "@/components/reglages/AbsencesSection";
-import {
-  activityTypes as initialActivityTypes,
-  weekSlots as initialWeekSlots,
-  specialSlots as initialSpecialSlots,
-  absencePeriods as initialAbsencePeriods,
-} from "@/data/mockData";
-import { ActivityType, AbsencePeriod, SpecialSlot, WeekSlot } from "@/types";
+import { useAgendaData } from "@/context/AgendaDataContext";
 
 export default function ReglagesAgendaPage() {
-  const [activityTypes, setActivityTypes] = useState<ActivityType[]>(initialActivityTypes);
-  const [weekSlots, setWeekSlots] = useState<WeekSlot[]>(initialWeekSlots);
-  const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>(initialSpecialSlots);
-  const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>(initialAbsencePeriods);
-
-  function upsertWeekSlot(slot: WeekSlot) {
-    setWeekSlots((prev) => {
-      const exists = prev.some((s) => s.id === slot.id);
-      return exists ? prev.map((s) => (s.id === slot.id ? slot : s)) : [...prev, slot];
-    });
-  }
-
-  function upsertSpecialSlot(slot: SpecialSlot) {
-    setSpecialSlots((prev) => {
-      const exists = prev.some((s) => s.id === slot.id);
-      return exists ? prev.map((s) => (s.id === slot.id ? slot : s)) : [...prev, slot];
-    });
-  }
-
-  function upsertAbsence(absence: AbsencePeriod) {
-    setAbsencePeriods((prev) => {
-      const exists = prev.some((a) => a.id === absence.id);
-      return exists ? prev.map((a) => (a.id === absence.id ? absence : a)) : [...prev, absence];
-    });
-  }
+  const {
+    activityTypes,
+    weekSlots,
+    specialSlots,
+    absencePeriods,
+    addActivityType,
+    upsertWeekSlot,
+    deleteWeekSlot,
+    upsertSpecialSlot,
+    deleteSpecialSlot,
+    upsertAbsence,
+    deleteAbsence,
+  } = useAgendaData();
 
   return (
     <div className="flex">
@@ -51,22 +32,20 @@ export default function ReglagesAgendaPage() {
         </p>
 
         <div className="mt-6 space-y-8">
-          <TypesActiviteSection
-            activityTypes={activityTypes}
-            onAddType={(type) => setActivityTypes((prev) => [...prev, type])}
-          />
+          <TypesActiviteSection activityTypes={activityTypes} onAddType={addActivityType} />
           <SemaineTypeGrid
             weekSlots={weekSlots}
             activityTypes={activityTypes}
             onSave={upsertWeekSlot}
-            onDelete={(id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id))}
+            onDelete={deleteWeekSlot}
           />
           <CreneauxSpeciauxSection
             specialSlots={specialSlots}
             activityTypes={activityTypes}
             onSave={upsertSpecialSlot}
+            onDelete={deleteSpecialSlot}
           />
-          <AbsencesSection absencePeriods={absencePeriods} onSave={upsertAbsence} />
+          <AbsencesSection absencePeriods={absencePeriods} onSave={upsertAbsence} onDelete={deleteAbsence} />
         </div>
       </div>
     </div>

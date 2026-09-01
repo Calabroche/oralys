@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AbsenceMotif, AbsencePeriod } from "@/types";
+import { AbsenceMotif, AbsencePeriod, RecurrenceFrequency, RecurrenceUnit } from "@/types";
 import { Modal, ModalActions } from "@/components/ui/Modal";
+import { RecurrenceFields } from "./RecurrenceFields";
 
 const MOTIFS: AbsenceMotif[] = ["Congés", "Formation", "Maladie", "Fermeture cabinet", "Autre"];
 
@@ -21,7 +22,19 @@ export function AbsenceModal({
   const [endTime, setEndTime] = useState(absence?.endTime ?? "23:59");
   const [motif, setMotif] = useState<AbsenceMotif | "">(absence?.motif ?? "");
 
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>(absence?.recurrence.frequency ?? "none");
+  const [customInterval, setCustomInterval] = useState(absence?.recurrence.customInterval ?? 2);
+  const [customUnit, setCustomUnit] = useState<RecurrenceUnit>(absence?.recurrence.customUnit ?? "weeks");
+  const [endsNever, setEndsNever] = useState(!absence?.recurrence.endDate);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(absence?.recurrence.endDate ?? "");
+
   const canSave = startDate && endDate && motif;
+
+  function applyAlternerRaccourci() {
+    setFrequency("biweekly");
+    setEndsNever(true);
+    if (!endDate) setEndDate(startDate);
+  }
 
   return (
     <Modal title="Ajouter une période d'absence" onClose={onClose}>
@@ -32,7 +45,10 @@ export function AbsenceModal({
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (!endDate) setEndDate(e.target.value);
+              }}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </div>
@@ -83,6 +99,20 @@ export function AbsenceModal({
             ))}
           </select>
         </div>
+
+        <RecurrenceFields
+          frequency={frequency}
+          onFrequencyChange={setFrequency}
+          customInterval={customInterval}
+          onCustomIntervalChange={setCustomInterval}
+          customUnit={customUnit}
+          onCustomUnitChange={setCustomUnit}
+          endsNever={endsNever}
+          onEndsNeverChange={setEndsNever}
+          recurrenceEndDate={recurrenceEndDate}
+          onRecurrenceEndDateChange={setRecurrenceEndDate}
+          onAlternerRaccourci={applyAlternerRaccourci}
+        />
       </div>
       <ModalActions
         onCancel={onClose}
@@ -95,6 +125,12 @@ export function AbsenceModal({
             startTime,
             endDate,
             endTime,
+            recurrence: {
+              frequency,
+              customInterval: frequency === "custom" ? customInterval : undefined,
+              customUnit: frequency === "custom" ? customUnit : undefined,
+              endDate: frequency === "none" || endsNever ? null : recurrenceEndDate || null,
+            },
           });
         }}
       />

@@ -1,6 +1,6 @@
 "use client";
 
-import { ActivityType, Appointment, SpecialSlot } from "@/types";
+import { AbsencePeriod, ActivityType, Appointment, SpecialSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { addDays, startOfMonth, startOfWeek, toISODate } from "@/utils/date";
 import { expandRecurrence } from "@/utils/recurrence";
@@ -13,10 +13,11 @@ interface Props {
   appointments: Appointment[];
   activityTypes: ActivityType[];
   specialSlots: SpecialSlot[];
+  absencePeriods: AbsencePeriod[];
   onSelectDay: (date: Date) => void;
 }
 
-export function MonthView({ month, now, appointments, activityTypes, specialSlots, onSelectDay }: Props) {
+export function MonthView({ month, now, appointments, activityTypes, specialSlots, absencePeriods, onSelectDay }: Props) {
   const firstOfMonth = startOfMonth(month);
   const gridStart = startOfWeek(firstOfMonth);
   const weeks = Array.from({ length: 6 }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(gridStart, w * 7 + d)));
@@ -40,6 +41,7 @@ export function MonthView({ month, now, appointments, activityTypes, specialSlot
           const blockedAllDay = specialSlots.some(
             (slot) => slot.allDay && expandRecurrence(slot, day, day).length > 0
           );
+          const dayAbsences = absencePeriods.filter((absence) => expandRecurrence(absence, day, day).length > 0);
 
           return (
             <button
@@ -62,6 +64,11 @@ export function MonthView({ month, now, appointments, activityTypes, specialSlot
               </span>
 
               {blockedAllDay && <span className="text-[10px] text-slate-400">🔁 Indisponible</span>}
+              {dayAbsences.map((absence) => (
+                <span key={absence.id} className="text-[10px] text-amber-600">
+                  🏖 {absence.motif}
+                </span>
+              ))}
 
               <div className="flex flex-wrap gap-1">
                 {dayAppointments.slice(0, 4).map((apt) => {

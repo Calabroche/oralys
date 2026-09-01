@@ -5,15 +5,8 @@ import { AgendaToolbar, AgendaViewMode } from "@/components/agenda/AgendaToolbar
 import { CalendarGrid } from "@/components/agenda/CalendarGrid";
 import { MonthView } from "@/components/agenda/MonthView";
 import { NouveauRendezVousModal } from "@/components/agenda/NouveauRendezVousModal";
-import {
-  activityTypes,
-  appointments as initialAppointments,
-  getPatient,
-  patients,
-  specialSlots,
-  weekSlots,
-} from "@/data/mockData";
-import { Appointment } from "@/types";
+import { useAgendaData } from "@/context/AgendaDataContext";
+import { getPatient, patients } from "@/data/mockData";
 import {
   addDays,
   addMonths,
@@ -27,9 +20,9 @@ import {
 const REFERENCE_TODAY = new Date(2026, 8, 1, 10, 30); // 1 septembre 2026, 10h30
 
 export default function AgendaPage() {
+  const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment } = useAgendaData();
   const [viewMode, setViewMode] = useState<AgendaViewMode>("semaine");
   const [anchorDate, setAnchorDate] = useState(REFERENCE_TODAY);
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [modalOpen, setModalOpen] = useState(false);
 
   function handleToday() {
@@ -77,6 +70,7 @@ export default function AgendaPage() {
             appointments={appointments}
             activityTypes={activityTypes}
             specialSlots={specialSlots}
+            absencePeriods={absencePeriods}
             onSelectDay={(date) => {
               setAnchorDate(date);
               setViewMode("jour");
@@ -89,6 +83,7 @@ export default function AgendaPage() {
             appointments={appointments}
             activityTypes={activityTypes}
             specialSlots={specialSlots}
+            absencePeriods={absencePeriods}
             getPatient={getPatient}
           />
         )}
@@ -103,7 +98,7 @@ export default function AgendaPage() {
           appointments={appointments}
           onClose={() => setModalOpen(false)}
           onSave={(appointment) => {
-            setAppointments((prev) => [...prev, appointment]);
+            addAppointment(appointment);
             setModalOpen(false);
           }}
         />

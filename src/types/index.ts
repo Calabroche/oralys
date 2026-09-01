@@ -50,6 +50,7 @@ export interface AbsencePeriod {
   startTime: string;
   endDate: string;
   endTime: string;
+  recurrence: Recurrence;
 }
 
 export interface Patient {

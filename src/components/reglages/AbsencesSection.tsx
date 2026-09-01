@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { AbsencePeriod } from "@/types";
 import { diffInDays, formatShortDate } from "@/utils/date";
+import { describeRecurrence } from "@/utils/recurrence";
 import { AbsenceModal } from "./AbsenceModal";
 
 export function AbsencesSection({
   absencePeriods,
   onSave,
+  onDelete,
 }: {
   absencePeriods: AbsencePeriod[];
   onSave: (absence: AbsencePeriod) => void;
+  onDelete: (id: string) => void;
 }) {
   const [modalState, setModalState] = useState<null | "new" | AbsencePeriod>(null);
 
@@ -24,6 +27,7 @@ export function AbsencesSection({
       <div className="space-y-2">
         {absencePeriods.map((absence) => {
           const days = diffInDays(absence.startDate, absence.endDate);
+          const recurrenceLabel = describeRecurrence(absence.recurrence);
           return (
             <div
               key={absence.id}
@@ -37,14 +41,30 @@ export function AbsencesSection({
                 <span className="text-slate-400">
                   {days} jour{days > 1 ? "s" : ""}
                 </span>
+                {recurrenceLabel && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
+                    🔁 {recurrenceLabel}
+                  </span>
+                )}
               </div>
-              <button
-                onClick={() => setModalState(absence)}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Modifier"
-              >
-                ✎
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setModalState(absence)}
+                  className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Modifier"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Supprimer cette période d'absence ?")) onDelete(absence.id);
+                  }}
+                  className="rounded-md p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                  aria-label="Supprimer"
+                >
+                  🗑
+                </button>
+              </div>
             </div>
           );
         })}
