@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AbsencePeriod } from "@/types";
+import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { diffInDays, formatShortDate } from "@/utils/date";
 import { describeRecurrence } from "@/utils/recurrence";
 import { AbsenceModal } from "./AbsenceModal";
@@ -34,6 +35,7 @@ export function AbsencesSection({
               className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
             >
               <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${ACTIVITY_COLOR_CLASSES[absence.color].dot}`} />
                 <span className="font-medium text-slate-800">{absence.motif}</span>
                 <span className="text-slate-400">
                   {formatShortDate(absence.startDate)} → {formatShortDate(absence.endDate)}
@@ -80,6 +82,7 @@ export function AbsencesSection({
       {modalState && (
         <AbsenceModal
           absence={modalState === "new" ? undefined : modalState}
+          usedColors={absencePeriods.map((a) => a.color)}
           onClose={() => setModalState(null)}
           onSave={(absence) => {
             onSave(absence);

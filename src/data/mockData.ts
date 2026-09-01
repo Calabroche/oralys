@@ -98,6 +98,7 @@ export const absencePeriods: AbsencePeriod[] = [
   {
     id: "abs-1",
     motif: "Congés",
+    color: "orange",
     startDate: "2026-07-28",
     startTime: "00:00",
     endDate: "2026-08-15",

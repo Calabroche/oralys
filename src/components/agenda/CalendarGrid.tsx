@@ -26,6 +26,7 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const showNowLine = nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60;
+  const nowLabel = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const gridCols = `56px repeat(${days.length}, 1fr)`;
 
   return (
@@ -39,30 +40,43 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
           );
           const dayAbsences = absencePeriods.filter((absence) => expandRecurrence(absence, day, day).length > 0);
           return (
-            <div key={day.toISOString()} className="border-l border-slate-200 px-2 py-2 text-xs text-slate-500">
-              <p className={isToday ? "font-semibold text-sky-600" : "font-medium text-slate-700"}>
+            <div key={day.toISOString()} className="border-l border-slate-200 px-2 pt-2 text-xs text-slate-500">
+              <p className={isToday ? "font-semibold text-slate-900" : "font-medium text-slate-700"}>
                 {WEEKDAY_LABELS[toWeekday(day)!].slice(0, 3)}. {day.getDate()}
               </p>
-              {blockingAllDay && (
-                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">🔁 Indisponible</p>
-              )}
-              {dayAbsences.map((absence) => (
-                <p key={absence.id} className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-600">
-                  🏖 {absence.motif}
-                </p>
-              ))}
+              <div className={`mt-1.5 h-[3px] rounded-full ${isToday ? "bg-lime-300" : "bg-transparent"}`} />
+              <div className="pb-1 pt-1">
+                {blockingAllDay && (
+                  <p className="flex items-center gap-1 text-[11px] text-slate-400">🔁 Indisponible</p>
+                )}
+                {dayAbsences.map((absence) => (
+                  <p key={absence.id} className={`flex items-center gap-1 text-[11px] ${ACTIVITY_COLOR_CLASSES[absence.color].text}`}>
+                    🏖 {absence.motif}
+                  </p>
+                ))}
+              </div>
             </div>
           );
         })}
       </div>
 
       <div className="relative grid" style={{ gridTemplateColumns: gridCols }}>
-        <div>
+        <div className="relative">
           {HOURS.map((h) => (
             <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100 pr-2 text-right text-[11px] text-slate-400">
               {String(h).padStart(2, "0")}h
             </div>
           ))}
+          {showNowLine && (
+            <div
+              className="absolute inset-x-1 z-10 flex justify-end"
+              style={{ top: ((nowMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT - 9 }}
+            >
+              <span className="rounded-full border border-rose-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-rose-500 shadow-sm">
+                {nowLabel}
+              </span>
+            </div>
+          )}
         </div>
 
         {days.map((day) => {
@@ -78,14 +92,15 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
 
               {blockingAbsences.map((absence) => {
                 const recurrenceLabel = describeRecurrence(absence.recurrence);
+                const colors = ACTIVITY_COLOR_CLASSES[absence.color];
                 return (
                   <div
                     key={absence.id}
-                    className="absolute inset-x-0 top-0 z-0 flex flex-col items-center justify-start gap-0.5 border-b border-amber-200 bg-amber-50 px-1 pt-2 text-center text-[11px] text-amber-700"
+                    className={`absolute inset-x-0 top-0 z-0 flex flex-col items-center justify-start gap-0.5 border-b ${colors.border} ${colors.bg} px-1 pt-2 text-center text-[11px] ${colors.text}`}
                     style={{ height: HOUR_HEIGHT * HOURS.length }}
                   >
                     <span>🏖 {absence.motif}</span>
-                    {recurrenceLabel && <span className="text-[10px] text-amber-500">🔁 {recurrenceLabel}</span>}
+                    {recurrenceLabel && <span className="text-[10px] opacity-70">🔁 {recurrenceLabel}</span>}
                   </div>
                 );
               })}
@@ -126,42 +141,58 @@ export function CalendarGrid({ days, now, appointments, activityTypes, specialSl
                 if (!type) return null;
                 const colors = ACTIVITY_COLOR_CLASSES[type.color];
                 const top = ((timeToMinutes(apt.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                const height = Math.max(((timeToMinutes(apt.end) - timeToMinutes(apt.start)) / 60) * HOUR_HEIGHT, 18);
+                const height = Math.max(((timeToMinutes(apt.end) - timeToMinutes(apt.start)) / 60) * HOUR_HEIGHT, 20);
                 const patient = getPatient(apt.patientId);
                 const isOpen = openAppointmentId === apt.id;
+                const durationLabel = minutesToDurationLabel(timeToMinutes(apt.end) - timeToMinutes(apt.start));
+                const compact = height < 40;
                 return (
                   <div key={apt.id} className="absolute inset-x-1" style={{ top }}>
                     <button
                       onClick={() => setOpenAppointmentId(isOpen ? null : apt.id)}
                       style={{ height }}
-                      className={`w-full rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text} hover:brightness-95`}
+                      className={`w-full overflow-hidden rounded-lg border ${colors.border} ${colors.bg} px-2 py-1 text-left text-[11px] leading-tight ${colors.text} shadow-sm hover:brightness-95`}
                     >
-                      <p className="truncate font-medium">{patient.firstName} {patient.lastName}</p>
-                      {height > 28 && <p className="truncate opacity-80">{apt.start}</p>}
+                      {compact ? (
+                        <p className="truncate font-semibold">
+                          {patient.lastName} {patient.firstName} · {apt.start}
+                        </p>
+                      ) : (
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">
+                              {patient.lastName} {patient.firstName}
+                            </p>
+                            <p className="truncate opacity-70">{type.name}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="font-semibold">{apt.start}</p>
+                            <p className="opacity-70">{durationLabel}</p>
+                          </div>
+                        </div>
+                      )}
                     </button>
 
                     {isOpen && (
-                      <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
+                      <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg bg-slate-900 p-3 shadow-xl">
                         <div className="mb-2 flex items-start justify-between">
-                          <p className="text-xs font-medium text-slate-500">
+                          <p className="text-xs font-medium text-slate-300">
                             {apt.start} → {apt.end}
                           </p>
                           <button
                             onClick={() => setOpenAppointmentId(null)}
-                            className="text-slate-400 hover:text-slate-600"
+                            className="text-slate-400 hover:text-white"
                             aria-label="Fermer"
                           >
                             ✕
                           </button>
                         </div>
-                        <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium ${colors.chip}`}>
-                          {type.name} ({minutesToDurationLabel(timeToMinutes(apt.end) - timeToMinutes(apt.start))})
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${colors.chip.replace(/border-\S+/, "")}`}>
+                          {type.name}
                         </span>
-                        <p className="mt-2 text-sm font-semibold text-slate-800">
-                          {patient.firstName}
-                          <br />
-                          {patient.lastName}
-                        </p>
+                        <span className="ml-1.5 text-[11px] text-slate-400">({durationLabel})</span>
+                        <p className="mt-2 text-xs text-slate-400">{patient.firstName}</p>
+                        <p className="text-base font-semibold text-white">{patient.lastName}</p>
                       </div>
                     )}
                   </div>

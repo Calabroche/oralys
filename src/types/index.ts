@@ -1,4 +1,19 @@
-export type ActivityColor = "green" | "red" | "blue" | "purple" | "gray";
+export type ActivityColor =
+  | "green"
+  | "teal"
+  | "cyan"
+  | "blue"
+  | "indigo"
+  | "purple"
+  | "fuchsia"
+  | "pink"
+  | "red"
+  | "orange"
+  | "amber"
+  | "yellow"
+  | "lime"
+  | "stone"
+  | "gray";
 
 export interface ActivityType {
   id: string;
@@ -46,6 +61,7 @@ export type AbsenceMotif = "Congés" | "Formation" | "Maladie" | "Fermeture cabi
 export interface AbsencePeriod {
   id: string;
   motif: AbsenceMotif;
+  color: ActivityColor;
   startDate: string;
   startTime: string;
   endDate: string;

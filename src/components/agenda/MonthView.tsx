@@ -65,7 +65,7 @@ export function MonthView({ month, now, appointments, activityTypes, specialSlot
 
               {blockedAllDay && <span className="text-[10px] text-slate-400">🔁 Indisponible</span>}
               {dayAbsences.map((absence) => (
-                <span key={absence.id} className="text-[10px] text-amber-600">
+                <span key={absence.id} className={`text-[10px] ${ACTIVITY_COLOR_CLASSES[absence.color].text}`}>
                   🏖 {absence.motif}
                 </span>
               ))}

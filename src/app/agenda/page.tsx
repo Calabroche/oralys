@@ -51,7 +51,15 @@ export default function AgendaPage() {
         : formatMonthLabel(startOfMonth(anchorDate));
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-6">
+    <div className="relative mx-auto max-w-5xl px-6 py-6">
+      <button
+        onClick={() => setModalOpen(true)}
+        className="absolute right-2 top-8 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-lg text-white shadow-lg hover:bg-slate-800"
+        aria-label="Nouveau rendez-vous"
+      >
+        +
+      </button>
+
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <AgendaToolbar
           label={label}
@@ -60,7 +68,6 @@ export default function AgendaPage() {
           onToday={handleToday}
           onPrev={handlePrev}
           onNext={handleNext}
-          onNewAppointment={() => setModalOpen(true)}
         />
 
         {viewMode === "mois" ? (

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { AbsenceMotif, AbsencePeriod, RecurrenceFrequency, RecurrenceUnit } from "@/types";
+import { AbsenceMotif, AbsencePeriod, ActivityColor, RecurrenceFrequency, RecurrenceUnit } from "@/types";
 import { Modal, ModalActions } from "@/components/ui/Modal";
+import { ColorSwatchPicker } from "@/components/ui/ColorSwatchPicker";
 import { RecurrenceFields } from "./RecurrenceFields";
+import { firstUnusedColor } from "@/utils/colors";
 
 const MOTIFS: AbsenceMotif[] = ["Congés", "Formation", "Maladie", "Fermeture cabinet", "Autre"];
 
 export function AbsenceModal({
   absence,
+  usedColors,
   onClose,
   onSave,
 }: {
   absence?: AbsencePeriod;
+  usedColors: ActivityColor[];
   onClose: () => void;
   onSave: (absence: AbsencePeriod) => void;
 }) {
@@ -21,6 +25,7 @@ export function AbsenceModal({
   const [endDate, setEndDate] = useState(absence?.endDate ?? "");
   const [endTime, setEndTime] = useState(absence?.endTime ?? "23:59");
   const [motif, setMotif] = useState<AbsenceMotif | "">(absence?.motif ?? "");
+  const [color, setColor] = useState<ActivityColor>(() => absence?.color ?? firstUnusedColor(usedColors));
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(absence?.recurrence.frequency ?? "none");
   const [customInterval, setCustomInterval] = useState(absence?.recurrence.customInterval ?? 2);
@@ -100,6 +105,14 @@ export function AbsenceModal({
           </select>
         </div>
 
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">
+            Couleur
+            <span className="ml-1 font-normal text-slate-400">— les couleurs déjà utilisées sont marquées !</span>
+          </label>
+          <ColorSwatchPicker value={color} onChange={setColor} usedColors={usedColors} />
+        </div>
+
         <RecurrenceFields
           frequency={frequency}
           onFrequencyChange={setFrequency}
@@ -121,6 +134,7 @@ export function AbsenceModal({
           onSave({
             id: absence?.id ?? `abs-${Date.now()}`,
             motif: motif as AbsenceMotif,
+            color,
             startDate,
             startTime,
             endDate,

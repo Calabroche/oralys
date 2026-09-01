@@ -62,6 +62,7 @@ export function TypesActiviteSection({ activityTypes, onAddType }: Props) {
 
       {modalOpen && (
         <NouveauTypeModal
+          usedColors={activityTypes.map((t) => t.color)}
           onClose={() => setModalOpen(false)}
           onSave={(type) => {
             onAddType(type);
