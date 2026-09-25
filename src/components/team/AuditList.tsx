@@ -18,8 +18,7 @@ import {
   UserRoundCheck,
   Repeat,
   Undo2,
-  Redo2,
-} from "lucide-react";
+  Redo2, Clock } from "lucide-react";
 import { useTeam } from "@/context/TeamDataContext";
 import { AuditAction, AuditEntry } from "@/types/team";
 import { fullName } from "@/lib/team";
@@ -48,6 +47,8 @@ export const AUDIT_ACTION_META: Record<AuditAction, { label: string; icon: typeo
   "rdv.cancel": { label: "RDV annulé", icon: CalendarX },
   "binome.pret": { label: "Prêt d'assistant pour la journée", icon: Repeat },
   "binome.besoin": { label: "Besoin ajusté pour la journée", icon: Repeat },
+  "pointage.punch": { label: "Pointage", icon: Clock },
+  "pointage.correction": { label: "Correction de pointage", icon: Clock, sensitive: true },
 };
 
 export function AuditList({ entries, compact }: { entries: AuditEntry[]; compact?: boolean }) {

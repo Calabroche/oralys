@@ -26,7 +26,7 @@ export default function FeuilleDeRoutePage() {
       />
 
       {/* Frise : où en est la démo affichée. */}
-      <ol className="grid grid-cols-4 gap-2">
+      <ol className="grid grid-cols-5 gap-2">
         {VERSIONS.map((v, i) => (
           <li key={v.id}>
             <button onClick={() => switchVersion(v.id)} className="group w-full text-left">

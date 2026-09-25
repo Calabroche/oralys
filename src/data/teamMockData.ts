@@ -4,6 +4,8 @@ import {
   Permission,
   PermissionCategory,
   PraticienProfile,
+  Punch,
+  PunchKind,
   Role,
   SkillId,
   SoinsRdv,
@@ -339,6 +341,7 @@ const TODAY_ANCHORED = new Set(["abs-t1", "a-11", "a-12", "a-13", "n-1", "n-2"])
 
 export interface TeamSeed {
   users: TeamUser[];
+  punches: Punch[];
   absences: TeamAbsence[];
   audit: AuditEntry[];
   notifications: TeamNotification[];
@@ -358,12 +361,102 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
       const long = rangeLong(a.startDate, a.endDate);
       return kind === "Long" ? long[0].toUpperCase() + long.slice(1) : long;
     });
-  const users = USERS.map((u) => shiftDeep(u, shift.week));
+  const users = USERS.map((u) => ({ ...shiftDeep(u, shift.week), weeklyHours: WEEKLY_HOURS[u.id] }));
   return {
     users,
     absences,
     audit: AUDIT_LOG.map(move).map((e) => ({ ...e, summary: text(e.summary) })),
     notifications: NOTIFICATIONS.map(move).map((n) => ({ ...n, body: text(n.body) })),
     rdvs: buildRdvs(addDays(new Date(2026, 7, 31), shift.week), users),
+    punches: buildPunches(today, users, absences),
   };
+}
+
+// --- Pointages de démo (V4) --------------------------------------------------
+
+/** Contrats hebdomadaires. Les praticiens (libéraux) ne pointent pas. */
+const WEEKLY_HOURS: Record<string, number> = {
+  "u-delphine": 39,
+  "u-thomas": 35,
+  "u-ines": 35,
+  "u-camille": 35,
+  "u-lea": 21,
+  "u-manon": 28,
+  "u-nathalie": 35,
+  "u-karima": 14,
+};
+
+const STATION: Record<string, string> = {
+  "u-nathalie": "Poste accueil",
+  "u-delphine": "Poste accueil",
+  "u-karima": "Poste accueil",
+  "u-manon": "Poste stérilisation",
+  "u-ines": "Poste stérilisation",
+};
+
+/** Petit aléa déterministe (même démo à chaque rechargement). */
+function jitter(key: string, span: number): number {
+  let h = 0;
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return (Math.abs(h) % (2 * span + 1)) - span;
+}
+
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00`;
+
+/**
+ * Deux semaines de pointages : la semaine dernière vient des badges actuels (import), la semaine en cours d'Oralys.
+ * Quelques cas réels pour la démo : heures sup d'Inès, oubli de départ de Camille, pause trop courte de Nathalie.
+ * Delphine (session par défaut) n'a pas encore pointé aujourd'hui : on peut essayer le bouton.
+ */
+function buildPunches(today: Date, users: TeamUser[], absences: TeamAbsence[]): Punch[] {
+  const out: Punch[] = [];
+  const todayIso = toISODate(today);
+  const nowMin = today.getHours() * 60 + today.getMinutes();
+  const monday = addDays(today, -((today.getDay() + 6) % 7));
+  const start = addDays(monday, -7);
+  const validated = absences.filter((a) => a.status === "validee");
+  let seq = 0;
+  for (let i = 0; i < 14; i++) {
+    const date = addDays(start, i);
+    const iso = toISODate(date);
+    if (iso > todayIso) break;
+    const lastWeek = date < monday;
+    const weekday = toWeekday(date);
+    for (const u of users) {
+      const hours = WEEKLY_HOURS[u.id];
+      if (!hours || u.status !== "actif" || !weekday || !u.workDays.includes(weekday)) continue;
+      if (validated.some((a) => a.userId === u.id && a.startDate <= iso && a.endDate >= iso)) continue;
+      if (iso === todayIso && u.id === "u-delphine") continue;
+      const k = u.id + iso;
+      const daily = Math.round((hours * 60) / u.workDays.length);
+      const arrival = (hours < 20 ? 540 : 480) + jitter(k + "a", 12);
+      const breakLen = daily > 6 * 60 ? 45 + jitter(k + "p", 10) : 0;
+      let pause = 750 + jitter(k + "b", 15);
+      let depart = arrival + daily + breakLen + jitter(k + "d", 10);
+      let shortBreak = breakLen;
+      let noDepart = false;
+      // Cas de démo.
+      if (u.id === "u-ines" && lastWeek && (weekday === "mardi" || weekday === "jeudi")) depart += 95;
+      if (u.id === "u-manon" && !lastWeek && weekday === "lundi") depart += 70;
+      if (u.id === "u-camille" && lastWeek && weekday === "mercredi") noDepart = true;
+      if (u.id === "u-nathalie" && !lastWeek && weekday === "mardi") shortBreak = 10;
+      if (breakLen && shortBreak !== breakLen) depart -= breakLen - shortBreak;
+      if (!breakLen) pause = -1;
+      const events: [PunchKind, number][] = [["arrivee", arrival]];
+      if (pause > 0) events.push(["pause", pause], ["reprise", pause + shortBreak]);
+      if (!noDepart) events.push(["depart", depart]);
+      for (const [kind, min] of events) {
+        if (iso === todayIso && min > nowMin) break;
+        out.push({
+          id: `pt-${++seq}`,
+          userId: u.id,
+          at: `${iso}T${hhmm(min)}`,
+          kind,
+          source: lastWeek ? "badge" : "poste",
+          workstation: lastWeek ? undefined : STATION[u.id] ?? "Poste salle 1",
+        });
+      }
+    }
+  }
+  return out;
 }

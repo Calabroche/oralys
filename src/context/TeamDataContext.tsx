@@ -7,6 +7,8 @@ import {
   DayNeed,
   DayOverride,
   PermissionId,
+  Punch,
+  PunchKind,
   PraticienProfile,
   Role,
   SoinsRdv,
@@ -16,6 +18,7 @@ import {
 } from "@/types/team";
 import { PRATICIEN_PROFILES, ROLES, buildTeamSeed } from "@/data/teamMockData";
 import { resetAllDemoData } from "@/lib/persist";
+import { PUNCH_LABELS, timeOf } from "@/lib/time";
 import { PRATICIEN_NAME } from "@/data/mockData";
 import { useAgendaData } from "@/context/AgendaDataContext";
 import {
@@ -47,6 +50,7 @@ interface PersistedTeamData {
   workstation: string | null;
   dayOverrides: DayOverride[];
   dayNeeds: DayNeed[];
+  punches: Punch[];
 }
 
 function initialData(): PersistedTeamData {
@@ -66,7 +70,12 @@ function loadData(): PersistedTeamData {
   const seed = initialData();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...seed, ...(JSON.parse(raw) as Partial<PersistedTeamData>) };
+    if (raw) {
+      const stored = JSON.parse(raw) as Partial<PersistedTeamData>;
+      // Démos enregistrées avant le pointage : on complète les contrats sans rien effacer.
+      const users = stored.users?.map((u) => ({ ...u, weeklyHours: u.weeklyHours ?? seed.users.find((x) => x.id === u.id)?.weeklyHours }));
+      return { ...seed, ...stored, ...(users ? { users } : {}) };
+    }
   } catch {
     // Stockage indisponible ou corrompu : on repart des données de démo.
   }
@@ -116,6 +125,13 @@ interface TeamDataContextValue extends PersistedTeamData {
   /** Ajuste le besoin en assistants d'un praticien pour une seule journée (sans toucher à sa fiche). */
   setDayNeed: (date: string, praticienId: string, need: number) => DayNeed;
   removeDayNeed: (id: string) => void;
+  /** Pointage de la personne connectée (depuis son poste). */
+  punch: (kind: PunchKind) => void;
+  /** Correction par un gestionnaire : ajoute un pointage oublié. */
+  addPunch: (userId: string, at: string, kind: PunchKind, note: string) => Punch;
+  /** Supprime un pointage ; renvoie le pointage pour pouvoir le rétablir. */
+  removePunch: (id: string) => Punch | undefined;
+  restorePunch: (punch: Punch) => void;
   switchSession: (userId: string, workstation: string | null) => void;
   log: (action: AuditAction, summary: string, extra?: Partial<AuditEntry>) => void;
   markAllRead: () => void;
@@ -598,6 +614,46 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         extra: { targetUserId: praticienId },
       });
       return n;
+    },
+
+    punch: (kind) => {
+      const cur = latest.current;
+      const u = cur.users.find((x) => x.id === cur.sessionUserId);
+      const p: Punch = { id: newId("pt"), userId: cur.sessionUserId, at: isoNow(), kind, source: "poste", workstation: cur.workstation ?? undefined };
+      mutate((d) => ({ ...d, punches: [...d.punches, p] }), {
+        action: "pointage.punch",
+        summary: `${PUNCH_LABELS[kind]} de ${u ? fullName(u) : "?"} à ${timeOf(p.at)}${cur.workstation ? ` (${cur.workstation})` : ""}`,
+        extra: { targetUserId: cur.sessionUserId },
+      });
+    },
+
+    addPunch: (userId, at, kind, note) => {
+      const cur = latest.current;
+      const u = cur.users.find((x) => x.id === userId);
+      const p: Punch = { id: newId("pt"), userId, at, kind, source: "correction", correctedById: cur.sessionUserId, note };
+      mutate((d) => ({ ...d, punches: [...d.punches, p] }), {
+        action: "pointage.correction",
+        summary: `${PUNCH_LABELS[kind]} ajouté(e) pour ${u ? fullName(u) : "?"} le ${shortDate(at.slice(0, 10))} à ${timeOf(at)} : ${note || "sans motif"}`,
+        extra: { targetUserId: userId },
+      });
+      return p;
+    },
+
+    removePunch: (id) => {
+      const cur = latest.current;
+      const p = cur.punches.find((x) => x.id === id);
+      if (!p) return undefined;
+      const u = cur.users.find((x) => x.id === p.userId);
+      mutate((d) => ({ ...d, punches: d.punches.filter((x) => x.id !== id) }), {
+        action: "pointage.correction",
+        summary: `${PUNCH_LABELS[p.kind]} de ${u ? fullName(u) : "?"} du ${shortDate(p.at.slice(0, 10))} à ${timeOf(p.at)} supprimé(e)`,
+        extra: { targetUserId: p.userId },
+      });
+      return p;
+    },
+
+    restorePunch: (p) => {
+      mutate((d) => ({ ...d, punches: [...d.punches.filter((x) => x.id !== p.id), p] }));
     },
 
     removeDayNeed: (id) => {

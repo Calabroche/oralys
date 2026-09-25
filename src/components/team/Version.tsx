@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * Découpage de la démo par version livrée. Le sélecteur (menu utilisateur) masque ce qui n'existe pas
  * encore dans la version choisie : on raconte la montée en puissance du module sur une seule démo.
  */
-export type Version = "mvp" | "v1" | "v2" | "v3";
+export type Version = "mvp" | "v1" | "v2" | "v3" | "v4";
 
 export interface VersionInfo {
   id: Version;
@@ -42,10 +42,11 @@ export const VERSIONS: VersionInfo[] = [
       "Créer, inviter, archiver ou réactiver un utilisateur (un email déjà pris est bloqué)",
       "Déclarer une absence, la valider ou la refuser, l'annuler ou retirer un seul jour",
       "Voir qui est présent chaque jour dans le planning par personne",
+      "Se mettre sur son profil en quelques secondes (changer d'utilisateur par code PIN), avec son nom affiché en haut de l'écran",
       "Être alerté d'une absence de dernier moment, et fermer l'agenda Soins d'un praticien absent",
     ],
     tryHref: "/team",
-    screens: [1, 3, 4, 5, 6, 7, 9, 22, 23, 24, 25, 26, 27, 28, 29, 30, 39, 40, 41],
+    screens: [1, 3, 4, 5, 6, 7, 9, 22, 23, 24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 40, 41],
   },
   {
     id: "v1",
@@ -73,10 +74,10 @@ export const VERSIONS: VersionInfo[] = [
       "Voir le meilleur assistant suggéré au moment de prendre un RDV dans Soins",
       "Créer des rôles et régler les droits dans une grille",
       "Suivre toutes les actions dans le journal d'audit",
-      "Changer d'utilisateur par code PIN sur un poste partagé, et tracer l'opérateur de stérilisation",
+      "Régler les postes partagés (PIN obligatoire, verrouillage automatique) et tracer l'opérateur de stérilisation",
     ],
     tryHref: "/team/remplacements",
-    screens: [11, 19, 20, 21, 31, 32, 33, 34, 35, 37, 38],
+    screens: [11, 19, 20, 21, 31, 32, 33, 34, 35],
   },
   {
     id: "v3",
@@ -90,6 +91,21 @@ export const VERSIONS: VersionInfo[] = [
     ],
     tryHref: "/team/moi",
     screens: [42],
+  },
+  {
+    id: "v4",
+    label: "V4",
+    title: "Temps de travail",
+    pitch: "Chacun pointe son arrivée, ses pauses et son départ ; les heures et heures sup se calculent seules.",
+    problem: "Aujourd'hui, la clinique pointe avec des bipeurs : les heures ne sont reliées ni au planning, ni aux absences, ni au contrat.",
+    canDo: [
+      "Pointer son arrivée, sa pause, sa reprise et son départ depuis son poste, sur son propre profil",
+      "Voir les heures de chacun par semaine, comparées à son contrat",
+      "Repérer les heures supplémentaires et les anomalies : départ oublié, pause trop courte, journée trop longue",
+      "Corriger un pointage oublié, avec une trace dans le journal d'audit",
+    ],
+    tryHref: "/team/temps",
+    screens: [],
   },
 ];
 
@@ -106,11 +122,12 @@ export const FEATURES = {
   journal: "v2",
   postes: "v2",
   profil: "v3",
+  pointage: "v4",
 } as const satisfies Record<string, Version>;
 
 export type Feature = keyof typeof FEATURES;
 
-const ORDER: Version[] = ["mvp", "v1", "v2", "v3"];
+const ORDER: Version[] = ["mvp", "v1", "v2", "v3", "v4"];
 export const versionOf = (id: Version) => VERSIONS.find((v) => v.id === id)!;
 
 interface VersionContextValue {
@@ -123,7 +140,7 @@ const VersionContext = createContext<VersionContextValue | null>(null);
 
 export function VersionProvider({ children }: { children: ReactNode }) {
   // Par défaut, tout est visible (dernière version).
-  const [version, setVersion] = usePersistentState<Version>("version", "v3");
+  const [version, setVersion] = usePersistentState<Version>("version", "v4");
   const has = (f: Feature) => ORDER.indexOf(version) >= ORDER.indexOf(FEATURES[f]);
   return <VersionContext.Provider value={{ version, setVersion, has }}>{children}</VersionContext.Provider>;
 }

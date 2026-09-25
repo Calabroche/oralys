@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { OralysLogo } from "@/components/team/OralysLogo";
 import { QuickSwitchDialog } from "@/components/team/QuickSwitchDialog";
+import { PunchClock } from "@/components/team/PunchClock";
 import { UserAvatar } from "@/components/team/shared";
 import { TeamDataProvider, useTeam } from "@/context/TeamDataContext";
 import { PersonSheetProvider } from "@/components/team/PersonSheet";
@@ -65,6 +66,7 @@ const TABS: {
     feature: "remplacements",
   },
   { label: "Praticiens & équipes", href: "/team/equipes", feature: "equipes" },
+  { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
   { label: "Administration", href: "/team/reglages" },
 ];
@@ -225,31 +227,41 @@ function Header() {
             <ChevronDown className="size-4 text-slate-500" />
           </button>
           <div className="flex items-center justify-end gap-1.5">
-            {workstation && (
-              <span className="mr-1 hidden items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 lg:flex">
-                <MonitorSmartphone className="size-3.5" /> {workstation}
-              </span>
-            )}
-            {has("postes") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSwitchOpen(true)}
-              >
-                <Users /> Changer d&apos;utilisateur
-              </Button>
-            )}
+            {has("pointage") && <PunchClock onSwitchUser={() => setSwitchOpen(true)} />}
+            {/* Changer de profil existe dans toutes les versions : chacun doit pouvoir se mettre sur son profil. */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSwitchOpen(true)}
+            >
+              <Users /> Changer d&apos;utilisateur
+            </Button>
             <Notifications />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center gap-1 rounded-full pr-1 hover:bg-slate-50"
+                  className="flex items-center gap-2 rounded-full py-0.5 pr-2 pl-0.5 text-left hover:bg-slate-50"
                   aria-label="Menu utilisateur"
                 >
                   {sessionUser && hydrated ? (
                     <UserAvatar user={sessionUser} className="size-9" />
                   ) : (
                     <span className="size-9 rounded-full bg-slate-100" />
+                  )}
+                  {/* Nom en clair : sur un poste partagé, chacun vérifie d'un coup d'œil qu'il est sur son profil. */}
+                  {sessionUser && (
+                    <span className="hidden leading-tight sm:block">
+                      <span className="block text-sm font-medium whitespace-nowrap text-slate-900">{fullName(sessionUser)}</span>
+                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                        {roleNames(sessionUser, roles)[0]}
+                        {workstation && (
+                          <>
+                            <span>·</span>
+                            <MonitorSmartphone className="size-3" /> {workstation}
+                          </>
+                        )}
+                      </span>
+                    </span>
                   )}
                   <ChevronDown className="size-4 text-slate-500" />
                 </button>
@@ -308,11 +320,9 @@ function Header() {
                     <Settings /> Administration
                   </Link>
                 </DropdownMenuItem>
-                {has("postes") && (
-                  <DropdownMenuItem onSelect={() => setSwitchOpen(true)}>
-                    <Users /> Changer d&apos;utilisateur (PIN)
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onSelect={() => setSwitchOpen(true)}>
+                  <Users /> Changer d&apos;utilisateur (PIN)
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={resetDemo}>
                   <RotateCcw /> Réinitialiser la démo

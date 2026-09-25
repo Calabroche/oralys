@@ -88,6 +88,27 @@ export interface TeamUser {
   avoidsWith: string[];
   /** Spécialités (praticiens uniquement). */
   specialties: ActeCategory[];
+  /** Heures hebdomadaires du contrat (salariés). Absent = ne pointe pas (ex. praticien libéral). */
+  weeklyHours?: number;
+}
+
+// --- Pointage (V4) -----------------------------------------------------------
+
+export type PunchKind = "arrivee" | "pause" | "reprise" | "depart";
+
+/** Un pointage : un événement horodaté de la journée d'un salarié. */
+export interface Punch {
+  id: string;
+  userId: string;
+  /** Date et heure locales, ex. "2026-09-25T08:02:00". */
+  at: string;
+  kind: PunchKind;
+  /** poste : pointé dans Oralys ; badge : importé des bipeurs actuels ; correction : ajouté par un gestionnaire. */
+  source: "poste" | "badge" | "correction";
+  workstation?: string;
+  /** Pour une correction : qui l'a faite et pourquoi. */
+  correctedById?: string;
+  note?: string;
 }
 
 export type Priority = "titulaire" | "backup";
@@ -182,7 +203,9 @@ export type AuditAction =
   | "rdv.reschedule"
   | "rdv.cancel"
   | "binome.pret"
-  | "binome.besoin";
+  | "binome.besoin"
+  | "pointage.punch"
+  | "pointage.correction";
 
 export interface AuditEntry {
   id: string;
