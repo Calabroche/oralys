@@ -1,6 +1,5 @@
 "use client";
 
-import { formatMinutes } from "@/lib/time";
 import { AccessGate } from "@/components/team/Access";
 import { Suspense, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
@@ -30,8 +29,6 @@ import { PersonLink } from "@/components/team/PersonSheet";
 import Link from "next/link";
 import {
   acteLabel,
-  agendaLoad,
-  DEFAULT_DAILY_OPEN_MINUTES,
   displayName,
   fullName,
   adjustTeamToNeed,
@@ -45,7 +42,7 @@ import {
 import { COLLABORATIONS } from "@/data/teamMockData";
 import { PraticienProfile, Priority } from "@/types/team";
 import { Weekday } from "@/types";
-import { WEEKDAYS, WEEKDAY_LABELS, addDays, startOfWeek, toISODate } from "@/utils/date";
+import { WEEKDAYS, WEEKDAY_LABELS, toISODate } from "@/utils/date";
 import { VersionGate } from "@/components/team/Version";
 import { cn } from "@/lib/utils";
 
@@ -122,8 +119,6 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
   const { findUser, users, rdvs, absences, profiles, upsertProfile, updateUser, now } = useTeam();
   const praticien = findUser(profile.praticienUserId)!;
   const today = now();
-  const weekStart = startOfWeek(today);
-  const load = agendaLoad(praticien, toISODate(weekStart), toISODate(addDays(weekStart, 5)), rdvs);
   const upcoming = absences
     .filter((a) => a.status !== "refusee" && a.endDate >= toISODate(today) && (a.userId === praticien.id || profile.team.some((l) => l.userId === a.userId)))
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -188,7 +183,7 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-3">
+        <CardContent className="grid gap-6 sm:grid-cols-2">
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Jours de travail</p>
             <div className="flex gap-1">
@@ -198,16 +193,6 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
                 </span>
               ))}
             </div>
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Remplissage de l&apos;agenda Soins cette semaine</p>
-            <div className="flex items-center gap-2">
-              <Progress value={load.ratio * 100} className="h-2" />
-              <span className="shrink-0 text-sm font-medium whitespace-nowrap">{Math.round(load.ratio * 100)} %</span>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              {load.booked} RDV, soit {formatMinutes(load.bookedMinutes)} de soins posés sur {formatMinutes(load.openMinutes)} d&apos;ouverture ({load.days} jours × {DEFAULT_DAILY_OPEN_MINUTES / 60} h). Plus c&apos;est haut, plus une absence touche de patients.
-            </p>
           </div>
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Absences à venir (praticien + équipe)</p>
