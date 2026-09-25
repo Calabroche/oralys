@@ -123,6 +123,8 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
     .filter((a) => a.status !== "refusee" && a.endDate >= toISODate(today) && (a.userId === praticien.id || profile.team.some((l) => l.userId === a.userId)))
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
   const team = [...profile.team].sort((a, b) => (a.priority === b.priority ? a.rank - b.rank : a.priority === "titulaire" ? -1 : 1));
+  // Jours proposés : du lundi au vendredi, plus le samedi si le praticien consulte ce jour-là.
+  const dayOptions = WEEKDAYS.filter((d) => d !== "samedi" || praticien.workDays.includes(d));
   const addable = users.filter((u) => isChairAssistant(u) && u.status !== "archive" && !profile.team.some((l) => l.userId === u.id));
   const mainActe = praticien.specialties[0] ?? "soins";
   const affinity = sortCandidates(
@@ -276,6 +278,13 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
         </CardHeader>
         <CardContent>
           {team.length === 0 && <p className="text-sm text-slate-400">Aucun assistant rattaché.</p>}
+          {team.length > 0 && (
+            <div className="mb-1.5 flex items-end justify-end gap-3 pr-3 text-[0.7rem] font-medium tracking-wide text-slate-500 uppercase">
+              <span className="w-36">Priorité</span>
+              <span style={{ width: `${dayOptions.length * 2.6}rem` }}>Jours avec {displayName(praticien)}</span>
+              {canEdit && <span className="w-8" />}
+            </div>
+          )}
           <ul className="divide-y rounded-lg border">
             {team.map((l, i) => {
               const u = findUser(l.userId);
@@ -324,11 +333,32 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
                     onValueChange={(v) => save({ ...profile, team: team.map((x) => (x.userId === l.userId ? { ...x, days: v as Weekday[] } : x)) })}
                     aria-label="Jours du rattachement"
                   >
-                    {WEEKDAYS.slice(0, 5).map((d) => (
-                      <ToggleGroupItem key={d} value={d} className="px-2 text-xs data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
-                        {WEEKDAY_LABELS[d].slice(0, 2)}
-                      </ToggleGroupItem>
-                    ))}
+                    {dayOptions.map((d) => {
+                      const off = !praticien.workDays.includes(d);
+                      // Aucun jour coché = tous les jours de consultation : on le montre en rose clair.
+                      const implicit = l.days.length === 0 && !off;
+                      return (
+                        <ToggleGroupItem
+                          key={d}
+                          value={d}
+                          disabled={off}
+                          title={
+                            off
+                              ? `${displayName(praticien)} ne consulte pas le ${WEEKDAY_LABELS[d].toLowerCase()}`
+                              : implicit
+                                ? "Tous les jours (aucun jour coché) : cliquer pour limiter à certains jours"
+                                : `${WEEKDAY_LABELS[d]} avec ${displayName(praticien)}`
+                          }
+                          className={cn(
+                            "w-9 px-0 text-xs data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900",
+                            implicit && "border-dashed border-pink-200 bg-pink-50/60 text-pink-800",
+                            off && "bg-slate-50 text-slate-300 line-through opacity-100"
+                          )}
+                        >
+                          {WEEKDAY_LABELS[d].slice(0, 2)}
+                        </ToggleGroupItem>
+                      );
+                    })}
                   </ToggleGroup>
                   {canEdit && (
                     <Button
@@ -347,7 +377,8 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
           <TeamCoverage profile={profile} canEdit={canEdit} onSave={save} />
           <p className="mt-2 text-xs text-slate-500">
             <CalendarDays className="mr-1 inline size-3.5" />
-            Jours vides = tous les jours travaillés. Ex. Dr Perche : Léa les lun/mar/jeu, Inès les mer/ven.
+            Cochez les jours où chaque personne travaille avec {displayName(praticien)}. Aucun jour coché (cases en pointillé) : tous ses jours de
+            consultation. Jours barrés : {displayName(praticien)} ne consulte pas.
           </p>
         </CardContent>
       </Card>
@@ -499,7 +530,7 @@ function TeamCoverage({
   return (
     <div className="mt-3 space-y-2">
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="mr-1 text-slate-500">Titulaires par jour :</span>
+        <span className="mr-1 text-slate-500">Titulaires prévus par jour / besoin :</span>
         {coverage.map((c) => (
           <span
             key={c.day}
