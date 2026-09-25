@@ -198,13 +198,13 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Charge agenda cette semaine</p>
+            <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Remplissage de l'agenda Soins cette semaine</p>
             <div className="flex items-center gap-2">
               <Progress value={load.ratio * 100} className="h-2" />
-              <span className="text-sm font-medium">{Math.round(load.ratio * 100)} %</span>
+              <span className="shrink-0 text-sm font-medium whitespace-nowrap">{Math.round(load.ratio * 100)} %</span>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {load.booked} RDV / {load.capacity} créneaux
+              {load.booked} RDV posés sur {load.capacity} créneaux possibles ({load.capacity / 4} jours × 4). Plus c'est haut, plus une absence touche de patients.
             </p>
           </div>
           <div>
