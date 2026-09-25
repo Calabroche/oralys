@@ -72,7 +72,7 @@ export const ROLES: Role[] = [
     description: "Assistant(e) dentaire qualifié(e), au fauteuil.",
     predefined: true,
     healthProfessional: false,
-    permissions: ["clinique.assistance", "sterilisation", "rdv"],
+    permissions: ["clinique.assistance", "sterilisation"],
   },
   {
     id: "role-aide",

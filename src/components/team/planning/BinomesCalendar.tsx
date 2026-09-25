@@ -23,10 +23,13 @@ const KIND_LABEL = { titulaire: "titulaire", backup: "back-up", pret: "prêté(e
 export function BinomesCalendar({
   dates,
   staffing,
+  readOnly = false,
   onDeclare,
 }: {
   dates: string[];
   staffing: Map<string, DayStaffing>;
+  /** Consultation seule (sans droit « Planning d'équipe ») : la grille est inerte, aucun clic ni action. */
+  readOnly?: boolean;
   onDeclare: (userId: string, date: string) => void;
 }) {
   const { findUser, users, absences, now, dayOverrides, removeLoan } = useTeam();
@@ -57,7 +60,7 @@ export function BinomesCalendar({
             })}
           </tr>
         </thead>
-        <tbody>
+        <tbody inert={readOnly}>
           {rows.map(({ profile, praticien }) => {
             const titulaires = profile.team.filter((l) => l.priority === "titulaire").sort((a, b) => a.rank - b.rank);
             const backups = profile.team.filter((l) => l.priority === "backup").sort((a, b) => a.rank - b.rank);

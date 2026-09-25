@@ -1,5 +1,6 @@
 "use client";
 
+import { useAccess } from "@/components/team/Access";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, CalendarClock, CalendarPlus, Siren, UserCheck, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
@@ -37,12 +38,18 @@ export default function TeamDashboard() {
     .filter((a) => a.status !== "refusee" && a.endDate >= today && a.startDate <= in14)
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
+  const allowed = useAccess();
+  // Assistants et aides : pas d'alertes de gestion, de demandes à valider ni de gestion des comptes.
   const kpis = [
     { label: "Présents aujourd'hui", value: `${working.length - absentToday.length}/${working.length}`, icon: UserCheck, href: "/team/planning" },
-    { label: "RDV à risque (14 j)", value: risks.length, icon: AlertTriangle, href: has("remplacements") ? "/team/remplacements" : "/team/planning", alert: risks.length > 0 },
-    { label: "Demandes à valider", value: pending.length, icon: CalendarClock, href: "/team/planning?tab=demandes", alert: pending.length > 0 },
-    { label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" },
-  ];
+    ...(allowed("remplacements")
+      ? [{ label: "RDV à risque (14 j)", value: risks.length, icon: AlertTriangle, href: has("remplacements") ? "/team/remplacements" : "/team/planning", alert: risks.length > 0 }]
+      : []),
+    ...(allowed("planning")
+      ? [{ label: "Demandes à valider", value: pending.length, icon: CalendarClock, href: "/team/planning?tab=demandes", alert: pending.length > 0 }]
+      : []),
+    ...(allowed("utilisateurs") ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
+  ] as { label: string; value: string | number; icon: typeof Users; href: string; alert?: boolean }[];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
@@ -55,15 +62,17 @@ export default function TeamDashboard() {
           <Button variant="outline" onClick={() => setDeclareOpen(true)}>
             <CalendarPlus /> Déclarer une absence
           </Button>
-          <Button asChild>
-            <Link href="/team/reglages/utilisateurs">
-              <UserPlus /> Gérer les utilisateurs
-            </Link>
-          </Button>
+          {allowed("utilisateurs") && (
+            <Button asChild>
+              <Link href="/team/reglages/utilisateurs">
+                <UserPlus /> Gérer les utilisateurs
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className={cn("grid grid-cols-2 gap-4", kpis.length === 4 ? "lg:grid-cols-4" : kpis.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
         {kpis.map((k) => (
           <Link key={k.label} href={k.href}>
             <Card className="transition-shadow hover:shadow-md">
@@ -80,6 +89,7 @@ export default function TeamDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
+        {allowed("remplacements") && (
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>À traiter en priorité</CardTitle>
@@ -128,7 +138,7 @@ export default function TeamDashboard() {
                 </div>
               );
             })}
-            {tensions.length > 0 && (
+            {tensions.length > 0 && allowed("planning") && (
               <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <AlertTriangle className="size-5 text-amber-600" />
                 <div className="flex-1 text-sm text-amber-900">
@@ -143,7 +153,7 @@ export default function TeamDashboard() {
                 </Button>
               </div>
             )}
-            {pending.map((a) => {
+            {(allowed("planning") ? pending : []).map((a) => {
               const u = users.find((x) => x.id === a.userId);
               return (
                 <div key={a.id} className="flex items-center gap-3 rounded-lg border p-3">
@@ -167,7 +177,8 @@ export default function TeamDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        )}
+        <Card className={cn(!allowed("remplacements") && "lg:col-span-3")}>
           <CardHeader>
             <CardTitle>Qui est là aujourd&apos;hui</CardTitle>
             <CardAction>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAccess } from "@/components/team/Access";
 import { Suspense, useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
 import { useVersion } from "@/components/team/Version";
@@ -38,7 +39,11 @@ export default function PlanningPage() {
 function Planning() {
   const params = useSearchParams();
   const { users, absences, profiles, now, dayOverrides, dayNeeds } = useTeam();
-  const [tab, setTab] = useState(params.get("tab") ?? "calendrier");
+  const allowed = useAccess();
+  // Sans le droit « Planning d'équipe » (assistants, aides…) : on consulte le planning, sans rien modifier.
+  const readOnly = !allowed("planning");
+  const [storedTab, setTab] = useState(params.get("tab") ?? "calendrier");
+  const tab = readOnly && storedTab === "demandes" ? "calendrier" : storedTab;
   const [mode, setMode] = usePersistentState<"semaine" | "mois">("planning-mode", "semaine");
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
   const highlightUserId = params.get("user");
@@ -105,24 +110,28 @@ function Planning() {
         title="Planning d'équipe"
         description="Présences et absences de tout le cabinet, en une vue. Distinct de l'agenda des RDV patients (Soins)."
         actions={
-          <Button
-            onClick={() => {
-              setPrefill(undefined);
-              setDeclareOpen(true);
-            }}
-          >
-            <CalendarPlus /> Déclarer une absence
-          </Button>
+          readOnly ? undefined : (
+            <Button
+              onClick={() => {
+                setPrefill(undefined);
+                setDeclareOpen(true);
+              }}
+            >
+              <CalendarPlus /> Déclarer une absence
+            </Button>
+          )
         }
       />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList variant="line">
           <TabsTrigger value="calendrier">Calendrier consolidé</TabsTrigger>
-          <TabsTrigger value="demandes">
-            Demandes à valider
-            {pending.length > 0 && <Badge className="ml-1 h-4 bg-pink-500 px-1.5 text-[0.65rem]">{pending.length}</Badge>}
-          </TabsTrigger>
+          {!readOnly && (
+            <TabsTrigger value="demandes">
+              Demandes à valider
+              {pending.length > 0 && <Badge className="ml-1 h-4 bg-pink-500 px-1.5 text-[0.65rem]">{pending.length}</Badge>}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="liste">Toutes les absences</TabsTrigger>
         </TabsList>
 
@@ -172,7 +181,7 @@ function Planning() {
             </div>
           </div>
 
-          {(tensions.length > 0 || (view === "personnes" && coverageGaps.length > 0)) && (
+          {!readOnly && (tensions.length > 0 || (view === "personnes" && coverageGaps.length > 0)) && (
             <Alert className="border-amber-200 bg-amber-50 text-amber-900">
               <AlertTriangle />
               <AlertTitle>Tensions de planning sur la période</AlertTitle>
@@ -201,6 +210,7 @@ function Planning() {
               <BinomesCalendar
                 dates={dates}
                 staffing={staffing}
+                readOnly={readOnly}
                 onDeclare={(userId, date) => {
                   setPrefill({ userId, date });
                   setDeclareOpen(true);
@@ -217,6 +227,7 @@ function Planning() {
                 roleFilter={roleFilter === "tous" ? undefined : roleFilter}
                 highlightUserId={highlightUserId}
                 tensionDates={new Set([...tensions, ...coverageGaps].map((t) => t.iso))}
+                readOnly={readOnly}
                 onCellClick={(userId, date) => {
                   setPrefill({ userId, date });
                   setDeclareOpen(true);
@@ -227,9 +238,11 @@ function Planning() {
           )}
         </TabsContent>
 
-        <TabsContent value="demandes" className="mt-4">
-          <PendingRequests pending={pending} />
-        </TabsContent>
+        {!readOnly && (
+          <TabsContent value="demandes" className="mt-4">
+            <PendingRequests pending={pending} />
+          </TabsContent>
+        )}
 
         <TabsContent value="liste" className="mt-4">
           <AllAbsences />

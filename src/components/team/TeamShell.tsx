@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessKey, useAccess } from "@/components/team/Access";
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -57,6 +58,7 @@ const TABS: {
   href: string;
   exact?: boolean;
   feature?: Feature;
+  access?: AccessKey;
 }[] = [
   { label: "Tableau de bord", href: "/team", exact: true },
   { label: "Planning", href: "/team/planning" },
@@ -64,8 +66,9 @@ const TABS: {
     label: "Remplacements",
     href: "/team/remplacements",
     feature: "remplacements",
+    access: "remplacements",
   },
-  { label: "Praticiens & équipes", href: "/team/equipes", feature: "equipes" },
+  { label: "Praticiens & équipes", href: "/team/equipes", feature: "equipes", access: "equipes" },
   { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
   { label: "Administration", href: "/team/reglages" },
@@ -133,7 +136,10 @@ function PlanetSwitcher() {
 }
 
 function Notifications() {
-  const { notifications, markAllRead } = useTeam();
+  const { notifications: all, markAllRead } = useTeam();
+  const allowed = useAccess();
+  // Les alertes (dernier moment, demandes, tensions) concernent ceux qui gèrent planning et remplacements.
+  const notifications = allowed("remplacements") ? all : [];
   const unread = notifications.filter((n) => !n.read).length;
   return (
     <Popover>
@@ -208,6 +214,7 @@ function Header() {
   const { sessionUser, roles, workstation, resetDemo, hydrated } = useTeam();
   const [switchOpen, setSwitchOpen] = useState(false);
   const { version, has } = useVersion();
+  const allowed = useAccess();
   const switchVersion = useSwitchVersion();
 
   return (
@@ -337,7 +344,7 @@ function Header() {
       </header>
       <nav className="border-b border-slate-200 bg-gradient-to-b from-pink-50/70 to-white px-6">
         <ul className="flex items-center gap-1 text-sm">
-          {TABS.filter((t) => !t.feature || has(t.feature)).map((t) => {
+          {TABS.filter((t) => (!t.feature || has(t.feature)) && (!t.access || allowed(t.access))).map((t) => {
             const active = t.exact
               ? pathname === t.href
               : pathname.startsWith(t.href);

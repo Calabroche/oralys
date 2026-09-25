@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessGate } from "@/components/team/Access";
 import { Suspense, useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
@@ -38,9 +39,11 @@ import { cn } from "@/lib/utils";
 export default function RemplacementsPage() {
   return (
     <VersionGate feature="remplacements">
-      <Suspense>
-        <Remplacements />
-      </Suspense>
+      <AccessGate access="remplacements">
+        <Suspense>
+          <Remplacements />
+        </Suspense>
+      </AccessGate>
     </VersionGate>
   );
 }

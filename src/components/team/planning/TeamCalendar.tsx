@@ -25,6 +25,7 @@ export function TeamCalendar({
   staffing,
   roleFilter,
   highlightUserId,
+  readOnly = false,
   onCellClick,
 }: {
   dates: string[];
@@ -35,6 +36,8 @@ export function TeamCalendar({
   roleFilter?: string;
   /** Personne mise en avant (lien direct depuis sa fiche). */
   highlightUserId?: string | null;
+  /** Consultation seule (sans droit « Planning d'équipe ») : la grille est inerte, aucun clic ni action. */
+  readOnly?: boolean;
   onCellClick?: (userId: string, date: string) => void;
 }) {
   const { absences, now, findUser, roles } = useTeam();
@@ -77,7 +80,7 @@ export function TeamCalendar({
             })}
           </tr>
         </thead>
-        <tbody>
+        <tbody inert={readOnly}>
           {groups.map((g) => (
             <Fragment key={g.id}>
               <tr className="border-b bg-pink-50/40">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAccess } from "@/components/team/Access";
 import { useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CalendarPlus, Check, History, Lock, Minus, Pencil, Stethoscope, UserRoundSearch } from "lucide-react";
@@ -27,6 +28,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
   const perms = user ? permissionsOf({ ...user, status: "actif" }, roles) : new Set();
   const entries = user ? audit.filter((a) => a.actorId === user.id || a.targetUserId === user.id) : [];
   const teams = user ? profiles.filter((p) => p.team.some((l) => l.userId === user.id) || p.praticienUserId === user.id) : [];
+  const canSeeTeams = useAccess()("equipes");
 
   return (
     <Sheet open={Boolean(user)} onOpenChange={(o) => !o && onClose()}>
@@ -135,9 +137,13 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                       const link = p.team.find((l) => l.userId === user.id);
                       return (
                         <li key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                          <Link href={`/team/equipes?praticien=${p.id}`} onClick={onClose} className="hover:text-pink-700 hover:underline">
-                            {p.label}
-                          </Link>
+                          {canSeeTeams ? (
+                            <Link href={`/team/equipes?praticien=${p.id}`} onClick={onClose} className="hover:text-pink-700 hover:underline">
+                              {p.label}
+                            </Link>
+                          ) : (
+                            <span>{p.label}</span>
+                          )}
                           <Badge variant="outline">{link ? `${link.priority === "titulaire" ? "Titulaire" : "Back-up"} n°${link.rank}` : "Titulaire du profil"}</Badge>
                         </li>
                       );
@@ -198,6 +204,7 @@ function QuickLinks({
   canEdit: boolean;
   active: boolean;
 }) {
+  const allowed = useAccess();
   const link = (href: string, icon: React.ReactNode, label: string) => (
     <Button variant="outline" size="xs" asChild>
       <Link href={href} onClick={onNavigate}>
@@ -213,8 +220,8 @@ function QuickLinks({
         </Button>
       )}
       {link(`/team/planning?view=personnes&user=${userId}`, <CalendarDays />, "Planning")}
-      {profileId && link(`/team/equipes?praticien=${profileId}`, <Stethoscope />, "Fiche praticien")}
-      {link(`/team/remplacements?user=${userId}`, <UserRoundSearch />, "Remplacements")}
+      {profileId && allowed("equipes") && link(`/team/equipes?praticien=${profileId}`, <Stethoscope />, "Fiche praticien")}
+      {allowed("remplacements") && link(`/team/remplacements?user=${userId}`, <UserRoundSearch />, "Remplacements")}
       {canAudit && link(`/team/reglages/journal?user=${userId}`, <History />, "Journal")}
       {canEdit && link(`/team/reglages/utilisateurs?edit=${userId}`, <Pencil />, "Modifier")}
     </div>

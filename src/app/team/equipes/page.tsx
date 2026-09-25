@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessGate } from "@/components/team/Access";
 import { Suspense, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
@@ -49,9 +50,11 @@ import { cn } from "@/lib/utils";
 export default function EquipesPage() {
   return (
     <VersionGate feature="equipes">
-      <Suspense>
-        <Equipes />
-      </Suspense>
+      <AccessGate access="equipes">
+        <Suspense>
+          <Equipes />
+        </Suspense>
+      </AccessGate>
     </VersionGate>
   );
 }

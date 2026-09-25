@@ -51,6 +51,8 @@ interface PersistedTeamData {
   dayOverrides: DayOverride[];
   dayNeeds: DayNeed[];
   punches: Punch[];
+  /** Corrections appliquées une fois aux démos déjà enregistrées. */
+  migrations?: string[];
 }
 
 function initialData(): PersistedTeamData {
@@ -74,7 +76,13 @@ function loadData(): PersistedTeamData {
       const stored = JSON.parse(raw) as Partial<PersistedTeamData>;
       // Démos enregistrées avant le pointage : on complète les contrats sans rien effacer.
       const users = stored.users?.map((u) => ({ ...u, weeklyHours: u.weeklyHours ?? seed.users.find((x) => x.id === u.id)?.weeklyHours }));
-      return { ...seed, ...stored, ...(users ? { users } : {}) };
+      // Les assistants dentaires ne prennent pas de RDV (retour produit du 25/09) : on retire ce droit une seule fois,
+      // un gestionnaire peut toujours le redonner dans la grille des droits.
+      const done = stored.migrations ?? [];
+      const roles = done.includes("assistant-sans-rdv")
+        ? stored.roles
+        : stored.roles?.map((r) => (r.id === "role-assistant" ? { ...r, permissions: r.permissions.filter((x) => x !== "rdv") } : r));
+      return { ...seed, ...stored, ...(users ? { users } : {}), ...(roles ? { roles } : {}), migrations: [...new Set([...done, "assistant-sans-rdv"])] };
     }
   } catch {
     // Stockage indisponible ou corrompu : on repart des données de démo.

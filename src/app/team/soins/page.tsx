@@ -1,5 +1,6 @@
 "use client";
 
+import { useAccess } from "@/components/team/Access";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -55,9 +56,10 @@ import { rangeLong, rangeShort } from "@/lib/demoClock";
 
 export default function SoinsPreviewPage() {
   const { has, version } = useVersion();
+  const allowed = useAccess();
   // Chaque point de contact avec Soins arrive avec sa version ; l'agenda fermé existe dès le MVP.
   const tabs = [
-    { value: "rdv", label: "Prise de RDV", show: has("suggestionSoins") },
+    { value: "rdv", label: "Prise de RDV", show: has("suggestionSoins") && allowed("rdv") },
     { value: "droits", label: "Fiche patient & droits", show: has("droitsSoins") },
     { value: "sterilisation", label: "Stérilisation (poste partagé)", show: has("sterilisation") },
     { value: "agenda", label: "Agenda fermé", show: true },
@@ -75,7 +77,7 @@ export default function SoinsPreviewPage() {
           </Button>
         }
       />
-      <Tabs key={version} defaultValue={tabs[0].value}>
+      <Tabs key={version + tabs.length} defaultValue={tabs[0].value}>
         <TabsList variant="line">
           {tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
