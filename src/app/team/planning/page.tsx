@@ -36,7 +36,7 @@ export default function PlanningPage() {
 
 function Planning() {
   const params = useSearchParams();
-  const { users, absences, profiles, now, dayOverrides } = useTeam();
+  const { users, absences, profiles, now, dayOverrides, dayNeeds } = useTeam();
   const [tab, setTab] = useState(params.get("tab") ?? "calendrier");
   const [mode, setMode] = usePersistentState<"semaine" | "mois">("planning-mode", "semaine");
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
@@ -64,7 +64,7 @@ function Planning() {
   const active = users.filter((u) => u.status === "actif");
   const people = active.filter((u) => roleFilter === "tous" || u.roleIds.includes(roleFilter));
 
-  const staffing = useMemo(() => new Map(dates.map((iso) => [iso, dayStaffing(iso, profiles, users, absences, dayOverrides)])), [dates, profiles, users, absences, dayOverrides]);
+  const staffing = useMemo(() => new Map(dates.map((iso) => [iso, dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds)])), [dates, profiles, users, absences, dayOverrides, dayNeeds]);
   // Tension = un praticien qui consulte n'a pas tous les assistants dont il a besoin.
   const tensions = useMemo(
     () =>

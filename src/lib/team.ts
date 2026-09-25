@@ -1,6 +1,7 @@
 import { Weekday } from "@/types";
 import {
   ActeCategory,
+  DayNeed,
   DayOverride,
   PermissionId,
   PraticienProfile,
@@ -281,6 +282,10 @@ export interface PraticienDay {
   praticien: TeamUser;
   status: "travaille" | "absent" | "repos";
   need: number;
+  /** Besoin habituel (fiche praticien), quand il est ajusté pour la journée. */
+  baseNeed: number;
+  /** Ajustement du besoin pour cette journée, s'il y en a un. */
+  dayNeed?: DayNeed;
   slots: StaffingSlot[];
   missing: number;
   /** Titulaires attendus ce jour-là mais absents (pour expliquer le trou). */
@@ -310,7 +315,8 @@ export function dayStaffing(
   profiles: PraticienProfile[],
   users: TeamUser[],
   absences: TeamAbsence[],
-  overrides: DayOverride[] = []
+  overrides: DayOverride[] = [],
+  needs: DayNeed[] = []
 ): DayStaffing {
   const day = toWeekday(fromISODate(date));
   const applies = (l: PraticienProfile["team"][number]) => l.days.length === 0 || (day !== null && l.days.includes(day));
@@ -323,7 +329,10 @@ export function dayStaffing(
     .filter((x): x is { profile: PraticienProfile; praticien: TeamUser } => Boolean(x.praticien) && x.praticien!.status === "actif")
     .map(({ profile, praticien }) => {
       const status: PraticienDay["status"] = !worksOn(praticien, date) ? "repos" : absenceOn(praticien.id, date, absences) ? "absent" : "travaille";
-      return { profile, praticien, status, need: status === "travaille" ? profile.assistantsNeeded ?? 1 : 0, slots: [], missing: 0, absentTitulaires: [], busyTitulaires: [] };
+      const baseNeed = status === "travaille" ? profile.assistantsNeeded ?? 1 : 0;
+      const dayNeed = status === "travaille" ? needs.find((n) => n.date === date && n.praticienId === praticien.id) : undefined;
+      const need = dayNeed ? dayNeed.need : baseNeed;
+      return { profile, praticien, status, need, baseNeed, dayNeed, slots: [], missing: 0, absentTitulaires: [], busyTitulaires: [] };
     });
 
   const working = praticiens.filter((p) => p.status === "travaille");
@@ -523,4 +532,58 @@ export function findRebookSlots(
     }
   }
   return out;
+}
+
+// --- Pourquoi un rattaché n'est pas aux côtés de son praticien --------------
+
+export interface TeamMemberStatus {
+  user: TeamUser;
+  priority: "titulaire" | "backup";
+  /** present : avec ce praticien ; ailleurs : avec un autre praticien ; absent ; off : ne travaille pas ou libre ; autre_jour : rattachement limité à d'autres jours. */
+  state: "present" | "ailleurs" | "absent" | "off" | "autre_jour";
+  /** Praticien chez qui la personne travaille ce jour-là. */
+  elsewhere?: TeamUser;
+  /** Prêt du jour qui l'envoie ailleurs (on peut l'annuler pour la récupérer). */
+  loan?: DayOverride;
+  absence?: TeamAbsence;
+  label: string;
+}
+
+/** État de chaque assistant rattaché à un praticien pour une journée, avec une raison lisible. */
+export function teamMembersOn(
+  day: PraticienDay,
+  staffing: DayStaffing,
+  users: TeamUser[],
+  absences: TeamAbsence[],
+  overrides: DayOverride[]
+): TeamMemberStatus[] {
+  const weekday = toWeekday(fromISODate(staffing.date));
+  return [...day.profile.team]
+    .sort((a, b) => (a.priority === b.priority ? a.rank - b.rank : a.priority === "titulaire" ? -1 : 1))
+    .map((l): TeamMemberStatus | null => {
+      const user = users.find((u) => u.id === l.userId);
+      if (!user || user.status !== "actif") return null;
+      const role = l.priority === "titulaire" ? "titulaire" : "back-up";
+      if (day.slots.some((s) => s.assistantId === user.id)) return { user, priority: l.priority, state: "present", label: `${user.firstName} (${role}) est là` };
+      if (weekday && l.days.length && !l.days.includes(weekday)) return { user, priority: l.priority, state: "autre_jour", label: `${user.firstName} (${role}) n'est rattaché(e) que d'autres jours` };
+      const absence = absenceOn(user.id, staffing.date, absences);
+      if (absence) return { user, priority: l.priority, state: "absent", absence, label: `${user.firstName} (${role}) : ${ABSENCE_TYPE_LABELS[absence.type].toLowerCase()}` };
+      if (!worksOn(user, staffing.date)) return { user, priority: l.priority, state: "off", label: `${user.firstName} (${role}) ne travaille pas ce jour-là` };
+      const otherId = staffing.assignmentOf[user.id];
+      if (otherId && otherId !== day.praticien.id) {
+        const elsewhere = users.find((u) => u.id === otherId);
+        const loan = overrides.find((o) => o.date === staffing.date && o.assistantId === user.id);
+        const where = elsewhere ? displayName(elsewhere) : "un autre praticien";
+        return {
+          user,
+          priority: l.priority,
+          state: "ailleurs",
+          elsewhere,
+          loan,
+          label: loan ? `${user.firstName} (${role}) est prêté(e) à ${where}` : `${user.firstName} (${role}) est avec ${where}`,
+        };
+      }
+      return { user, priority: l.priority, state: "off", label: `${user.firstName} (${role}) est libre` };
+    })
+    .filter((x): x is TeamMemberStatus => x !== null);
 }

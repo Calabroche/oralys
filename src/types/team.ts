@@ -116,6 +116,14 @@ export interface PraticienProfile {
 }
 
 /** Prêt ponctuel : un assistant travaille avec un autre praticien pour une journée, sans changer les rattachements. */
+/** Besoin en assistants ajusté pour un praticien sur une seule journée (ex. « un seul assistant suffira vendredi »). */
+export interface DayNeed {
+  id: string;
+  date: string;
+  praticienId: string;
+  need: number;
+}
+
 export interface DayOverride {
   id: string;
   date: string;
@@ -173,7 +181,8 @@ export type AuditAction =
   | "rdv.assign"
   | "rdv.reschedule"
   | "rdv.cancel"
-  | "binome.pret";
+  | "binome.pret"
+  | "binome.besoin";
 
 export interface AuditEntry {
   id: string;

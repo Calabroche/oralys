@@ -47,6 +47,7 @@ export const AUDIT_ACTION_META: Record<AuditAction, { label: string; icon: typeo
   "rdv.reschedule": { label: "RDV reprogrammé", icon: CalendarClock },
   "rdv.cancel": { label: "RDV annulé", icon: CalendarX },
   "binome.pret": { label: "Prêt d'assistant pour la journée", icon: Repeat },
+  "binome.besoin": { label: "Besoin ajusté pour la journée", icon: Repeat },
 };
 
 export function AuditList({ entries, compact }: { entries: AuditEntry[]; compact?: boolean }) {

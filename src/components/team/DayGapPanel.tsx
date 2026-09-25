@@ -2,54 +2,28 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
-import { CheckCircle2, Repeat, Undo2, UserPlus, UserRoundCheck, UserX } from "lucide-react";
-import { AbsencePopover } from "@/components/team/AbsencePopover";
+import { CheckCircle2, Repeat, Undo2, UserPlus, UserX } from "lucide-react";
+import { GapActions } from "@/components/team/GapActions";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { UserAvatar } from "@/components/team/shared";
-import { fromISODate, toWeekday } from "@/utils/date";
-import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, displayName, fullName, isAvailable, isChairAssistant, shortDate, worksOn } from "@/lib/team";
+import { dayStaffing, displayName, fullName, isAvailable, isChairAssistant, shortDate } from "@/lib/team";
 
 /**
  * Manque d'assistant sur une journée sans RDV à réaffecter : le trou est dans le planning d'équipe.
  * On explique pourquoi (qui est absent, qui est pris ailleurs) et on propose de rattacher un assistant libre.
  */
 export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; praticienId: string; hasRdvs?: boolean }) {
-  const { users, profiles, absences, findUser, upsertProfile, can, dayOverrides, lendAssistant, removeLoan } = useTeam();
-  const staffing = dayStaffing(date, profiles, users, absences, dayOverrides);
+  const { users, profiles, absences, findUser, upsertProfile, can, dayOverrides, dayNeeds, lendAssistant, removeLoan } = useTeam();
+  const staffing = dayStaffing(date, profiles, users, absences, dayOverrides, dayNeeds);
   const day = staffing.praticiens.find((p) => p.praticien.id === praticienId);
   const praticien = findUser(praticienId);
   if (!day || !praticien) return <p className="py-16 text-center text-sm text-slate-400">Praticien introuvable.</p>;
   const profile = day.profile;
   const canEdit = can("param.cabinet") || can("team.planning");
-  const weekday = toWeekday(fromISODate(date));
-
-  // Pourquoi chaque rattaché n'est pas là ce jour-là.
-  const reasons = profile.team.map((l) => {
-    const u = findUser(l.userId);
-    if (!u) return null;
-    const inSlot = day.slots.some((s) => s.assistantId === u.id);
-    const abs = absenceOn(u.id, date, absences);
-    const other = staffing.assignmentOf[u.id] && staffing.assignmentOf[u.id] !== praticienId ? findUser(staffing.assignmentOf[u.id]) : undefined;
-    const reason = inSlot
-      ? "Présent(e) avec ce praticien"
-      : u.status === "archive"
-        ? "Compte archivé"
-        : abs
-          ? `Absent(e) : ${ABSENCE_TYPE_LABELS[abs.type].toLowerCase()}`
-          : !worksOn(u, date)
-            ? "Ne travaille pas ce jour-là"
-            : other
-              ? `Déjà avec ${displayName(other)}`
-              : weekday && l.days.length && !l.days.includes(weekday)
-                ? "Rattachement limité à d'autres jours"
-                : "Non affecté(e)";
-    return { u, link: l, inSlot, reason, abs };
-  });
 
   const loans = dayOverrides.filter((o) => o.date === date && o.praticienId === praticienId);
   // Chaque prêt possible est simulé sur toute la journée (les back-ups se rééquilibrent) :
@@ -58,10 +32,14 @@ export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; prat
   const options = users
     .filter((u) => isChairAssistant(u) && isAvailable(u, date, absences) && !day.slots.some((sl) => sl.assistantId === u.id))
     .map((u) => {
-      const after = dayStaffing(date, profiles, users, absences, [
-        ...dayOverrides,
-        { id: "simulation", date, assistantId: u.id, praticienId },
-      ]);
+      const after = dayStaffing(
+        date,
+        profiles,
+        users,
+        absences,
+        [...dayOverrides, { id: "simulation", date, assistantId: u.id, praticienId }],
+        dayNeeds
+      );
       const mine = after.praticiens.find((x) => x.praticien.id === praticienId)!;
       const gain = day.missing - mine.missing;
       const net = totalMissing - after.praticiens.reduce((n, x) => n + x.missing, 0);
@@ -118,35 +96,7 @@ export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; prat
           </p>
         )}
 
-        <div>
-          <p className="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Équipe rattachée ce jour-là</p>
-          {reasons.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun assistant rattaché à ce praticien.</p>
-          ) : (
-            <ul className="divide-y rounded-lg border">
-              {reasons.map(
-                (r) =>
-                  r && (
-                    <li key={r.u.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                      <UserAvatar user={r.u} className="size-7 text-[0.6rem]" />
-                      <PersonLink userId={r.u.id} className="font-medium">
-                        {fullName(r.u)}
-                      </PersonLink>
-                      <Badge variant="outline">{r.link.priority === "titulaire" ? "Titulaire" : "Back-up"}</Badge>
-                      <span className={r.inSlot ? "ml-auto text-emerald-700" : "ml-auto text-slate-500"}>{r.reason}</span>
-                      {r.abs && (
-                        <AbsencePopover absence={r.abs} date={date}>
-                          <Button size="xs" variant="outline">
-                            <UserRoundCheck /> Retirer l&apos;absence
-                          </Button>
-                        </AbsencePopover>
-                      )}
-                    </li>
-                  )
-              )}
-            </ul>
-          )}
-        </div>
+        <GapActions day={day} staffing={staffing} />
 
         {loans.length > 0 && (
           <div>
@@ -177,11 +127,7 @@ export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; prat
             </p>
             {options.length === 0 ? (
               <p className="rounded-lg border border-dashed p-3 text-sm text-slate-500">
-                Aucun prêt ne réduit le manque : tous les assistants présents sont indispensables ailleurs. Réduisez le besoin dans la{" "}
-                <Link href={`/team/equipes?praticien=${profile.id}`} className="text-pink-700 hover:underline">
-                  fiche praticien
-                </Link>{" "}
-                ou prévoyez un intérimaire.
+                Aucun prêt ne réduit le manque : tous les assistants présents sont indispensables ailleurs. Confirmez ci-dessus que la journée se fera avec moins d&apos;assistants, ou prévoyez un intérimaire.
               </p>
             ) : (
               <ul className="space-y-2">

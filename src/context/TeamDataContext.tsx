@@ -4,6 +4,7 @@ import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, 
 import {
   AuditAction,
   AuditEntry,
+  DayNeed,
   DayOverride,
   PermissionId,
   PraticienProfile,
@@ -45,6 +46,7 @@ interface PersistedTeamData {
   sessionUserId: string;
   workstation: string | null;
   dayOverrides: DayOverride[];
+  dayNeeds: DayNeed[];
 }
 
 function initialData(): PersistedTeamData {
@@ -55,6 +57,7 @@ function initialData(): PersistedTeamData {
     sessionUserId: "u-delphine",
     workstation: null,
     dayOverrides: [],
+    dayNeeds: [],
   };
 }
 
@@ -110,6 +113,9 @@ interface TeamDataContextValue extends PersistedTeamData {
   /** Prête un assistant à un praticien pour une journée (sans toucher aux rattachements). */
   lendAssistant: (date: string, assistantId: string, praticienId: string) => DayOverride;
   removeLoan: (id: string) => void;
+  /** Ajuste le besoin en assistants d'un praticien pour une seule journée (sans toucher à sa fiche). */
+  setDayNeed: (date: string, praticienId: string, need: number) => DayNeed;
+  removeDayNeed: (id: string) => void;
   switchSession: (userId: string, workstation: string | null) => void;
   log: (action: AuditAction, summary: string, extra?: Partial<AuditEntry>) => void;
   markAllRead: () => void;
@@ -580,6 +586,27 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         action: "binome.pret",
         summary: `Prêt de ${a ? fullName(a) : "?"} annulé${o ? ` (${shortDate(o.date)})` : ""}`,
         extra: a ? { targetUserId: a.id } : undefined,
+      });
+    },
+
+    setDayNeed: (date, praticienId, need) => {
+      const n: DayNeed = { id: newId("besoin"), date, praticienId, need };
+      const p = latest.current.users.find((u) => u.id === praticienId);
+      mutate((d) => ({ ...d, dayNeeds: [...d.dayNeeds.filter((x) => !(x.date === date && x.praticienId === praticienId)), n] }), {
+        action: "binome.besoin",
+        summary: `${p ? displayName(p) : "?"} travaillera avec ${need} assistant${need > 1 ? "s" : ""} le ${shortDate(date)} (besoin ajusté pour la journée)`,
+        extra: { targetUserId: praticienId },
+      });
+      return n;
+    },
+
+    removeDayNeed: (id) => {
+      const n = latest.current.dayNeeds.find((x) => x.id === id);
+      const p = latest.current.users.find((u) => u.id === n?.praticienId);
+      mutate((d) => ({ ...d, dayNeeds: d.dayNeeds.filter((x) => x.id !== id) }), {
+        action: "binome.besoin",
+        summary: `Besoin habituel rétabli pour ${p ? displayName(p) : "?"}${n ? ` le ${shortDate(n.date)}` : ""}`,
+        extra: p ? { targetUserId: p.id } : undefined,
       });
     },
 

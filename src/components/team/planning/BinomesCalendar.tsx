@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { RefreshCw, UserX } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
-import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, teamMembersOn } from "@/lib/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink, usePersonSheet } from "@/components/team/PersonSheet";
@@ -30,7 +29,7 @@ export function BinomesCalendar({
   staffing: Map<string, DayStaffing>;
   onDeclare: (userId: string, date: string) => void;
 }) {
-  const { findUser, absences, now, dayOverrides, removeLoan } = useTeam();
+  const { findUser, users, absences, now, dayOverrides, removeLoan } = useTeam();
   const { open: openPerson } = usePersonSheet();
   const today = toISODate(now());
   const compact = dates.length > 10;
@@ -160,48 +159,62 @@ export function BinomesCalendar({
                           );
                         })}
                         {day.missing > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Link
-                                href={`/team/remplacements?date=${iso}&praticien=${praticien.id}`}
-                                className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-0.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                title="Voir pourquoi et agir"
+                                className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-0.5 text-left text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
                                 <UserX className="size-3 shrink-0" />
                                 {compact ? `−${day.missing}` : `Manque ${day.missing}`}
-                              </Link>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {day.absentTitulaires.length > 0 && `${day.absentTitulaires.map(name).join(", ")} absent(e). `}
-                              Aucun back-up rattaché disponible.
-                              {(staffing.get(iso)?.free.length ?? 0) > 0 && ` Sans binôme ce jour : ${staffing.get(iso)!.free.map(name).join(", ")}.`}
-                              {" "}Cliquer pour trouver un remplaçant.
-                            </TooltipContent>
-                          </Tooltip>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 p-4" align="start">
+                              <p className="mb-3 text-sm font-medium text-slate-900">
+                                Il manque {day.missing} assistant{day.missing > 1 ? "s" : ""} à {displayName(praticien)} le{" "}
+                                {fromISODate(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                                <span className="block text-xs font-normal text-slate-500">
+                                  Besoin {day.need}, {day.slots.length} présent{day.slots.length > 1 ? "s" : ""}.
+                                </span>
+                              </p>
+                              <GapActions day={day} staffing={staffing.get(iso)!} showLink />
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        {day.dayNeed && !compact && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="w-fit truncate rounded px-1 text-left text-[0.65rem] text-emerald-800 hover:bg-white" title="Besoin ajusté pour la journée. Cliquer pour rétablir.">
+                                Besoin {day.need} ce jour (au lieu de {day.baseNeed})
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 p-4" align="start">
+                              <GapActions day={day} staffing={staffing.get(iso)!} />
+                            </PopoverContent>
+                          </Popover>
                         )}
                         {!compact &&
-                          day.busyTitulaires.map((id) => {
-                            const other = findUser(staffing.get(iso)?.assignmentOf[id]);
-                            return (
-                              <span key={id} className="truncate text-[0.65rem] text-slate-500">
-                                {name(id)} → Dr {other?.lastName ?? "?"}
-                              </span>
-                            );
-                          })}
-                        {!compact &&
-                          day.absentTitulaires.map((id) => {
-                            const abs = absenceOn(id, iso, absences);
-                            if (!abs) return null;
-                            return (
-                              <AbsencePopover key={id} absence={abs} date={iso}>
-                                <button
-                                  title="Absent(e). Cliquer pour la/le remettre présent(e)."
-                                  className="w-fit truncate rounded px-1 text-left text-[0.65rem] text-slate-500 line-through hover:bg-white hover:text-slate-700"
-                                >
-                                  {name(id)} absent(e)
-                                </button>
-                              </AbsencePopover>
-                            );
-                          })}
+                          teamMembersOn(day, staffing.get(iso)!, users, absences, dayOverrides)
+                            // Les back-ups ne sont expliqués que s'il manque quelqu'un ; les titulaires toujours.
+                            .filter((m) => m.state !== "present" && m.state !== "autre_jour" && (m.priority === "titulaire" || day.missing > 0))
+                            .map((m) =>
+                              m.absence ? (
+                                <AbsencePopover key={m.user.id} absence={m.absence} date={iso}>
+                                  <button
+                                    title="Absent(e). Cliquer pour la/le remettre présent(e)."
+                                    className="w-fit truncate rounded px-1 text-left text-[0.65rem] text-slate-500 line-through hover:bg-white hover:text-slate-700"
+                                  >
+                                    {m.user.firstName} absent(e)
+                                  </button>
+                                </AbsencePopover>
+                              ) : (
+                                <span key={m.user.id} title={m.label} className="truncate px-1 text-[0.65rem] text-slate-500">
+                                  {m.state === "ailleurs"
+                                    ? `${m.user.firstName} → Dr ${m.elsewhere?.lastName ?? "?"}${m.loan ? " (prêt)" : ""}`
+                                    : `${m.user.firstName} : ${m.label.includes("ne travaille pas") ? "repos" : "libre"}`}
+                                </span>
+                              )
+                            )}
                       </div>
                     </td>
                   );
