@@ -43,13 +43,16 @@ import { COLLABORATIONS } from "@/data/teamMockData";
 import { PraticienProfile, Priority } from "@/types/team";
 import { Weekday } from "@/types";
 import { WEEKDAYS, WEEKDAY_LABELS, addDays, startOfWeek, toISODate } from "@/utils/date";
+import { VersionGate } from "@/components/team/Version";
 import { cn } from "@/lib/utils";
 
 export default function EquipesPage() {
   return (
-    <Suspense>
-      <Equipes />
-    </Suspense>
+    <VersionGate feature="equipes">
+      <Suspense>
+        <Equipes />
+      </Suspense>
+    </VersionGate>
   );
 }
 

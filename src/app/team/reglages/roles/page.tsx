@@ -26,9 +26,18 @@ import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
 import { fullName, permissionsOf } from "@/lib/team";
 import { Gate, PageHeader, UserAvatar } from "@/components/team/shared";
 import { PermissionId, Role } from "@/types/team";
+import { VersionGate } from "@/components/team/Version";
 import { cn } from "@/lib/utils";
 
 export default function RolesPage() {
+  return (
+    <VersionGate feature="roles">
+      <Roles />
+    </VersionGate>
+  );
+}
+
+function Roles() {
   const { roles, users, can, setRolePermissions, deleteRole } = useTeam();
   const [view, setView] = useState<"roles" | "users">("roles");
   const [createOpen, setCreateOpen] = useState(false);

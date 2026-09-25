@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
+import { useVersion } from "@/components/team/Version";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -42,11 +43,14 @@ function Planning() {
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
   const highlightUserId = params.get("user");
   const [roleFilter, setRoleFilter] = usePersistentState<string>("planning-roles", "tous");
-  const [view, setView] = usePersistentState<"binomes" | "personnes">(
+  const { has } = useVersion();
+  const [storedView, setView] = usePersistentState<"binomes" | "personnes">(
     "planning-view",
     "binomes",
     params.get("view") === "personnes" || params.get("user") ? "personnes" : params.get("view") === "binomes" ? "binomes" : null
   );
+  // Avant la V1, pas de binômes : seule la vue par personne existe.
+  const view = has("binomes") ? storedView : "personnes";
   const [declareOpen, setDeclareOpen] = useState(false);
   const [prefill, setPrefill] = useState<DeclarePrefill | undefined>();
 
@@ -68,10 +72,10 @@ function Planning() {
   // Tension = un praticien qui consulte n'a pas tous les assistants dont il a besoin.
   const tensions = useMemo(
     () =>
-      dates.flatMap((iso) =>
+      !has("binomes") ? [] : dates.flatMap((iso) =>
         (staffing.get(iso)?.praticiens ?? []).filter((p) => p.missing > 0).map((p) => ({ profile: p.profile, iso, missing: p.missing }))
       ),
-    [dates, staffing]
+    [dates, staffing, has]
   );
   // Rôles hors binômes : au moins N personnes présentes chaque jour ouvré (ex. un(e) secrétaire à l'accueil).
   const coverageGaps = useMemo(
@@ -137,14 +141,16 @@ function Planning() {
               <span className="ml-2 text-sm font-medium capitalize text-slate-800">{rangeLabel}</span>
             </div>
             <div className="flex items-center gap-3">
-              <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as typeof view)}>
-                <ToggleGroupItem value="binomes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
-                  Binômes
-                </ToggleGroupItem>
-                <ToggleGroupItem value="personnes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
-                  Par personne
-                </ToggleGroupItem>
-              </ToggleGroup>
+              {has("binomes") && (
+                <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as typeof view)}>
+                  <ToggleGroupItem value="binomes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
+                    Binômes
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="personnes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
+                    Par personne
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              )}
               {view === "personnes" && (
                 <PillFilter
                   value={roleFilter}
@@ -303,6 +309,7 @@ function Legend() {
 
 function PendingRequests({ pending }: { pending: TeamAbsence[] }) {
   const { findUser, rdvs, profiles, users, absences, validateAbsence, refuseAbsence } = useTeam();
+  const { has } = useVersion();
   if (pending.length === 0) {
     return <p className="py-12 text-center text-sm text-slate-400">Aucune demande en attente.</p>;
   }
@@ -359,10 +366,10 @@ function PendingRequests({ pending }: { pending: TeamAbsence[] }) {
                 ) : (
                   <p className="text-slate-600">
                     {assistantRdvs.length} RDV au fauteuil prévus avec {u.firstName} sur la période
-                    {assistantRdvs.length > 0 && " : des remplaçants seront proposés."}
+                    {assistantRdvs.length > 0 && has("remplacements") && " : des remplaçants seront proposés."}
                   </p>
                 )}
-                {newTensions.length > 0 ? (
+                {!has("binomes") ? null : newTensions.length > 0 ? (
                   <p className="flex items-start gap-1.5 text-xs text-amber-700">
                     <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> Créerait une tension : {newTensions.join(", ")}
                   </p>

@@ -14,12 +14,17 @@ import { ACTES, SKILLS, SPECIALTIES } from "@/data/teamMockData";
 import { fullName, shortDate } from "@/lib/team";
 import { ActeCategory, SkillId, TeamUser } from "@/types/team";
 import { Weekday } from "@/types";
+import { VersionGate } from "@/components/team/Version";
 import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
 
 export default function MoiPage() {
   const { sessionUser } = useTeam();
   if (!sessionUser) return null;
-  return <Profile key={sessionUser.id} user={sessionUser} />;
+  return (
+    <VersionGate feature="profil">
+      <Profile key={sessionUser.id} user={sessionUser} />
+    </VersionGate>
+  );
 }
 
 function Profile({ user }: { user: TeamUser }) {

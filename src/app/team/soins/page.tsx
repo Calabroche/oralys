@@ -50,9 +50,18 @@ import {
 import { ActeCategory, PermissionId } from "@/types/team";
 import { fromISODate, toISODate, toWeekday } from "@/utils/date";
 import { cn } from "@/lib/utils";
+import { useVersion } from "@/components/team/Version";
 import { rangeLong, rangeShort } from "@/lib/demoClock";
 
 export default function SoinsPreviewPage() {
+  const { has, version } = useVersion();
+  // Chaque point de contact avec Soins arrive avec sa version ; l'agenda fermé existe dès le MVP.
+  const tabs = [
+    { value: "rdv", label: "Prise de RDV", show: has("suggestionSoins") },
+    { value: "droits", label: "Fiche patient & droits", show: has("droitsSoins") },
+    { value: "sterilisation", label: "Stérilisation (poste partagé)", show: has("sterilisation") },
+    { value: "agenda", label: "Agenda fermé", show: true },
+  ].filter((t) => t.show);
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-8 py-8">
       <PageHeader
@@ -66,12 +75,13 @@ export default function SoinsPreviewPage() {
           </Button>
         }
       />
-      <Tabs defaultValue="rdv">
+      <Tabs key={version} defaultValue={tabs[0].value}>
         <TabsList variant="line">
-          <TabsTrigger value="rdv">Prise de RDV</TabsTrigger>
-          <TabsTrigger value="droits">Fiche patient & droits</TabsTrigger>
-          <TabsTrigger value="sterilisation">Stérilisation (poste partagé)</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda fermé</TabsTrigger>
+          {tabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="rdv" className="mt-5">
           <PriseRdv />

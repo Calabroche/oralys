@@ -13,6 +13,7 @@ import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { ROLE_GROUP_LABELS, ROLE_ORDER, primaryRoleId, absenceOn, datesBetween, displayName, isLastMinute, rdvsAtRisk, shortDate, tensionsFor, worksOn } from "@/lib/team";
 import { addDays, toISODate } from "@/utils/date";
+import { useVersion } from "@/components/team/Version";
 import { cn } from "@/lib/utils";
 
 export default function TeamDashboard() {
@@ -30,14 +31,15 @@ export default function TeamDashboard() {
   );
   const pending = absences.filter((a) => a.status === "demandee");
   const lastMinute = absences.filter((a) => a.status !== "refusee" && isLastMinute(a) && a.endDate >= today);
-  const tensions = profiles.flatMap((p) => tensionsFor(p, users, absences, datesBetween(today, in14)).map((iso) => ({ p, iso })));
+  const { has } = useVersion();
+  const tensions = !has("binomes") ? [] : profiles.flatMap((p) => tensionsFor(p, users, absences, datesBetween(today, in14)).map((iso) => ({ p, iso })));
   const upcoming = absences
     .filter((a) => a.status !== "refusee" && a.endDate >= today && a.startDate <= in14)
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   const kpis = [
     { label: "Présents aujourd'hui", value: `${working.length - absentToday.length}/${working.length}`, icon: UserCheck, href: "/team/planning" },
-    { label: "RDV à risque (14 j)", value: risks.length, icon: AlertTriangle, href: "/team/remplacements", alert: risks.length > 0 },
+    { label: "RDV à risque (14 j)", value: risks.length, icon: AlertTriangle, href: has("remplacements") ? "/team/remplacements" : "/team/planning", alert: risks.length > 0 },
     { label: "Demandes à valider", value: pending.length, icon: CalendarClock, href: "/team/planning?tab=demandes", alert: pending.length > 0 },
     { label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" },
   ];
@@ -117,7 +119,11 @@ export default function TeamDashboard() {
                     </p>
                   </div>
                   <Button size="sm" asChild>
-                    <Link href={`/team/remplacements?absence=${a.id}`}>Trouver un remplaçant</Link>
+                    {has("remplacements") ? (
+                      <Link href={`/team/remplacements?absence=${a.id}`}>Trouver un remplaçant</Link>
+                    ) : (
+                      <Link href={`/team/planning?view=personnes&user=${a.userId}`}>Voir le planning</Link>
+                    )}
                   </Button>
                 </div>
               );

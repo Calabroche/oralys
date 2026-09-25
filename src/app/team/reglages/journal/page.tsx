@@ -11,15 +11,18 @@ import { useTeam } from "@/context/TeamDataContext";
 import { AuditList, AUDIT_ACTION_META } from "@/components/team/AuditList";
 import { PageHeader, PillFilter } from "@/components/team/shared";
 import { fullName } from "@/lib/team";
+import { VersionGate } from "@/components/team/Version";
 import { AuditAction } from "@/types/team";
 
 type Period = "7" | "30" | "365" | "all";
 
 export default function JournalPage() {
   return (
-    <Suspense>
-      <Journal />
-    </Suspense>
+    <VersionGate feature="journal">
+      <Suspense>
+        <Journal />
+      </Suspense>
+    </VersionGate>
   );
 }
 

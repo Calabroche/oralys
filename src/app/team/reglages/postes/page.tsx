@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gate, PageHeader } from "@/components/team/shared";
+import { VersionGate } from "@/components/team/Version";
 import { WORKSTATIONS } from "@/components/team/QuickSwitchDialog";
 
 const ICONS = [Users, FlaskConical, Stethoscope, Stethoscope];
@@ -18,6 +19,14 @@ interface StationConfig {
 }
 
 export default function PostesPage() {
+  return (
+    <VersionGate feature="postes">
+      <Postes />
+    </VersionGate>
+  );
+}
+
+function Postes() {
   const [config, setConfig] = usePersistentState<Record<string, StationConfig>>("postes", () =>
     Object.fromEntries(
       WORKSTATIONS.map((w) => [w, { pin: true, explicitOperator: w === "Poste stérilisation", lockAfter: w === "Poste accueil" ? "5" : "10" }])

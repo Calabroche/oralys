@@ -32,13 +32,16 @@ import {
 import { SoinsRdv } from "@/types/team";
 import { toISODate } from "@/utils/date";
 import { DayGapPanel } from "@/components/team/DayGapPanel";
+import { VersionGate, useVersion } from "@/components/team/Version";
 import { cn } from "@/lib/utils";
 
 export default function RemplacementsPage() {
   return (
-    <Suspense>
-      <Remplacements />
-    </Suspense>
+    <VersionGate feature="remplacements">
+      <Suspense>
+        <Remplacements />
+      </Suspense>
+    </VersionGate>
   );
 }
 
@@ -53,7 +56,10 @@ function Remplacements() {
       .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
     return params.get("absence") ?? fromUser?.id ?? "all";
   });
-  const [mode, setMode] = usePersistentState<"regles" | "affinite">("remplacements-mode", "regles");
+  const { has } = useVersion();
+  const [storedMode, setMode] = usePersistentState<"regles" | "affinite">("remplacements-mode", "regles");
+  // La Brique 2 (score d'affinité) arrive en V2.
+  const mode = has("affinite") ? storedMode : "regles";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // RDV traités : on les garde visibles (avec le remplaçant choisi) au lieu de les faire disparaître, même après rechargement.
   const [handled, setHandled] = usePersistentState<string[]>("remplacements-traites", []);
@@ -102,7 +108,7 @@ function Remplacements() {
           <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
             <TabsList>
               <TabsTrigger value="regles">Brique 1 · Règles & priorités</TabsTrigger>
-              <TabsTrigger value="affinite">Brique 2 · Score d&apos;affinité</TabsTrigger>
+              {has("affinite") && <TabsTrigger value="affinite">Brique 2 · Score d&apos;affinité</TabsTrigger>}
             </TabsList>
           </Tabs>
         }
