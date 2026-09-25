@@ -88,7 +88,7 @@ export interface TeamUser {
   avoidsWith: string[];
   /** Spécialités (praticiens uniquement). */
   specialties: ActeCategory[];
-  /** Heures hebdomadaires du contrat (salariés). Absent = ne pointe pas (ex. praticien libéral). */
+  /** Heures hebdomadaires du contrat (salariés). Absent = pas de contrat horaire (ex. praticien libéral) : il pointe quand même. */
   weeklyHours?: number;
 }
 

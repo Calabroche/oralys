@@ -374,7 +374,7 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
 
 // --- Pointages de démo (V4) --------------------------------------------------
 
-/** Contrats hebdomadaires. Les praticiens (libéraux) ne pointent pas. */
+/** Contrats hebdomadaires des salariés. Les praticiens libéraux n'ont pas de contrat horaire, mais pointent aussi. */
 const WEEKLY_HOURS: Record<string, number> = {
   "u-delphine": 39,
   "u-thomas": 35,
@@ -423,7 +423,8 @@ function buildPunches(today: Date, users: TeamUser[], absences: TeamAbsence[]): 
     const lastWeek = date < monday;
     const weekday = toWeekday(date);
     for (const u of users) {
-      const hours = WEEKLY_HOURS[u.id];
+      // Praticien : pas de contrat, on simule des journées d'environ 8 h pour la démo.
+      const hours = WEEKLY_HOURS[u.id] ?? (u.roleIds.includes("role-praticien") ? 8 * u.workDays.length : undefined);
       if (!hours || u.status !== "actif" || !weekday || !u.workDays.includes(weekday)) continue;
       if (validated.some((a) => a.userId === u.id && a.startDate <= iso && a.endDate >= iso)) continue;
       if (iso === todayIso && u.id === "u-delphine") continue;

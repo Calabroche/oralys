@@ -46,7 +46,7 @@ function Temps() {
 
   const dates = useMemo(() => Array.from({ length: 6 }, (_, i) => toISODate(addDays(fromISODate(monday), i))), [monday]);
   const staff = users
-    .filter((u) => u.status === "actif" && u.weeklyHours && (manager || u.id === sessionUser?.id))
+    .filter((u) => u.status === "actif" && (manager || u.id === sessionUser?.id))
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
   const rows = staff.map((u) => ({ user: u, week: weekTime(u, dates, punches, today, nowMinutesOf(now)) }));
   const isCurrentWeek = dates.includes(today);
@@ -121,7 +121,7 @@ function Temps() {
                       <UserAvatar user={user} className="size-8" />
                       <div>
                         <p className="font-medium text-slate-900">{fullName(user)}</p>
-                        <p className="text-xs text-slate-500">Contrat {user.weeklyHours} h / semaine</p>
+                        <p className="text-xs text-slate-500">{user.weeklyHours ? `Contrat ${user.weeklyHours} h / semaine` : "Sans contrat horaire"}</p>
                       </div>
                     </div>
                   </td>
@@ -180,11 +180,13 @@ function Temps() {
                   <td className="px-4 py-2.5">
                     <p className="text-sm">
                       <span className="font-medium text-slate-900">{formatMinutes(week.workedMinutes)}</span>
-                      <span className="text-slate-500"> / {user.weeklyHours} h</span>
+                      {user.weeklyHours ? <span className="text-slate-500"> / {user.weeklyHours} h</span> : <span className="text-slate-500"> travaillées</span>}
                     </p>
-                    <div className="mt-1 h-1.5 rounded-full bg-slate-100">
-                      <div className={cn("h-1.5 rounded-full", week.extraMinutes > 0 ? "bg-amber-400" : "bg-emerald-400")} style={{ width: `${pct}%` }} />
-                    </div>
+                    {user.weeklyHours ? (
+                      <div className="mt-1 h-1.5 rounded-full bg-slate-100">
+                        <div className={cn("h-1.5 rounded-full", week.extraMinutes > 0 ? "bg-amber-400" : "bg-emerald-400")} style={{ width: `${pct}%` }} />
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     {week.extraMinutes > 0 ? (
@@ -200,7 +202,7 @@ function Temps() {
         </table>
       </div>
       <p className="text-xs text-slate-500">
-        Règles appliquées : 20 min de pause dès 6 h travaillées, 10 h de travail effectif au maximum par jour. Les praticiens libéraux ne pointent pas.
+        Règles appliquées : 20 min de pause dès 6 h travaillées, 10 h de travail effectif au maximum par jour. Les praticiens pointent aussi ; sans contrat horaire, on affiche leurs heures sans calcul d'heures sup.
         {!manager && " Vous voyez vos propres heures ; le gestionnaire voit celles de toute l'équipe."}
       </p>
 
