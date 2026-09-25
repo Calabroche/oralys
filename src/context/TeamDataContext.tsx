@@ -134,6 +134,9 @@ interface TeamDataContextValue extends PersistedTeamData {
   /** Rétablit une absence ; `replaceIds` retire d'abord les morceaux issus d'une découpe. */
   restoreAbsence: (absence: TeamAbsence, replaceIds?: string[]) => void;
   assignRdv: (rdvId: string, assistantId: string) => void;
+  /** Laisser le RDV tel quel : le praticien l'assure sans assistant. Renvoie le RDV d'avant pour « Annuler ». */
+  keepRdvWithoutAssistant: (rdvId: string) => SoinsRdv | undefined;
+  restoreRdv: (rdv: SoinsRdv) => void;
   addRdv: (rdv: Omit<SoinsRdv, "id">) => void;
   rescheduleRdv: (rdvId: string, slot: { date: string; start: string; end: string }, assistantId: string | null) => void;
   cancelRdv: (rdvId: string) => void;
@@ -557,11 +560,26 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     assignRdv: (rdvId, assistantId) => {
       const rdv = data.rdvs.find((r) => r.id === rdvId);
       const a = findUser(assistantId);
-      mutate((d) => ({ ...d, rdvs: d.rdvs.map((r) => (r.id === rdvId ? { ...r, assistantUserId: assistantId } : r)) }), {
+      mutate((d) => ({ ...d, rdvs: d.rdvs.map((r) => (r.id === rdvId ? { ...r, assistantUserId: assistantId, keptWithoutAssistant: false } : r)) }), {
         action: "rdv.assign",
         summary: `${a ? fullName(a) : "?"} affecté(e) au RDV du ${rdv ? `${shortDate(rdv.date)} ${rdv.start}` : "?"} (${rdv?.patient ?? ""})`,
         extra: { targetUserId: assistantId },
       });
+    },
+
+    keepRdvWithoutAssistant: (rdvId) => {
+      const rdv = latest.current.rdvs.find((r) => r.id === rdvId);
+      if (!rdv) return undefined;
+      const p = latest.current.users.find((u) => u.id === rdv.praticienUserId);
+      mutate((d) => ({ ...d, rdvs: d.rdvs.map((r) => (r.id === rdvId ? { ...r, assistantUserId: null, keptWithoutAssistant: true } : r)) }), {
+        action: "rdv.assign",
+        summary: `RDV du ${shortDate(rdv.date)} ${rdv.start} (${rdv.patient}) maintenu sans assistant : ${p ? displayName(p) : "le praticien"} l'assure seul(e)`,
+      });
+      return rdv;
+    },
+
+    restoreRdv: (rdv) => {
+      mutate((d) => ({ ...d, rdvs: d.rdvs.map((r) => (r.id === rdv.id ? rdv : r)) }));
     },
 
     rescheduleRdv: (rdvId, slot, assistantId) => {

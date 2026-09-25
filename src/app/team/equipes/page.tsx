@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMinutes } from "@/lib/time";
 import { AccessGate } from "@/components/team/Access";
 import { Suspense, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
@@ -30,6 +31,7 @@ import Link from "next/link";
 import {
   acteLabel,
   agendaLoad,
+  DEFAULT_DAILY_OPEN_MINUTES,
   displayName,
   fullName,
   adjustTeamToNeed,
@@ -198,13 +200,13 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Remplissage de l'agenda Soins cette semaine</p>
+            <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Remplissage de l&apos;agenda Soins cette semaine</p>
             <div className="flex items-center gap-2">
               <Progress value={load.ratio * 100} className="h-2" />
               <span className="shrink-0 text-sm font-medium whitespace-nowrap">{Math.round(load.ratio * 100)} %</span>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {load.booked} RDV posés sur {load.capacity} créneaux possibles ({load.capacity / 4} jours × 4). Plus c'est haut, plus une absence touche de patients.
+              {load.booked} RDV, soit {formatMinutes(load.bookedMinutes)} de soins posés sur {formatMinutes(load.openMinutes)} d&apos;ouverture ({load.days} jours × {DEFAULT_DAILY_OPEN_MINUTES / 60} h). Plus c&apos;est haut, plus une absence touche de patients.
             </p>
           </div>
           <div>

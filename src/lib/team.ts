@@ -97,7 +97,7 @@ export function rdvsAtRisk(rdvs: SoinsRdv[], absences: TeamAbsence[], profiles: 
     // Un praticien qui travaille sans assistant n'a pas de RDV à risque côté assistant.
     const needsAssistant = (profiles.find((p) => p.praticienUserId === rdv.praticienUserId)?.assistantsNeeded ?? 1) > 0;
     if (absenceOn(rdv.praticienUserId, rdv.date, absences)) out.push({ rdv, reason: "praticien" });
-    else if (!needsAssistant) continue;
+    else if (!needsAssistant || rdv.keptWithoutAssistant) continue;
     else if (rdv.assistantUserId && absenceOn(rdv.assistantUserId, rdv.date, absences)) out.push({ rdv, reason: "assistant" });
     else if (!rdv.assistantUserId) out.push({ rdv, reason: "sans_assistant" });
   }
@@ -125,11 +125,35 @@ export function tensionsFor(
 }
 
 /** Charge d'agenda d'un praticien sur une période (RDV posés / capacité théorique). */
+/**
+ * Heures d'ouverture de l'agenda par jour travaillé. Prototype : 8 h par défaut ;
+ * en production, à lire dans la semaine type Soins du praticien (plages, exceptions, fermetures).
+ */
+export const DEFAULT_DAILY_OPEN_MINUTES = 8 * 60;
+
+const minutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Remplissage de l'agenda Soins d'un praticien sur une période : durée des RDV posés rapportée
+ * aux heures d'ouverture. Mesuré en temps et non en nombre de RDV, car un chirurgien peut enchaîner
+ * des dizaines de RDV courts comme quelques longues interventions.
+ */
 export function agendaLoad(praticien: TeamUser, startIso: string, endIso: string, rdvs: SoinsRdv[]) {
   const days = datesBetween(startIso, endIso).filter((iso) => worksOn(praticien, iso));
   const booked = rdvs.filter((r) => r.praticienUserId === praticien.id && r.date >= startIso && r.date <= endIso);
-  const capacity = days.length * 4;
-  return { booked: booked.length, capacity, ratio: capacity === 0 ? 0 : booked.length / capacity, rdvs: booked };
+  const bookedMinutes = booked.reduce((n, r) => n + Math.max(0, minutes(r.end) - minutes(r.start)), 0);
+  const openMinutes = days.length * DEFAULT_DAILY_OPEN_MINUTES;
+  return {
+    booked: booked.length,
+    bookedMinutes,
+    openMinutes,
+    days: days.length,
+    ratio: openMinutes === 0 ? 0 : Math.min(1, bookedMinutes / openMinutes),
+    rdvs: booked,
+  };
 }
 
 // --- Algorithme de suggestion ---------------------------------------------

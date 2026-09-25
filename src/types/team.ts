@@ -182,6 +182,8 @@ export interface SoinsRdv {
   patient: string;
   acte: ActeCategory;
   room: string;
+  /** Décision prise : le praticien assure ce RDV sans assistant (il ne compte plus comme « à réaffecter »). */
+  keptWithoutAssistant?: boolean;
 }
 
 export type AuditAction =

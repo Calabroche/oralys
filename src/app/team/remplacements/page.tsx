@@ -50,7 +50,19 @@ export default function RemplacementsPage() {
 
 function Remplacements() {
   const params = useSearchParams();
-  const { rdvs, absences, users, profiles, findUser, now, assignRdv, can } = useTeam();
+  const { rdvs, absences, users, profiles, findUser, now, assignRdv, can, keepRdvWithoutAssistant, restoreRdv } = useTeam();
+  // Laisser le RDV tel quel : le praticien l'assure sans assistant, sans forcément le reprogrammer.
+  const canKeep = can("team.planning") || can("rdv");
+  function keepWithout(rdv: SoinsRdv) {
+    const before = keepRdvWithoutAssistant(rdv.id);
+    const p = findUser(rdv.praticienUserId);
+    setSelectedId(null);
+    toast.success("RDV maintenu sans assistant", {
+      description: `${p ? displayName(p) : "Le praticien"} assure seul(e) le RDV du ${shortDate(rdv.date)} à ${rdv.start}.`,
+      duration: 10000,
+      action: before ? { label: "Annuler", onClick: () => restoreRdv(before) } : undefined,
+    });
+  }
   const today = toISODate(now());
   // Liens directs : ?absence=<id>, ?user=<id> (sa prochaine absence), ?date=<iso>&praticien=<id> (un RDV précis).
   const [absenceFilter, setAbsenceFilter] = useState(() => {
@@ -277,9 +289,16 @@ function Remplacements() {
               <CardContent>
                 <CandidateList
                     emptyAction={
-                      <Button onClick={() => setRebooking(selected)}>
-                        <CalendarClock /> Reprogrammer le RDV
-                      </Button>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <Button onClick={() => setRebooking(selected)}>
+                          <CalendarClock /> Reprogrammer le RDV
+                        </Button>
+                        {canKeep && (
+                          <Button variant="outline" onClick={() => keepWithout(selected)}>
+                            <CheckCircle2 /> Maintenir sans assistant
+                          </Button>
+                        )}
+                      </div>
                     }
                     candidates={candidates}
                     mode={mode}
@@ -291,9 +310,16 @@ function Remplacements() {
                     }}
                   />
                 {candidates.some((c) => c.eligible) && (
-                  <Button variant="link" size="sm" className="mt-2 px-0" onClick={() => setRebooking(selected)}>
-                    <CalendarClock /> Aucun ne convient ? Reprogrammer le RDV
-                  </Button>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4">
+                    <Button variant="link" size="sm" className="px-0" onClick={() => setRebooking(selected)}>
+                      <CalendarClock /> Aucun ne convient ? Reprogrammer le RDV
+                    </Button>
+                    {canKeep && (
+                      <Button variant="link" size="sm" className="px-0 text-slate-600" onClick={() => keepWithout(selected)}>
+                        <CheckCircle2 /> Maintenir le RDV sans assistant
+                      </Button>
+                    )}
+                  </div>
                 )}
                 {!(can("team.planning") || can("rdv")) && <p className="mt-3 text-xs text-slate-500">Lecture seule : l&apos;affectation nécessite le droit « Gérer le planning d&apos;équipe ».</p>}
               </CardContent>

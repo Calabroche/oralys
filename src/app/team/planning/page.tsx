@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMinutes } from "@/lib/time";
 import { useAccess } from "@/components/team/Access";
 import { Suspense, useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
@@ -372,7 +373,7 @@ function PendingRequests({ pending }: { pending: TeamAbsence[] }) {
                     </div>
                     <Progress value={load.ratio * 100} className={cn(load.ratio > 0.6 && "[&>[data-slot=progress-indicator]]:bg-rose-500")} />
                     <p className="text-xs text-slate-500">
-                      {load.booked} RDV patients déjà posés sur {load.capacity} créneaux. En cas de validation, l&apos;agenda Soins est fermé sur la période et ces RDV
+                      {load.booked} RDV patients déjà posés, soit {formatMinutes(load.bookedMinutes)} sur {formatMinutes(load.openMinutes)} d&apos;ouverture. En cas de validation, l&apos;agenda Soins est fermé sur la période et ces RDV
                       sont signalés pour report.
                     </p>
                   </>
