@@ -106,7 +106,7 @@ export const VERSIONS: VersionInfo[] = [
       "Préparer la paie : récapitulatif du mois (heures, heures sup à 25 et 50 %, absences) et export CSV",
     ],
     tryHref: "/team/temps",
-    screens: [49, 50, 51, 52],
+    screens: [49, 57, 50, 51, 52, 58],
   },
 ];
 

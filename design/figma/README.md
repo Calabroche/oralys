@@ -8,8 +8,8 @@ Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La 
 | Dossier / fichier | Rôle |
 |---|---|
 | `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** : chaque version avec ses écrans, capturés dans cette version (ce qui n'existe pas encore est masqué). Idéal pour présenter ou chiffrer une livraison |
-| `Oralys-Team-planche-complete.svg` | **Les 56 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
-| `screens/*.svg` | Les 56 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
+| `Oralys-Team-planche-complete.svg` | **Les 58 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
+| `screens/*.svg` | Les 58 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
 | `versions/{mvp,v1,v2,v3}/*.svg` | Les mêmes écrans capturés dans leur version (et leur `png/` de contrôle) |
 | `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
@@ -42,7 +42,7 @@ La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de 
 | **V1** · Binômes et remplacements | On ne sait pas qui travaille avec quel praticien ni qui remplace | Équipe de chaque praticien (titulaires, back-ups, besoin) · vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · remplaçants classés par règles, reprogrammer un RDV | 02, 08, 10, 12 à 18, 36, 43, 44, 56 |
 | **V2** · Intelligence et conformité | Rendre les remplacements plus justes et tracer qui fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
 | **V3** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
-| **V4** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal | 49 à 52 |
+| **V4** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal · récapitulatif du mois et export paie | 49 à 52, 57, 58 |
 
 Différences visibles d'une version à l'autre (utile pour le développement) : en MVP, pas d'onglets Remplacements ni Praticiens & équipes, pas de vue Binômes ni de tensions d'assistants ; « Trouver un remplaçant » devient « Voir le planning » ; l'Aperçu Soins ne montre que l'agenda fermé ; dans l'Administration, Rôles, Postes et Journal apparaissent grisés avec leur version.
 
@@ -173,6 +173,8 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | 50 | `50-temps-de-travail-semaine` | Semaine en cours : KPI (en poste maintenant, heures au-delà du contrat, anomalies), une ligne par salarié, heures par jour et horaires, total comparé au contrat | Voir les heures de chacun |
 | 51 | `51-temps-de-travail-semaine-badges` | Semaine précédente importée des badges : heures sup d'Inès, départ oublié de Camille en rouge | Reprendre l'historique des bipeurs, repérer heures sup et anomalies |
 | 52 | `52-temps-de-travail-correction` | Détail d'une journée : anomalie, pointages avec leur source (Badge, Oralys, Correction), ajout d'un pointage oublié avec motif obligatoire | Corriger un oubli, tracé au journal |
+| 57 | `57-pointage-code-pin` | Chaque pointage se confirme avec le code PIN de la personne connectée ; mauvais code = rien n'est pointé | Personne ne pointe à la place d'un autre |
+| 58 | `58-temps-de-travail-mois-paie` | Vue Mois (paie) : heures par semaine, total face au contrat mensualisé, sup 25 % / 50 %, complémentaires, absences, anomalies ; export CSV récapitulatif et détail | Préparer la paie, exporter pour le cabinet comptable |
 
 ### Vues par rôle
 | # | Fichier | Contenu | User stories |
