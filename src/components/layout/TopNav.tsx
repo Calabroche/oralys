@@ -17,6 +17,10 @@ const NAV_ITEMS = [
 export function TopNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [planetOpen, setPlanetOpen] = useState(false);
+
+  // La planète Team a son propre en-tête (liseré rose).
+  if (pathname.startsWith("/team")) return null;
 
   return (
     <header className="border-b-[3px] border-lime-300 bg-white">
@@ -26,6 +30,30 @@ export function TopNav() {
             <span className="text-sky-600">●</span>
             oralys
           </Link>
+          <div className="relative">
+            <button
+              onClick={() => setPlanetOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-full border border-lime-200 bg-lime-50 px-2.5 py-1 text-sm font-medium text-lime-900 hover:bg-lime-100"
+            >
+              <span className="h-2 w-2 rounded-full bg-lime-400" />
+              Soins
+              <span className="text-xs text-lime-700">▾</span>
+            </button>
+            {planetOpen && (
+              <>
+                <button className="fixed inset-0 z-40 cursor-default" aria-hidden tabIndex={-1} onClick={() => setPlanetOpen(false)} />
+                <div className="absolute left-0 top-full z-50 mt-2 w-56 rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                  <div className="px-3 py-1.5 text-xs text-slate-400">Univers Oralys</div>
+                  <span className="flex items-center gap-2 px-3 py-2 font-medium text-slate-900">
+                    <span className="h-2.5 w-2.5 rounded-full bg-lime-300" /> Oralys Soins ✓
+                  </span>
+                  <Link href="/team" onClick={() => setPlanetOpen(false)} className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50">
+                    <span className="h-2.5 w-2.5 rounded-full bg-pink-400" /> Oralys Team
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
           <span className="text-slate-400" aria-hidden>
             🔍
           </span>

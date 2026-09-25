@@ -1,0 +1,246 @@
+"use client";
+
+import { ReactNode, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Bell,
+  Check,
+  ChevronDown,
+  LogOut,
+  MonitorSmartphone,
+  RotateCcw,
+  Settings,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { OralysLogo } from "@/components/team/OralysLogo";
+import { QuickSwitchDialog } from "@/components/team/QuickSwitchDialog";
+import { UserAvatar } from "@/components/team/shared";
+import { TeamDataProvider, useTeam } from "@/context/TeamDataContext";
+import { PersonSheetProvider } from "@/components/team/PersonSheet";
+import { TEAM_CABINET_NAME } from "@/data/teamMockData";
+import { fullName, roleNames } from "@/lib/team";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { label: "Tableau de bord", href: "/team", exact: true },
+  { label: "Planning", href: "/team/planning" },
+  { label: "Remplacements", href: "/team/remplacements" },
+  { label: "Praticiens & équipes", href: "/team/equipes" },
+  { label: "Aperçu Soins", href: "/team/soins" },
+  { label: "Administration", href: "/team/reglages" },
+];
+
+export const PLANETS = [
+  { id: "soins", label: "Soins", href: "/agenda", dot: "bg-lime-300", hint: "Agenda, patients, actes" },
+  { id: "team", label: "Team", href: "/team", dot: "bg-pink-400", hint: "Équipe, droits, planning" },
+  { id: "compta", label: "Compta", href: null, dot: "bg-slate-300", hint: "Bientôt disponible" },
+];
+
+function PlanetSwitcher() {
+  const router = useRouter();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-sm font-medium text-pink-900 hover:bg-pink-100">
+          <span className="size-2 rounded-full bg-pink-400" />
+          Team
+          <ChevronDown className="size-3.5 text-pink-700" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-60">
+        <DropdownMenuLabel className="text-xs text-slate-500">Univers Oralys</DropdownMenuLabel>
+        {PLANETS.map((p) => (
+          <DropdownMenuItem
+            key={p.id}
+            disabled={!p.href}
+            onSelect={() => p.href && p.id !== "team" && router.push(p.href)}
+            className="flex items-start gap-2.5 py-2"
+          >
+            <span className={cn("mt-1.5 size-2.5 shrink-0 rounded-full", p.dot)} />
+            <span className="flex-1">
+              <span className="block font-medium">Oralys {p.label}</span>
+              <span className="block text-xs text-slate-500">{p.hint}</span>
+            </span>
+            {p.id === "team" && <Check className="mt-1 size-4 text-pink-600" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function Notifications() {
+  const { notifications, markAllRead } = useTeam();
+  const unread = notifications.filter((n) => !n.read).length;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+          <Bell />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-pink-500 text-[0.6rem] font-semibold text-white">
+              {unread}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-96 p-0">
+        <div className="flex items-center justify-between border-b px-4 py-2.5">
+          <span className="text-sm font-medium">Alertes Team → Soins</span>
+          <Button variant="ghost" size="xs" onClick={markAllRead} disabled={unread === 0}>
+            Tout marquer comme lu
+          </Button>
+        </div>
+        <div className="max-h-96 overflow-y-auto">
+          {notifications.length === 0 && <p className="p-4 text-sm text-slate-500">Aucune alerte.</p>}
+          {notifications.map((n) => (
+            <Link
+              key={n.id}
+              href={n.href ?? "#"}
+              className={cn("block border-b px-4 py-3 last:border-0 hover:bg-slate-50", !n.read && "bg-pink-50/50")}
+            >
+              <div className="flex items-start gap-2">
+                <span
+                  className={cn(
+                    "mt-1.5 size-2 shrink-0 rounded-full",
+                    n.kind === "absence_last_minute" || n.kind === "rdv_risk" ? "bg-rose-500" : n.kind === "tension" ? "bg-amber-500" : "bg-sky-500"
+                  )}
+                />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{n.title}</p>
+                  <p className="text-xs text-slate-500">{n.body}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Header() {
+  const pathname = usePathname();
+  const { sessionUser, roles, workstation, resetDemo, hydrated } = useTeam();
+  const [switchOpen, setSwitchOpen] = useState(false);
+
+  return (
+    <>
+      {/* Le liseré rose sous l'en-tête signale qu'on est sur la planète Team (vert = Soins). */}
+      <header className="border-b-[3px] border-pink-300 bg-white">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
+          <div className="flex items-center gap-3">
+            <Link href="/team" aria-label="Accueil Oralys Team">
+              <OralysLogo />
+            </Link>
+            <PlanetSwitcher />
+          </div>
+          <button className="flex items-center gap-1.5 text-base font-medium text-slate-800">
+            {TEAM_CABINET_NAME}
+            <ChevronDown className="size-4 text-slate-500" />
+          </button>
+          <div className="flex items-center justify-end gap-1.5">
+            {workstation && (
+              <span className="mr-1 hidden items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 lg:flex">
+                <MonitorSmartphone className="size-3.5" /> {workstation}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setSwitchOpen(true)}>
+              <Users /> Changer d&apos;utilisateur
+            </Button>
+            <Notifications />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 rounded-full pr-1 hover:bg-slate-50" aria-label="Menu utilisateur">
+                  {sessionUser && hydrated ? <UserAvatar user={sessionUser} className="size-9" /> : <span className="size-9 rounded-full bg-slate-100" />}
+                  <ChevronDown className="size-4 text-slate-500" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                {sessionUser && (
+                  <DropdownMenuLabel>
+                    <span className="block font-medium text-slate-900">{fullName(sessionUser)}</span>
+                    <span className="block text-xs font-normal text-slate-500">{roleNames(sessionUser, roles).join(" + ")}</span>
+                  </DropdownMenuLabel>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/team/moi">
+                    <UserRound /> Mon profil, dispos & préférences
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/team/reglages">
+                    <Settings /> Administration
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSwitchOpen(true)}>
+                  <Users /> Changer d&apos;utilisateur (PIN)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={resetDemo}>
+                  <RotateCcw /> Réinitialiser la démo
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  <LogOut /> Déconnexion
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+      <nav className="border-b border-slate-200 bg-gradient-to-b from-pink-50/70 to-white px-6">
+        <ul className="flex items-center gap-1 text-sm">
+          {TABS.map((t) => {
+            const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
+            return (
+              <li key={t.href}>
+                <Link
+                  href={t.href}
+                  className={cn(
+                    "relative block px-3 py-3 font-medium transition-colors",
+                    active ? "text-slate-900" : "text-slate-500 hover:text-slate-800"
+                  )}
+                >
+                  {t.label}
+                  {active && <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-pink-400" />}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      <QuickSwitchDialog open={switchOpen} onOpenChange={setSwitchOpen} />
+    </>
+  );
+}
+
+export function TeamShell({ children }: { children: ReactNode }) {
+  return (
+    <TeamDataProvider>
+      <TooltipProvider delayDuration={200}>
+        <PersonSheetProvider>
+          <div className="flex min-h-screen flex-col bg-white">
+            <Header />
+            <div className="flex-1">{children}</div>
+          </div>
+        </PersonSheetProvider>
+        <Toaster position="bottom-right" richColors closeButton />
+      </TooltipProvider>
+    </TeamDataProvider>
+  );
+}

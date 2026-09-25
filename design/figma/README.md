@@ -1,0 +1,169 @@
+# Oralys Team : maquettes pour Figma
+
+Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), généré le 24/09/2026 à partir de l'app qui tourne (`/team`).
+Données de démo : cabinet Oralpes, date de référence mardi 1er septembre 2026, session Delphine Girard (Gestionnaire).
+
+## Contenu du dossier
+
+| Dossier / fichier | Rôle |
+|---|---|
+| `Oralys-Team-planche-complete.svg` | **Les 42 écrans en un seul fichier**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
+| `screens/*.svg` | Les 42 maquettes vectorielles, un fichier par écran (1440 px de large) |
+| `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
+| `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
+| `index.html` | Planche de consultation dans un navigateur |
+
+## Importer dans Figma
+
+1. **Police** : installer ou activer **Geist** (Google Font, disponible dans Figma). Tous les textes sont en Geist, avec Helvetica / Arial en secours hors Figma.
+2. **Maquettes** : glisser-déposer `Oralys-Team-planche-complete.svg` (tout d'un coup) ou les fichiers de `screens/` sur le canevas.
+3. **Transformer chaque écran en frame** : sélectionner le groupe d'un écran (ex. `02 · Planning · Binômes (semaine)`), puis clic droit → *Frame selection* (⌥⌘G). Recommandé : activer *Clip content*.
+4. **Tokens** : plugin **Tokens Studio for Figma** → *Load from file* → `tokens.json`, puis créer les styles / variables.
+
+### Ce que vous obtenez dans Figma
+
+Les SVG ont été produits par un exportateur écrit pour Figma (et non une simple capture du navigateur) :
+
+- **Calques nommés comme un fichier de designer** : `Header · oralys`, `Navigation · Tableau de bord`, `Card · À traiter en priorité`, `Button · Déclarer une absence`, `Badge · Congé · à valider`, `Modale · Déclarer une absence`, `Fiche latérale · Thomas Dupont`, `Ligne · Dr Sophie Martin`, `Icon · calendar-plus`… Conteneurs génériques nommés d'après leur mise en page : `Rangée`, `Pile`, `Grille`, `Actions`, `Bloc`.
+- **Formes réelles** : chaque fond est un rectangle (`Fond`) avec son rayon d'arrondi, chaque contour est un trait (`Bordure`, pointillé si besoin), les séparateurs sont des filets (`Bordure basse`…). Couleurs en hex + opacité.
+- **Textes éditables**, posés sur leur ligne de base, avec la vraie graisse, la taille, l'interlettrage, les majuscules appliquées, le barré. Texte tronqué à l'écran = tronqué avec « … ».
+- **Icônes Lucide en vecteurs** (tracés éditables, couleur appliquée), nommées `Icon · nom-de-l-icône`.
+- **Arborescence aplatie** : un groupe n'existe que s'il porte quelque chose de visible ou regroupe plusieurs éléments. Aucun masque, aucun attribut technique.
+
+## Identité de la planète Team
+
+- **Liseré de 3 px sous l'en-tête** : rose `planet.team.lisere` (#f9a8d4) pour Team, vert `planet.soins.lisere` (#bef264) pour Soins. C'est le repère principal pour savoir sur quelle planète on se trouve (écrans 01 et 23).
+- **Sélecteur de planète** : pastille « Team ▾ » à droite du logo, rose ; « Soins ▾ » en vert côté Soins. Menu « Univers Oralys » : Soins, Team, Compta (bientôt) (écrans 23, 40).
+- **Accent** : rose pour tout ce qui est actif (onglet souligné rose, filtre actif sur fond pink-100, badges compteurs pink-500). Les boutons primaires restent noirs (charte shadcn / Oralys).
+- **Sous-navigation** : fond dégradé très léger rose vers blanc, onglets texte, soulignement rose 2 px sur l'onglet actif.
+- **Mise en page** : en-tête sur 3 colonnes (logo + planète | cabinet centré | changer d'utilisateur, alertes, avatar), contenu 1280 px max, Administration avec barre latérale de 256 px (même ordre que la prod, entrées Team badgées « Team »).
+
+## Inventaire des écrans
+
+### Tableau de bord
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 01 | `01-tableau-de-bord` | KPI (présents, RDV à risque, demandes, utilisateurs), « À traiter en priorité » (absence de dernier moment, tension, demandes), « Qui est là aujourd'hui » par rôle, absences à 14 jours | Vue d'ensemble, alertes proactives Team → Soins |
+
+### Planning
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 02 | `02-planning-binomes-semaine` | **Vue Binômes** (par défaut) : une ligne par praticien, besoin en assistants, titulaires / back-ups, puces par jour (titulaire vert, back-up bleu pointillé ↻, prêt violet ⇄, « Manque n » rouge), titulaires absents barrés, bandeau Tensions | Qui travaille avec quel praticien, manques selon le besoin |
+| 03 | `03-planning-par-personne` | Vue par personne groupée par les 6 rôles de la prod, filtres par rôle avec compteurs, cellule = praticien du jour (assistant) ou binôme (praticien) | Calendrier consolidé, absences par poste |
+| 04 | `04-planning-mois` | Même vue sur le mois (cellules compactes) | Vue mensuelle |
+| 05 | `05-planning-demandes-a-valider` | Demandes de congé : charge d'agenda du praticien (barre %), tension créée si validée, Valider / Refuser | Arbitrer un congé en connaissant la charge |
+| 06 | `06-planning-toutes-absences` | Liste de toutes les absences, badge cliquable, annulation | Historique des absences |
+| 07 | `07-planning-absence-retour-arriere` | Popover d'absence : détails, « Présent(e) finalement le … », « Annuler toute l'absence », lien vers les RDV impactés | Retour arrière total ou pour un jour |
+| 08 | `08-planning-binome-actions` | Popover sur une puce d'assistant : déclarer absent ce jour, voir la fiche (et « Retirer le prêt » pour un prêt) | Action directe depuis le planning |
+| 09 | `09-planning-declarer-absence` | Modale de déclaration : collaborateur, motif (segmenté), dates, précision, alerte « dernier moment » | Déclarer une absence (maladie, congé, formation) |
+
+### Remplacements
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 10 | `10-remplacements-brique1-regles` | Liste des RDV à réaffecter, filtres par absence, candidats classés par règles (titulaire, back-up n°), « Meilleur binôme », RDV à reporter (praticien absent) | Brique 1 : substitution par règles |
+| 11 | `11-remplacements-brique2-affinite` | Classement par score d'affinité 0-100, détail « Pourquoi ? » (rattachement, historique Soins, actes, retours, habilitations, préférences), personnes écartées et raisons | Brique 2 : score d'affinité |
+| 12 | `12-remplacements-aucun-admissible` | État vide « Aucun assistant admissible » avec « Reprogrammer le RDV » | Nettoyer les RDV sans solution |
+| 13 | `13-remplacements-reprogrammer-rdv` | Modale : 6 prochains créneaux où praticien libre + binôme dispo (score), « Choisir », « Annuler le RDV » | Rebooker un RDV |
+| 14 | `14-remplacements-journee-pret-assistant` | Arrivée depuis un « Manque » du planning (bandeau filtré), équipe du jour avec raison de chaque absence, **Solutions** : prêter un assistant pour la journée avec impact simulé | Combler un manque sans toucher aux rattachements |
+
+### Praticiens & équipes
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 15 | `15-equipes-fiche-praticien` | Fiche 360° : spécialités, salles, jours, charge, absences à venir, équipe rattachée (ordre, titulaire / back-up, jours), titulaires par jour, affinités | Fiche praticien centralisée, vue équipe par praticien |
+| 16 | `16-equipes-besoin-assistants` | Liste « Besoin : 0 à 3 assistants / jour » (0 = travaille seul) | Dimensionner l'équipe |
+| 17 | `17-equipes-specialites` | Multi-sélection de spécialités (liste de la prod) avec recherche, sauvegarde auto « Spécialités sauvegardées » | Spécialités visibles par le secrétariat |
+| 18 | `18-equipes-nouveau-profil-bloque` | Création de profil praticien bloquée sans utilisateur rattaché | Blocage profil praticien orphelin |
+
+### Aperçu Soins (points de contact Team → Soins)
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 19 | `19-soins-prise-rdv-suggestion` | Prise de RDV : alerte « assistant habituel absent », meilleur binôme proposé | Brique 3 : suggestion contextuelle |
+| 20 | `20-soins-fiche-patient-droits` | Fiche patient : consultation concurrente (« en cours de consultation par … », demander la main), actions selon les droits, décision clinique masquée pour un non-soignant | Accès concurrents, droits appliqués sans reconnexion |
+| 21 | `21-soins-sterilisation-operateur` | Cycle de stérilisation sur poste partagé : opérateur obligatoire, différent de la session | Opérateur explicite (Oralpes) |
+| 22 | `22-soins-agenda-ferme` | Absences praticiens validées → agenda Soins fermé | Fermeture automatique de l'agenda |
+| 23 | `23-oralys-soins-selecteur-planete` | Planète Soins (liseré vert) et son sélecteur | Passage d'une planète à l'autre |
+
+### Administration
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 24 | `24-admin-utilisateurs` | Tableau (utilisateur, rôles, environnement, statut), filtres Tous / Actifs / En attente / Archivés, recherche | Gestion des utilisateurs |
+| 25 | `25-admin-utilisateur-menu-actions` | Menu de ligne (en attente) : renvoyer le mail, voir l'email, simuler l'activation, modifier, archiver, supprimer | Cycle de vie |
+| 26 | `26-admin-creer-utilisateur-doublon` | Création : identifiant déjà utilisé, bouton désactivé | Blocage des doublons |
+| 27 | `27-admin-creer-utilisateur-permissions` | Création : rôles cumulables à gauche, **permissions couvertes** en direct à droite (comme la prod), info profil praticien | Rôles multiples, lisibilité des droits |
+| 30 | `30-admin-invitation-envoyee` | Aperçu de l'email d'invitation | Définir son mot de passe |
+| 28 | `28-admin-archiver-utilisateur` | Archivage : motif, impacts (RDV à réaffecter, équipes, historique conservé) | Archiver sans perdre l'historique |
+| 29 | `29-admin-supprimer-definitivement` | Suppression définitive avec confirmation par saisie de l'email | Suppression définitive |
+| 31 | `31-admin-roles-matrice` | Matrice rôles × droits (12 permissions prod + 2 « Nouveau Team »), décision clinique verrouillée hors soignants | Qui a accès à quoi |
+| 32 | `32-admin-roles-par-utilisateur` | Matrice utilisateurs × droits | Revue RGPD / audit |
+| 33 | `33-admin-nouveau-role` | Création de rôle à partir d'un rôle existant, professionnel de santé, transverse | Rôles paramétrables par cabinet |
+| 34 | `34-admin-journal-audit` | Journal filtrable (personne, type, période, sensibles), rôle au moment de l'action, poste | Traçabilité |
+| 35 | `35-admin-postes-partages` | Réglages par poste : PIN, opérateur explicite, verrouillage auto | Postes partagés |
+
+### Éléments globaux
+| # | Fichier | Contenu |
+|---|---|---|
+| 36 | `36-fiche-personne` | Fiche latérale ouverte depuis n'importe quel nom : liens vers Planning, Remplacements, Journal, Modifier, déclarer une absence, absences en cours, onglets Rôles & droits / Dispos / Historique |
+| 37 | `37-changer-utilisateur-choix` | Bascule rapide sur poste partagé : choix de la personne et du poste |
+| 38 | `38-changer-utilisateur-pin` | Saisie du PIN à 4 chiffres |
+| 39 | `39-notifications` | Alertes Team → Soins |
+| 40 | `40-selecteur-planete-team` | Menu « Univers Oralys » côté Team |
+| 41 | `41-menu-utilisateur` | Menu avatar : profil, administration, changer d'utilisateur, réinitialiser la démo |
+| 42 | `42-mon-profil` | Disponibilités, actes préférés, habilitations, préférences de binôme (confidentiel), mes absences |
+
+## Composants (base shadcn/ui, style radix-nova)
+
+| Composant | Variantes / états utilisés |
+|---|---|
+| Button | default (noir), outline, ghost, destructive, link ; tailles xs 24, sm 28, default 32, icon |
+| Badge | secondary (rôles), outline (statuts, priorités), destructive (dernier moment), rose (compteurs) |
+| Card | titre, description, action à droite, contenu |
+| Tabs | variante « line » (soulignée) et « default » (segmentée : Brique 1 / Brique 2) |
+| ToggleGroup | outline (Binômes / Par personne, Semaine / Mois, motifs d'absence, jours) ; état actif rose |
+| Dialog / AlertDialog | modales centrées, pied de page gris, média icône pour les confirmations |
+| Sheet | fiche latérale droite 576 px |
+| Popover / DropdownMenu / Select / Command | menus flottants, liste avec coche, recherche |
+| Table | en-têtes en capitales grises, lignes 56 px |
+| Checkbox, Switch, RadioGroup, InputOTP, Input, Textarea | formulaires |
+| Alert | warning (ambre), destructive (rose), info (bleu), succès (vert) |
+| Progress | charge d'agenda, score d'affinité |
+| Avatar | initiales, 6 teintes selon l'identifiant, grisé si archivé |
+
+Composants propres à Team (à créer comme composants Figma) :
+
+- **PillFilter** : filtres en pastilles, actif = fond pink-100 texte pink-900, compteur gris.
+- **StatusBadge** : ACTIF (vert), EN ATTENTE (ambre), ARCHIVÉ (gris), capitales 11 px.
+- **AbsenceBadge** : Congé (bleu), Maladie (rose), Formation (violet), Autre (gris) ; « à valider » = fond blanc, bordure pointillée 2 px ; « Dernier moment » = anneau rose + sirène.
+- **BinomeChip** : titulaire / back-up ↻ / prêt ⇄ / Manque n / titulaire absent barré / « Prénom → Dr X ».
+- **BinomeCell** : état couvert (fond vert très pâle), manque (fond rose + contour), absent (badge d'absence « agenda fermé »), repos (gris).
+- **CandidateCard** : rang, avatar, nom, « Meilleur binôme », priorité, barre d'affinité, « Pourquoi ? » dépliable, bouton Affecter.
+- **PlanetSwitcher** et **Liseré** (Team rose / Soins vert).
+- **PersonLink** : nom cliquable, soulignement rose au survol, ouvre la fiche personne.
+
+## Parcours à prototyper dans Figma
+
+1. **Absence de dernier moment** : 01 (alerte rouge) → 10 (RDV à réaffecter) → 11 (pourquoi ce binôme) → affecter → 01 (alerte passée au vert « gérée »).
+2. **Manque sur une journée** : 02 (clic « Manque 1 ») → 14 (solutions : prêter un assistant) → 02 (puce violette ⇄).
+3. **Congé praticien** : 05 (charge d'agenda) → valider → 22 (agenda Soins fermé).
+4. **Retour arrière** : 03 → 07 (« Présent(e) finalement ») → toast « Annuler ».
+5. **Nouvel utilisateur** : 24 → 26 (doublon) → 27 (permissions couvertes) → 30 (invitation) → 25 (renvoyer le mail).
+6. **Poste partagé** : 37 → 38 (PIN) → 20 (droits appliqués immédiatement pour l'assistant).
+7. **Aucun remplaçant** : 12 → 13 (reprogrammer).
+8. **Changer de planète** : 40 (menu Team) → 23 (Soins, liseré vert).
+
+## Liens directs dans l'app (pour html.to.design ou revue)
+
+- Planning binômes : `/team/planning?date=2026-09-14`
+- Planning par personne, une personne en avant : `/team/planning?view=personnes&user=u-camille&date=2026-09-14`
+- Remplacements pour un manque : `/team/remplacements?date=2026-09-14&praticien=u-flore`
+- Fiche praticien : `/team/equipes?praticien=env-dray`
+- Journal filtré : `/team/reglages/journal?user=u-hugo`
+
+## Limites (à reprendre dans Figma)
+
+- **Ombres** : non incluses. Appliquer `shadow.overlay` (tokens) sur les modales, menus, popovers et la fiche latérale.
+- **Auto-layout** : les maquettes sont en positions absolues (c'est le cas de tout SVG). Les calques étant nommés et groupés par composant, on peut les convertir en auto-layout (⇧A) composant par composant.
+- **Hachures « ne consulte pas »** : rendues en aplat gris clair.
+- **Matrice rôles × droits (31)** : la 7e colonne (Resp. stérilisation) défile horizontalement dans l'app, elle est coupée à 1440 px.
+- **Survols, focus, animations** : non capturés. Survol des boutons = assombrissement 20 %, focus = anneau gris 3 px.
+- **Emojis** de la planète Soins (écran 23) : textes, pas des icônes vectorielles.
+- **Données** : fictives (cabinet Oralpes). Les correspondances rôle → permissions sont déduites de la vidéo de la prod, à confirmer.
