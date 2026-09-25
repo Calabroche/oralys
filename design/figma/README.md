@@ -1,6 +1,6 @@
 # Oralys Team : maquettes pour Figma
 
-Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), régénéré le 25/09/2026 à partir de l'app qui tourne (`/team`).
+Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), régénéré le 25/09/2026 (en-tête avec le nom de la personne connectée, V4 pointage) à partir de l'app qui tourne (`/team`).
 Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La démo vit à la date du jour : ces maquettes ont été capturées le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre).
 
 ## Contenu du dossier
@@ -8,8 +8,8 @@ Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La 
 | Dossier / fichier | Rôle |
 |---|---|
 | `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** : chaque version avec ses écrans, capturés dans cette version (ce qui n'existe pas encore est masqué). Idéal pour présenter ou chiffrer une livraison |
-| `Oralys-Team-planche-complete.svg` | **Les 48 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
-| `screens/*.svg` | Les 48 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
+| `Oralys-Team-planche-complete.svg` | **Les 52 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
+| `screens/*.svg` | Les 52 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
 | `versions/{mvp,v1,v2,v3}/*.svg` | Les mêmes écrans capturés dans leur version (et leur `png/` de contrôle) |
 | `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
@@ -34,16 +34,17 @@ Les SVG ont été produits par un exportateur écrit pour Figma (et non une simp
 
 ## Découpage par version
 
-La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de « Team ») : ce qui n'est pas encore livré dans la version choisie est masqué, et un message liste ce qu'on peut faire en plus. La page `/team/feuille-de-route` présente les 4 versions.
+La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de « Team ») : ce qui n'est pas encore livré dans la version choisie est masqué, et un message liste ce qu'on peut faire en plus. La page `/team/feuille-de-route` présente les 5 versions.
 
 | Version | Problème réglé | Ce qu'on peut faire en plus | Écrans |
 |---|---|---|---|
-| **MVP** · Qui est là, qui manque | Les absences vivent dans un tableau à part, l'alerte passe par téléphone | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · planning par personne · alerte de dernier moment et agenda Soins fermé | 01, 03 à 07, 09, 22 à 30, 39 à 41 |
+| **MVP** · Qui est là, qui manque | Les absences vivent dans un tableau à part, l'alerte passe par téléphone | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · planning par personne · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête | 01, 03 à 07, 09, 22 à 30, 37 à 41 |
 | **V1** · Binômes et remplacements | On ne sait pas qui travaille avec quel praticien ni qui remplace | Équipe de chaque praticien (titulaires, back-ups, besoin) · vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · remplaçants classés par règles, reprogrammer un RDV | 02, 08, 10, 12 à 18, 36, 43, 44 |
-| **V2** · Intelligence et conformité | Rendre les remplacements plus justes et tracer qui fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · postes partagés avec PIN, opérateur de stérilisation | 11, 19 à 21, 31 à 35, 37, 38 |
+| **V2** · Intelligence et conformité | Rendre les remplacements plus justes et tracer qui fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
 | **V3** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
+| **V4** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal | 49 à 52 |
 
-Différences visibles d'une version à l'autre (utile pour le développement) : en MVP, pas d'onglets Remplacements ni Praticiens & équipes, pas de vue Binômes ni de tensions d'assistants, pas de bouton « Changer d'utilisateur » ; « Trouver un remplaçant » devient « Voir le planning » ; l'Aperçu Soins ne montre que l'agenda fermé ; dans l'Administration, Rôles, Postes et Journal apparaissent grisés avec leur version.
+Différences visibles d'une version à l'autre (utile pour le développement) : en MVP, pas d'onglets Remplacements ni Praticiens & équipes, pas de vue Binômes ni de tensions d'assistants ; « Trouver un remplaçant » devient « Voir le planning » ; l'Aperçu Soins ne montre que l'agenda fermé ; dans l'Administration, Rôles, Postes et Journal apparaissent grisés avec leur version.
 
 ## Identité de la planète Team
 
@@ -60,7 +61,7 @@ Différences visibles d'une version à l'autre (utile pour le développement) : 
 |---|---|---|---|
 | 45 | `45-feuille-de-route` | Frise MVP → V3, et pour chaque version : problème réglé, ce qu'on peut faire en plus, numéros des maquettes, « Voir la démo en V1 » | Présenter l'évolution du module |
 | 46 | `46-version-en-cours` | Pastille de version cliquable dans l'en-tête : ce que la version permet, « Commencer la démo ici », bascule MVP / V1 / V2 / V3 | Savoir où on en est pendant une démo |
-| 47 | `47-selecteur-de-version` | Menu utilisateur : les 4 versions avec une phrase chacune, lien vers la feuille de route | Choisir la version à montrer |
+| 47 | `47-selecteur-de-version` | Menu utilisateur : les 5 versions avec une phrase chacune, lien vers la feuille de route | Choisir la version à montrer |
 | 48 | `48-message-changement-de-version` | Message après une bascule : « Démo en V2 · … », liste de ce qu'on peut faire en plus | Expliquer ce qui vient d'apparaître |
 
 ### Tableau de bord
@@ -124,6 +125,14 @@ Différences visibles d'une version à l'autre (utile pour le développement) : 
 | 34 | `34-admin-journal-audit` | Journal filtrable (personne, type, période, sensibles), rôle au moment de l'action, poste | Traçabilité |
 | 35 | `35-admin-postes-partages` | Réglages par poste : PIN, opérateur explicite, verrouillage auto | Postes partagés |
 
+### Temps de travail (pointage, V4)
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 49 | `49-pointage-pointeuse` | Pastille « Pas encore pointé » / « En poste · 2 h 43 » dans l'en-tête ; au clic : nom de la personne en grand, « Ce n'est pas vous ? Changer d'utilisateur », bouton d'action du moment, pointages du jour | Pointer sur son propre profil, remplace les bipeurs |
+| 50 | `50-temps-de-travail-semaine` | Semaine en cours : KPI (en poste maintenant, heures au-delà du contrat, anomalies), une ligne par salarié, heures par jour et horaires, total comparé au contrat | Voir les heures de chacun |
+| 51 | `51-temps-de-travail-semaine-badges` | Semaine précédente importée des badges : heures sup d'Inès, départ oublié de Camille en rouge | Reprendre l'historique des bipeurs, repérer heures sup et anomalies |
+| 52 | `52-temps-de-travail-correction` | Détail d'une journée : anomalie, pointages avec leur source (Badge, Oralys, Correction), ajout d'un pointage oublié avec motif obligatoire | Corriger un oubli, tracé au journal |
+
 ### Éléments globaux
 | # | Fichier | Contenu |
 |---|---|---|
@@ -175,6 +184,7 @@ Composants propres à Team (à créer comme composants Figma) :
 7. **Aucun remplaçant** : 12 → 13 (reprogrammer).
 8. **Changer de planète** : 40 (menu Team) → 23 (Soins, liseré vert).
 9. **Présenter l'évolution** : 45 (feuille de route) → « Voir la démo en MVP » → 47 (sélecteur) → V1 → 48 (message « ce qu'on peut faire en plus ») → 46 (pastille pour se repérer) → V2, V3.
+10. **Pointage** : 49 (« Commencer ma journée » sur son profil) → 50 (la semaine de l'équipe) → 51 (semaine des badges, anomalie de Camille) → 52 (ajout du départ oublié avec motif).
 
 ## Liens directs dans l'app (pour html.to.design ou revue)
 

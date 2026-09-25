@@ -105,7 +105,7 @@ export const VERSIONS: VersionInfo[] = [
       "Corriger un pointage oublié, avec une trace dans le journal d'audit",
     ],
     tryHref: "/team/temps",
-    screens: [],
+    screens: [49, 50, 51, 52],
   },
 ];
 
