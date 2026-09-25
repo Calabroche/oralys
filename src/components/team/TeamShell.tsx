@@ -10,6 +10,7 @@ import {
   LogOut,
   MonitorSmartphone,
   RotateCcw,
+  Map as MapIcon,
   Settings,
   UserRound,
   Users,
@@ -43,6 +44,7 @@ import {
   Version,
   VersionBadge,
   VersionProvider,
+  useSwitchVersion,
   useVersion,
 } from "@/components/team/Version";
 import { TEAM_CABINET_NAME } from "@/data/teamMockData";
@@ -203,7 +205,8 @@ function Header() {
   const pathname = usePathname();
   const { sessionUser, roles, workstation, resetDemo, hydrated } = useTeam();
   const [switchOpen, setSwitchOpen] = useState(false);
-  const { version, setVersion, has } = useVersion();
+  const { version, has } = useVersion();
+  const switchVersion = useSwitchVersion();
 
   return (
     <>
@@ -251,7 +254,7 @@ function Header() {
                   <ChevronDown className="size-4 text-slate-500" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuContent align="end" className="w-96">
                 {sessionUser && (
                   <DropdownMenuLabel>
                     <span className="block font-medium text-slate-900">
@@ -268,7 +271,7 @@ function Header() {
                 </DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={version}
-                  onValueChange={(v) => setVersion(v as Version)}
+                  onValueChange={(v) => switchVersion(v as Version)}
                 >
                   {VERSIONS.map((v) => (
                     <DropdownMenuRadioItem
@@ -280,12 +283,18 @@ function Header() {
                       <span className="w-9 shrink-0 font-semibold">
                         {v.label}
                       </span>
-                      <span className="text-xs leading-snug text-slate-500">
-                        {v.title}
+                      <span className="leading-snug">
+                        <span className="block text-sm font-medium text-slate-800">{v.title}</span>
+                        <span className="block text-xs text-slate-500">{v.pitch}</span>
                       </span>
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
+                <DropdownMenuItem asChild>
+                  <Link href="/team/feuille-de-route">
+                    <MapIcon /> Feuille de route MVP → V3
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {has("profil") && (
                   <DropdownMenuItem asChild>
