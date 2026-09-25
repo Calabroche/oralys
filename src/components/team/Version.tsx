@@ -46,7 +46,7 @@ export const VERSIONS: VersionInfo[] = [
       "Être alerté d'une absence de dernier moment, et fermer l'agenda Soins d'un praticien absent",
     ],
     tryHref: "/team",
-    screens: [1, 3, 4, 5, 6, 7, 9, 22, 23, 24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 40, 41],
+    screens: [1, 3, 4, 5, 6, 7, 9, 22, 23, 24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 40, 41, 53, 54, 55],
   },
   {
     id: "v1",
@@ -61,7 +61,7 @@ export const VERSIONS: VersionInfo[] = [
       "Réaffecter les RDV d'un assistant absent avec des remplaçants classés par règles, ou reprogrammer le RDV",
     ],
     tryHref: "/team/planning?view=binomes",
-    screens: [2, 8, 43, 44, 10, 12, 13, 14, 15, 16, 17, 18, 36],
+    screens: [2, 8, 43, 44, 10, 12, 13, 14, 15, 16, 17, 18, 36, 56],
   },
   {
     id: "v2",

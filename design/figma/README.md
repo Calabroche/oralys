@@ -8,8 +8,8 @@ Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La 
 | Dossier / fichier | Rôle |
 |---|---|
 | `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** : chaque version avec ses écrans, capturés dans cette version (ce qui n'existe pas encore est masqué). Idéal pour présenter ou chiffrer une livraison |
-| `Oralys-Team-planche-complete.svg` | **Les 52 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
-| `screens/*.svg` | Les 52 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
+| `Oralys-Team-planche-complete.svg` | **Les 56 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
+| `screens/*.svg` | Les 56 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
 | `versions/{mvp,v1,v2,v3}/*.svg` | Les mêmes écrans capturés dans leur version (et leur `png/` de contrôle) |
 | `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
@@ -38,13 +38,53 @@ La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de 
 
 | Version | Problème réglé | Ce qu'on peut faire en plus | Écrans |
 |---|---|---|---|
-| **MVP** · Qui est là, qui manque | Les absences vivent dans un tableau à part, l'alerte passe par téléphone | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · planning par personne · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête | 01, 03 à 07, 09, 22 à 30, 37 à 41 |
-| **V1** · Binômes et remplacements | On ne sait pas qui travaille avec quel praticien ni qui remplace | Équipe de chaque praticien (titulaires, back-ups, besoin) · vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · remplaçants classés par règles, reprogrammer un RDV | 02, 08, 10, 12 à 18, 36, 43, 44 |
+| **MVP** · Qui est là, qui manque | Les absences vivent dans un tableau à part, l'alerte passe par téléphone | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · planning par personne · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête | 01, 03 à 07, 09, 22 à 30, 37 à 41, 53 à 55 |
+| **V1** · Binômes et remplacements | On ne sait pas qui travaille avec quel praticien ni qui remplace | Équipe de chaque praticien (titulaires, back-ups, besoin) · vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · remplaçants classés par règles, reprogrammer un RDV | 02, 08, 10, 12 à 18, 36, 43, 44, 56 |
 | **V2** · Intelligence et conformité | Rendre les remplacements plus justes et tracer qui fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
 | **V3** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
 | **V4** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal | 49 à 52 |
 
 Différences visibles d'une version à l'autre (utile pour le développement) : en MVP, pas d'onglets Remplacements ni Praticiens & équipes, pas de vue Binômes ni de tensions d'assistants ; « Trouver un remplaçant » devient « Voir le planning » ; l'Aperçu Soins ne montre que l'agenda fermé ; dans l'Administration, Rôles, Postes et Journal apparaissent grisés avec leur version.
+
+## Droits par rôle
+
+Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droits (`src/components/team/Access.tsx`) : si le gestionnaire donne un droit à quelqu'un, la fonctionnalité apparaît pour lui. Resp. stérilisation s'ajoute au rôle principal (droits additionnés). Les praticiens, libéraux, ne pointent pas. Assistants et aides voient le planning en lecture seule.
+
+| Ce qu'on peut faire | Version | Gestionnaire | Praticien | Secrétaire | Assistant dentaire | Aide dentaire | Comptable | Resp. stérilisation |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Général** |  |  |  |  |  |  |  |  |
+| Changer d'utilisateur (code PIN), voir son nom dans l'en-tête | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tableau de bord : présents, « Qui est là », absences à venir | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| « À traiter en priorité », RDV à risque, alertes (cloche) | MVP | ✓ | ✓ | ✓ | — | — | — | — |
+| Bouton « Gérer les utilisateurs » | MVP | ✓ | — | — | — | — | — | — |
+| **Absences** |  |  |  |  |  |  |  |  |
+| Déclarer ou annuler sa propre absence | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Déclarer ou annuler l'absence d'un autre | MVP | ✓ | — | ✓ | — | — | — | — |
+| Valider ou refuser une demande d'absence | MVP | ✓ | — | ✓ | — | — | — | — |
+| **Planning d'équipe** |  |  |  |  |  |  |  |  |
+| Consulter le planning (par personne, binômes) | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Agir depuis le planning (manque, prêt du jour, besoin du jour, tensions) | V1 | ✓ | — | ✓ | — | — | — | — |
+| **Remplacements** |  |  |  |  |  |  |  |  |
+| Voir les RDV à réaffecter et les candidats | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| Affecter un remplaçant | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| Reprogrammer ou annuler un RDV | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| **Praticiens & équipes** |  |  |  |  |  |  |  |  |
+| Voir et régler les fiches praticiens (titulaires, back-ups, besoin) | V1 | ✓ | Sa fiche | ✓ | — | — | — | — |
+| Créer un profil praticien | V1 | ✓ | — | ✓ | — | — | — | — |
+| **Aperçu Soins** |  |  |  |  |  |  |  |  |
+| Voir l'agenda fermé d'un praticien absent | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Prise de RDV avec suggestion d'assistant | V2 | ✓ | ✓ | ✓ | — | — | — | — |
+| Être opérateur d'un cycle de stérilisation | V2 | — | ✓ | — | ✓ | ✓ | — | ✓ |
+| **Administration** |  |  |  |  |  |  |  |  |
+| Utilisateurs : créer, inviter, archiver, supprimer, modifier | MVP | ✓ | — | — | — | — | — | — |
+| Rôles et grille des droits, postes partagés | V2 | ✓ | — | — | — | — | — | — |
+| Journal d'audit | V2 | ✓ | — | — | — | — | — | ✓ |
+| **Mon profil** |  |  |  |  |  |  |  |  |
+| Disponibilités, actes préférés, préférences de binôme | V3 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Modifier les habilitations | V3 | ✓ | — | — | — | — | — | — |
+| **Temps de travail** |  |  |  |  |  |  |  |  |
+| Pointer (arrivée, pause, départ) et voir ses propres heures | V4 | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Voir les heures de toute l'équipe, corriger un pointage | V4 | ✓ | — | ✓ | — | — | — | — |
 
 ## Identité de la planète Team
 
@@ -132,6 +172,14 @@ Différences visibles d'une version à l'autre (utile pour le développement) : 
 | 50 | `50-temps-de-travail-semaine` | Semaine en cours : KPI (en poste maintenant, heures au-delà du contrat, anomalies), une ligne par salarié, heures par jour et horaires, total comparé au contrat | Voir les heures de chacun |
 | 51 | `51-temps-de-travail-semaine-badges` | Semaine précédente importée des badges : heures sup d'Inès, départ oublié de Camille en rouge | Reprendre l'historique des bipeurs, repérer heures sup et anomalies |
 | 52 | `52-temps-de-travail-correction` | Détail d'une journée : anomalie, pointages avec leur source (Badge, Oralys, Correction), ajout d'un pointage oublié avec motif obligatoire | Corriger un oubli, tracé au journal |
+
+### Vues par rôle
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 53 | `53-role-assistant-tableau-de-bord` | Tableau de bord de Thomas (assistant) : présents, « Qui est là », absences à venir ; pas d'alertes, de demandes ni de gestion des comptes | Chacun ne voit que ce qui le concerne |
+| 54 | `54-role-assistant-planning-lecture-seule` | Planning consultable sans aucun clic, sans demandes à valider ni bouton de déclaration | Assistants et aides : visualiser seulement |
+| 55 | `55-role-section-reservee` | Lien direct vers une section non autorisée : droit requis et personne connectée, retour au tableau de bord | Pas de page cassée |
+| 56 | `56-role-praticien-sa-fiche` | Dr Perche ne voit et ne règle que sa propre fiche (équipe, besoin, spécialités) | Le praticien règle son équipe |
 
 ### Éléments globaux
 | # | Fichier | Contenu |
