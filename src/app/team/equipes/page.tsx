@@ -61,12 +61,14 @@ export default function EquipesPage() {
 
 function Equipes() {
   const params = useSearchParams();
-  const { profiles, findUser, can } = useTeam();
-  const visible = profiles.filter((p) => findUser(p.praticienUserId));
+  const { profiles, findUser, can, sessionUserId } = useTeam();
+  // Gestionnaire (ou droit planning) : toutes les fiches. Praticien : seulement la sienne, qu'il règle lui-même.
+  const manageAll = can("param.cabinet") || can("team.planning");
+  const visible = profiles.filter((p) => findUser(p.praticienUserId) && (manageAll || p.praticienUserId === sessionUserId));
   const [selectedId, setSelectedId] = usePersistentState<string | null>("equipes-praticien", visible[0]?.id ?? null, params.get("praticien"));
   const [createOpen, setCreateOpen] = useState(false);
   const selected = visible.find((p) => p.id === selectedId) ?? visible[0];
-  const canEdit = can("param.cabinet") || can("team.planning");
+  const canEdit = manageAll || selected?.praticienUserId === sessionUserId;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
@@ -74,7 +76,7 @@ function Equipes() {
         title="Praticiens & équipes"
         description="Fiche 360° par praticien : équipe rattachée et ordre de priorité, spécialités, disponibilités et affinités."
         actions={
-          canEdit && (
+          manageAll && (
             <Button onClick={() => setCreateOpen(true)}>
               <Plus /> Nouveau profil praticien
             </Button>

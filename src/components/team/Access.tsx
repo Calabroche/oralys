@@ -19,19 +19,24 @@ export const ACCESS = {
   planning: ["team.planning"],
   /** Remplacements, reprogrammation de RDV et alertes « À traiter en priorité ». */
   remplacements: ["team.planning", "rdv"],
-  /** Équipes des praticiens (titulaires, back-ups, besoin). */
+  /** Équipes des praticiens (titulaires, back-ups, besoin). Un praticien accède aussi à sa propre fiche. */
   equipes: ["team.planning", "param.cabinet"],
   /** Gestion des comptes utilisateurs. */
   utilisateurs: ["param.cabinet"],
   /** Prise de RDV dans Soins. */
   rdv: ["rdv"],
+  /** Journal d'audit. */
+  audit: ["team.audit"],
+  /** Onglet Administration : gestion des comptes, ou au moins le journal. */
+  administration: ["param.cabinet", "team.audit"],
 } as const satisfies Record<string, PermissionId[]>;
 
 export type AccessKey = keyof typeof ACCESS;
 
 export function useAccess() {
-  const { can } = useTeam();
-  return (key: AccessKey) => ACCESS[key].some((p) => can(p));
+  const { can, profiles, sessionUserId } = useTeam();
+  const ownsProfile = profiles.some((p) => p.praticienUserId === sessionUserId);
+  return (key: AccessKey) => ACCESS[key].some((p) => can(p)) || (key === "equipes" && ownsProfile);
 }
 
 /** Page réservée : on explique pourquoi plutôt que d'afficher une page cassée. */

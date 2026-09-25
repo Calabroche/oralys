@@ -88,7 +88,7 @@ export const ROLES: Role[] = [
     description: "Accueil, rendez-vous, carte Vitale et télétransmission.",
     predefined: true,
     healthProfessional: false,
-    permissions: ["adressage", "rdv", "facturation", "teletransmission"],
+    permissions: ["adressage", "rdv", "facturation", "teletransmission", "team.planning"],
   },
   {
     id: "role-comptable",

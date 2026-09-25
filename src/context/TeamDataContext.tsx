@@ -79,10 +79,20 @@ function loadData(): PersistedTeamData {
       // Les assistants dentaires ne prennent pas de RDV (retour produit du 25/09) : on retire ce droit une seule fois,
       // un gestionnaire peut toujours le redonner dans la grille des droits.
       const done = stored.migrations ?? [];
-      const roles = done.includes("assistant-sans-rdv")
-        ? stored.roles
-        : stored.roles?.map((r) => (r.id === "role-assistant" ? { ...r, permissions: r.permissions.filter((x) => x !== "rdv") } : r));
-      return { ...seed, ...stored, ...(users ? { users } : {}), ...(roles ? { roles } : {}), migrations: [...new Set([...done, "assistant-sans-rdv"])] };
+      // Idem pour la secrétaire, qui reçoit le droit « Planning d'équipe & remplacements » (retour du 25/09).
+      const roles = stored.roles?.map((r) => {
+        if (r.id === "role-assistant" && !done.includes("assistant-sans-rdv")) return { ...r, permissions: r.permissions.filter((x) => x !== "rdv") };
+        if (r.id === "role-secretaire" && !done.includes("secretaire-planning") && !r.permissions.includes("team.planning"))
+          return { ...r, permissions: [...r.permissions, "team.planning" as const] };
+        return r;
+      });
+      return {
+        ...seed,
+        ...stored,
+        ...(users ? { users } : {}),
+        ...(roles ? { roles } : {}),
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning"])],
+      };
     }
   } catch {
     // Stockage indisponible ou corrompu : on repart des données de démo.

@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessGate } from "@/components/team/Access";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
@@ -42,9 +43,11 @@ type Filter = "tous" | UserStatus;
 
 export default function UtilisateursPage() {
   return (
-    <Suspense>
-      <Utilisateurs />
-    </Suspense>
+    <AccessGate access="utilisateurs">
+      <Suspense>
+        <Utilisateurs />
+      </Suspense>
+    </AccessGate>
   );
 }
 

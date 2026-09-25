@@ -71,7 +71,7 @@ const TABS: {
   { label: "Praticiens & équipes", href: "/team/equipes", feature: "equipes", access: "equipes" },
   { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
-  { label: "Administration", href: "/team/reglages" },
+  { label: "Administration", href: "/team/reglages", access: "administration" },
 ];
 
 export const PLANETS = [
@@ -322,11 +322,13 @@ function Header() {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem asChild>
-                  <Link href="/team/reglages">
-                    <Settings /> Administration
-                  </Link>
-                </DropdownMenuItem>
+                {allowed("administration") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/team/reglages">
+                      <Settings /> Administration
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={() => setSwitchOpen(true)}>
                   <Users /> Changer d&apos;utilisateur (PIN)
                 </DropdownMenuItem>

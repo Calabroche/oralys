@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessGate } from "@/components/team/Access";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { Check, Download, Lock, Minus, Plus, Stethoscope, Trash2 } from "lucide-react";
@@ -32,7 +33,9 @@ import { cn } from "@/lib/utils";
 export default function RolesPage() {
   return (
     <VersionGate feature="roles">
-      <Roles />
+      <AccessGate access="utilisateurs">
+        <Roles />
+      </AccessGate>
     </VersionGate>
   );
 }

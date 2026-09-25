@@ -284,7 +284,7 @@ function Remplacements() {
                     candidates={candidates}
                     mode={mode}
                     currentId={selected.assistantUserId}
-                    onAssign={!can("team.planning") ? undefined : (c) => {
+                    onAssign={!(can("team.planning") || can("rdv")) ? undefined : (c) => {
                       assignRdv(selected.id, c.user.id);
                       setHandled((h) => [...h, selected.id]);
                       toast.success(`${fullName(c.user)} affecté(e)`, { description: "Le RDV est mis à jour dans Soins." });
@@ -295,7 +295,7 @@ function Remplacements() {
                     <CalendarClock /> Aucun ne convient ? Reprogrammer le RDV
                   </Button>
                 )}
-                {!can("team.planning") && <p className="mt-3 text-xs text-slate-500">Lecture seule : l&apos;affectation nécessite le droit « Gérer le planning d&apos;équipe ».</p>}
+                {!(can("team.planning") || can("rdv")) && <p className="mt-3 text-xs text-slate-500">Lecture seule : l&apos;affectation nécessite le droit « Gérer le planning d&apos;équipe ».</p>}
               </CardContent>
             </Card>
           ) : dayFilter ? (

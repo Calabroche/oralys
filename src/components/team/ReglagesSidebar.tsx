@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessKey, useAccess } from "@/components/team/Access";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, CalendarDays, FileText, FlaskConical, History, Landmark, List, MonitorSmartphone, ShieldCheck, UserCog, Users } from "lucide-react";
@@ -7,13 +8,13 @@ import { cn } from "@/lib/utils";
 import { FEATURES, Feature, useVersion, versionOf } from "@/components/team/Version";
 
 // Même ordre que la barre latérale de la prod ; les entrées marquées "team" sont les ajouts proposés par Oralys Team.
-const GROUPS: { label: string; icon: typeof Users; href: string | null; team?: boolean; feature?: Feature }[] = [
+const GROUPS: { label: string; icon: typeof Users; href: string | null; team?: boolean; feature?: Feature; access?: AccessKey }[] = [
   { label: "Fiche du cabinet", icon: Building2, href: null },
-  { label: "Équipe", icon: Users, href: "/team/equipes", feature: "equipes" },
-  { label: "Utilisateurs", icon: UserCog, href: "/team/reglages/utilisateurs" },
-  { label: "Rôles & droits", icon: ShieldCheck, href: "/team/reglages/roles", team: true, feature: "roles" },
-  { label: "Postes partagés", icon: MonitorSmartphone, href: "/team/reglages/postes", team: true, feature: "postes" },
-  { label: "Journal d'audit", icon: History, href: "/team/reglages/journal", team: true, feature: "journal" },
+  { label: "Équipe", icon: Users, href: "/team/equipes", feature: "equipes", access: "equipes" },
+  { label: "Utilisateurs", icon: UserCog, href: "/team/reglages/utilisateurs", access: "utilisateurs" },
+  { label: "Rôles & droits", icon: ShieldCheck, href: "/team/reglages/roles", team: true, feature: "roles", access: "utilisateurs" },
+  { label: "Postes partagés", icon: MonitorSmartphone, href: "/team/reglages/postes", team: true, feature: "postes", access: "utilisateurs" },
+  { label: "Journal d'audit", icon: History, href: "/team/reglages/journal", team: true, feature: "journal", access: "audit" },
   { label: "Actes", icon: List, href: null },
   { label: "Motifs de consultation", icon: CalendarDays, href: null },
   { label: "Templates de documents", icon: FileText, href: null },
@@ -24,13 +25,14 @@ const GROUPS: { label: string; icon: typeof Users; href: string | null; team?: b
 export function ReglagesSidebar() {
   const pathname = usePathname();
   const { has } = useVersion();
+  const allowed = useAccess();
   const item = (active: boolean) =>
     cn("flex items-center gap-2.5 rounded-md px-2.5 py-1.5", active ? "bg-slate-100 font-medium text-slate-900" : "text-slate-700 hover:bg-slate-50");
 
   return (
     <aside className="w-64 shrink-0 px-4 py-8 text-sm">
       <ul className="space-y-0.5">
-        {GROUPS.map((g) => (
+        {GROUPS.filter((g) => !g.access || allowed(g.access)).map((g) => (
           <li key={g.label}>
             {g.feature && !has(g.feature) ? (
               <span className={cn(item(false), "cursor-default text-slate-400 hover:bg-transparent")} title="Pas encore livré dans cette version de la démo">

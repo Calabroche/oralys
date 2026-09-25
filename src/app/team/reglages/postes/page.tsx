@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessGate } from "@/components/team/Access";
 import { usePersistentState } from "@/lib/persist";
 import { FlaskConical, MonitorSmartphone, Stethoscope, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,9 @@ interface StationConfig {
 export default function PostesPage() {
   return (
     <VersionGate feature="postes">
-      <Postes />
+      <AccessGate access="utilisateurs">
+        <Postes />
+      </AccessGate>
     </VersionGate>
   );
 }
