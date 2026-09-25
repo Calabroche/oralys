@@ -34,7 +34,7 @@ export function PunchClock({ onSwitchUser }: { onSwitchUser: () => void }) {
     return () => clearInterval(id);
   }, []);
 
-  if (!sessionUser) return null; // Tout le monde pointe, praticiens compris.
+  if (!sessionUser?.weeklyHours) return null; // Les praticiens libéraux ne pointent pas.
   const today = toISODate(now);
   const day = dayTime(sessionUser.id, today, punches, nowMinutesOf(now));
   const kinds = nextKinds(day.state);

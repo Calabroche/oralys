@@ -127,8 +127,7 @@ export function weekTime(user: TeamUser, dates: string[], punches: Punch[], toda
     days,
     workedMinutes: worked,
     contractMinutes: contract,
-    // Sans contrat horaire (praticien libéral), pas d'heures « au-delà du contrat ».
-    extraMinutes: contract > 0 && worked - contract > EXTRA_TOLERANCE ? worked - contract : 0,
+    extraMinutes: worked - contract > EXTRA_TOLERANCE ? worked - contract : 0,
     anomalies: days.reduce((n, d) => n + d.anomalies.length, 0),
   };
 }
