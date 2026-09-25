@@ -2,19 +2,14 @@
 
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
-import {
-  absencePeriods as initialAbsencePeriods,
-  activityTypes as initialActivityTypes,
-  appointments as initialAppointments,
-  specialSlots as initialSpecialSlots,
-  weekSlots as initialWeekSlots,
-} from "@/data/mockData";
+import { activityTypes as initialActivityTypes, buildAgendaSeed, weekSlots as initialWeekSlots } from "@/data/mockData";
 
 // Incrémenter ce numéro de version à chaque changement de schéma qui
 // casserait la compatibilité avec des données déjà persistées (ex. ajout
 // d'un champ requis) : les anciennes données sont alors ignorées plutôt
 // que de faire planter le rendu, et les données de démo repartent à jour.
-const STORAGE_KEY = "oralys-agenda-data-v2";
+// v3 : données de démo recalées sur la date du jour.
+const STORAGE_KEY = "oralys-agenda-data-v3";
 
 interface PersistedData {
   activityTypes: ActivityType[];
@@ -46,9 +41,9 @@ function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
 export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(initialActivityTypes);
   const [weekSlots, setWeekSlots] = useState<WeekSlot[]>(initialWeekSlots);
-  const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>(initialSpecialSlots);
-  const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>(initialAbsencePeriods);
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
+  const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   // Recharge ce qui a été sauvegardé localement, une fois monté côté client.
@@ -58,19 +53,20 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   // useState provoquerait).
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    // Données de démo datées autour d'aujourd'hui, calculées côté client (la date du build serait fausse).
+    const seed = buildAgendaSeed(new Date());
+    let parsed: Partial<PersistedData> = {};
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<PersistedData>;
-        if (parsed.activityTypes) setActivityTypes(parsed.activityTypes);
-        if (parsed.weekSlots) setWeekSlots(parsed.weekSlots);
-        if (parsed.specialSlots) setSpecialSlots(parsed.specialSlots);
-        if (parsed.absencePeriods) setAbsencePeriods(parsed.absencePeriods);
-        if (parsed.appointments) setAppointments(parsed.appointments);
-      }
+      if (raw) parsed = JSON.parse(raw) as Partial<PersistedData>;
     } catch {
       // localStorage indisponible ou données corrompues : on garde les données de démo.
     }
+    if (parsed.activityTypes) setActivityTypes(parsed.activityTypes);
+    if (parsed.weekSlots) setWeekSlots(parsed.weekSlots);
+    setSpecialSlots(parsed.specialSlots ?? seed.specialSlots);
+    setAbsencePeriods(parsed.absencePeriods ?? seed.absencePeriods);
+    setAppointments(parsed.appointments ?? seed.appointments);
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
@@ -110,7 +106,9 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     addAppointment: (appointment) => setAppointments((prev) => [...prev, appointment]),
   };
 
-  return <AgendaDataContext.Provider value={value}>{children}</AgendaDataContext.Provider>;
+  // Rien n'est rendu avant la lecture des données sauvegardées : les pages s'affichent directement
+  // à la date du jour avec les modifications de l'utilisateur, sans décalage entre serveur et navigateur.
+  return <AgendaDataContext.Provider value={value}>{hydrated ? children : null}</AgendaDataContext.Provider>;
 }
 
 export function useAgendaData(): AgendaDataContextValue {

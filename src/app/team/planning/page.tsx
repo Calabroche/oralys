@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import { usePersistentState } from "@/lib/persist";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -37,11 +38,15 @@ function Planning() {
   const params = useSearchParams();
   const { users, absences, profiles, now, dayOverrides } = useTeam();
   const [tab, setTab] = useState(params.get("tab") ?? "calendrier");
-  const [mode, setMode] = useState<"semaine" | "mois">("semaine");
+  const [mode, setMode] = usePersistentState<"semaine" | "mois">("planning-mode", "semaine");
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
   const highlightUserId = params.get("user");
-  const [roleFilter, setRoleFilter] = useState<string>("tous");
-  const [view, setView] = useState<"binomes" | "personnes">(params.get("view") === "personnes" || params.get("user") ? "personnes" : "binomes");
+  const [roleFilter, setRoleFilter] = usePersistentState<string>("planning-roles", "tous");
+  const [view, setView] = usePersistentState<"binomes" | "personnes">(
+    "planning-view",
+    "binomes",
+    params.get("view") === "personnes" || params.get("user") ? "personnes" : params.get("view") === "binomes" ? "binomes" : null
+  );
   const [declareOpen, setDeclareOpen] = useState(false);
   const [prefill, setPrefill] = useState<DeclarePrefill | undefined>();
 

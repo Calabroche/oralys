@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarClock, CalendarX2, CheckCircle2, Info, Siren } from "lucide-react";
@@ -52,10 +53,10 @@ function Remplacements() {
       .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
     return params.get("absence") ?? fromUser?.id ?? "all";
   });
-  const [mode, setMode] = useState<"regles" | "affinite">("regles");
+  const [mode, setMode] = usePersistentState<"regles" | "affinite">("remplacements-mode", "regles");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // RDV traités pendant la session : on les garde visibles (avec le remplaçant choisi) au lieu de les faire disparaître.
-  const [handled, setHandled] = useState<string[]>([]);
+  // RDV traités : on les garde visibles (avec le remplaçant choisi) au lieu de les faire disparaître, même après rechargement.
+  const [handled, setHandled] = usePersistentState<string[]>("remplacements-traites", []);
   const [rebooking, setRebooking] = useState<SoinsRdv | null>(null);
 
   const upcoming = rdvs.filter((r) => r.date >= today);

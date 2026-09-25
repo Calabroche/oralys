@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Ban, CalendarDays, DoorOpen, Plus, X } from "lucide-react";
@@ -56,7 +57,7 @@ function Equipes() {
   const params = useSearchParams();
   const { profiles, findUser, can } = useTeam();
   const visible = profiles.filter((p) => findUser(p.praticienUserId));
-  const [selectedId, setSelectedId] = useState(params.get("praticien") ?? visible[0]?.id ?? null);
+  const [selectedId, setSelectedId] = usePersistentState<string | null>("equipes-praticien", visible[0]?.id ?? null, params.get("praticien"));
   const [createOpen, setCreateOpen] = useState(false);
   const selected = visible.find((p) => p.id === selectedId) ?? visible[0];
   const canEdit = can("param.cabinet") || can("team.planning");

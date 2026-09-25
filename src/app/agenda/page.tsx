@@ -6,7 +6,7 @@ import { CalendarGrid } from "@/components/agenda/CalendarGrid";
 import { MonthView } from "@/components/agenda/MonthView";
 import { NouveauRendezVousModal } from "@/components/agenda/NouveauRendezVousModal";
 import { useAgendaData } from "@/context/AgendaDataContext";
-import { REFERENCE_TODAY, getPatient, patients } from "@/data/mockData";
+import { getPatient, patients } from "@/data/mockData";
 import {
   addDays,
   addMonths,
@@ -15,25 +15,25 @@ import {
   formatWeekRange,
   startOfMonth,
   startOfWeek,
-  withLiveTime,
 } from "@/utils/date";
 
 export default function AgendaPage() {
   const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment } = useAgendaData();
   const [viewMode, setViewMode] = useState<AgendaViewMode>("semaine");
-  const [anchorDate, setAnchorDate] = useState(REFERENCE_TODAY);
+  // Toujours la date réelle du jour.
+  const [today] = useState(() => new Date());
+  const [anchorDate, setAnchorDate] = useState(today);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Date de démo fixe (pour que les données restent cohérentes), mais heure
-  // réelle en direct pour le repère "maintenant" dans l'agenda.
-  const [now, setNow] = useState(() => withLiveTime(REFERENCE_TODAY));
+  // Heure réelle en direct pour le repère "maintenant" dans l'agenda.
+  const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(withLiveTime(REFERENCE_TODAY)), 30000);
+    const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
 
   function handleToday() {
-    setAnchorDate(REFERENCE_TODAY);
+    setAnchorDate(new Date());
   }
 
   function handlePrev() {
@@ -106,7 +106,7 @@ export default function AgendaPage() {
 
       {modalOpen && (
         <NouveauRendezVousModal
-          referenceDate={REFERENCE_TODAY}
+          referenceDate={today}
           activityTypes={activityTypes}
           patients={patients}
           weekSlots={weekSlots}

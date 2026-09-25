@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePersistentState } from "@/lib/persist";
 import { FlaskConical, MonitorSmartphone, Stethoscope, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -18,7 +18,7 @@ interface StationConfig {
 }
 
 export default function PostesPage() {
-  const [config, setConfig] = useState<Record<string, StationConfig>>(() =>
+  const [config, setConfig] = usePersistentState<Record<string, StationConfig>>("postes", () =>
     Object.fromEntries(
       WORKSTATIONS.map((w) => [w, { pin: true, explicitOperator: w === "Poste stérilisation", lockAfter: w === "Poste accueil" ? "5" : "10" }])
     )

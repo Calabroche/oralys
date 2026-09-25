@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -51,7 +52,7 @@ function Utilisateurs() {
   const params = useSearchParams();
   const { open: openPerson } = usePersonSheet();
   const { users, profiles, findUser, can, resendInvite, reactivateUser, simulateActivation } = useTeam();
-  const [filter, setFilter] = useState<Filter>("tous");
+  const [filter, setFilter] = usePersistentState<Filter>("utilisateurs-filtre", "tous");
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TeamUser | null>(null);

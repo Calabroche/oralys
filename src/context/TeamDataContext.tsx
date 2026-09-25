@@ -13,16 +13,8 @@ import {
   TeamNotification,
   TeamUser,
 } from "@/types/team";
-import {
-  ABSENCES,
-  AUDIT_LOG,
-  NOTIFICATIONS,
-  PRATICIEN_PROFILES,
-  ROLES,
-  SOINS_RDVS,
-  TEAM_TODAY,
-  USERS,
-} from "@/data/teamMockData";
+import { PRATICIEN_PROFILES, ROLES, buildTeamSeed } from "@/data/teamMockData";
+import { resetAllDemoData } from "@/lib/persist";
 import { PRATICIEN_NAME } from "@/data/mockData";
 import { useAgendaData } from "@/context/AgendaDataContext";
 import {
@@ -39,7 +31,8 @@ import {
 } from "@/lib/team";
 
 
-const STORAGE_KEY = "oralys-team-data-v4";
+// v5 : les données de démo sont recalées sur la date du jour (les anciennes, figées au 1er septembre, sont ignorées).
+const STORAGE_KEY = "oralys-team-data-v5";
 
 interface PersistedTeamData {
   users: TeamUser[];
@@ -54,18 +47,28 @@ interface PersistedTeamData {
   dayOverrides: DayOverride[];
 }
 
-const INITIAL: PersistedTeamData = {
-  users: USERS,
-  roles: ROLES,
-  profiles: PRATICIEN_PROFILES,
-  absences: ABSENCES,
-  rdvs: SOINS_RDVS,
-  audit: AUDIT_LOG,
-  notifications: NOTIFICATIONS,
-  sessionUserId: "u-delphine",
-  workstation: null,
-  dayOverrides: [],
-};
+function initialData(): PersistedTeamData {
+  return {
+    ...buildTeamSeed(new Date()),
+    roles: ROLES,
+    profiles: PRATICIEN_PROFILES,
+    sessionUserId: "u-delphine",
+    workstation: null,
+    dayOverrides: [],
+  };
+}
+
+/** Lecture synchrone : le fournisseur n'est monté que côté client (voir AgendaDataProvider). */
+function loadData(): PersistedTeamData {
+  const seed = initialData();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) return { ...seed, ...(JSON.parse(raw) as Partial<PersistedTeamData>) };
+  } catch {
+    // Stockage indisponible ou corrompu : on repart des données de démo.
+  }
+  return seed;
+}
 
 export type NewUserInput = Pick<TeamUser, "firstName" | "lastName" | "email" | "roleIds" | "poste" | "defaultEnvironmentId">;
 export type NewAbsenceInput = Pick<TeamAbsence, "userId" | "type" | "startDate" | "endDate" | "motif">;
@@ -122,10 +125,7 @@ function newId(prefix: string) {
 }
 
 function nowFor(): Date {
-  const live = new Date();
-  const d = new Date(TEAM_TODAY);
-  d.setHours(live.getHours(), live.getMinutes(), live.getSeconds());
-  return d;
+  return new Date();
 }
 
 function isoNow(): string {
@@ -135,8 +135,8 @@ function isoNow(): string {
 }
 
 export function TeamDataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<PersistedTeamData>(INITIAL);
-  const [hydrated, setHydrated] = useState(false);
+  const [data, setData] = useState<PersistedTeamData>(loadData);
+  const hydrated = true;
   const agenda = useAgendaData();
   // Dernier état connu : les « Annuler » des toasts s'exécutent après coup, avec des closures périmées.
   const latest = useRef(data);
@@ -144,26 +144,13 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     latest.current = data;
   }, [data]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setData({ ...INITIAL, ...(JSON.parse(raw) as Partial<PersistedTeamData>) });
-    } catch {
-      // Stockage indisponible ou corrompu : on repart des données de démo.
-    }
-    setHydrated(true);
-  }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (!hydrated) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // On continue sans persister.
     }
-  }, [hydrated, data]);
+  }, [data]);
 
   const sessionUser = data.users.find((u) => u.id === data.sessionUserId);
   const perms = useMemo(() => permissionsOf(sessionUser, data.roles), [sessionUser, data.roles]);
@@ -632,10 +619,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
 
     log: (action, summary, extra) => mutate((d) => d, { action, summary, extra }),
     markAllRead: () => mutate((d) => ({ ...d, notifications: d.notifications.map((n) => ({ ...n, read: true })) })),
-    resetDemo: () => {
-      data.absences.forEach((a) => agenda.deleteAbsence(`team-${a.id}`));
-      setData(INITIAL);
-    },
+    resetDemo: resetAllDemoData,
   };
 
   return <TeamDataContext.Provider value={value}>{children}</TeamDataContext.Provider>;

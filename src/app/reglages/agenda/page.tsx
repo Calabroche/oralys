@@ -1,12 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { SidebarReglages } from "@/components/reglages/SidebarReglages";
 import { TypesActiviteSection } from "@/components/reglages/TypesActiviteSection";
 import { SemaineTypeGrid } from "@/components/reglages/SemaineTypeGrid";
 import { CreneauxSpeciauxSection } from "@/components/reglages/CreneauxSpeciauxSection";
 import { AbsencesSection } from "@/components/reglages/AbsencesSection";
 import { useAgendaData } from "@/context/AgendaDataContext";
-import { REFERENCE_TODAY } from "@/data/mockData";
 
 export default function ReglagesAgendaPage() {
   const {
@@ -24,6 +24,7 @@ export default function ReglagesAgendaPage() {
     upsertAbsence,
     deleteAbsence,
   } = useAgendaData();
+  const [today] = useState(() => new Date());
 
   return (
     <div className="flex">
@@ -37,7 +38,7 @@ export default function ReglagesAgendaPage() {
         <div className="mt-6 space-y-8">
           <TypesActiviteSection
             activityTypes={activityTypes}
-            referenceDate={REFERENCE_TODAY}
+            referenceDate={today}
             weekSlots={weekSlots}
             specialSlots={specialSlots}
             onAddType={addActivityType}
@@ -53,7 +54,7 @@ export default function ReglagesAgendaPage() {
             specialSlots={specialSlots}
             absencePeriods={absencePeriods}
             activityTypes={activityTypes}
-            referenceDate={REFERENCE_TODAY}
+            referenceDate={today}
             upsertWeekSlot={upsertWeekSlot}
             deleteWeekSlot={deleteWeekSlot}
             upsertSpecialSlot={upsertSpecialSlot}

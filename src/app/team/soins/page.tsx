@@ -50,6 +50,7 @@ import {
 import { ActeCategory, PermissionId } from "@/types/team";
 import { fromISODate, toISODate, toWeekday } from "@/utils/date";
 import { cn } from "@/lib/utils";
+import { rangeLong, rangeShort } from "@/lib/demoClock";
 
 export default function SoinsPreviewPage() {
   return (
@@ -93,6 +94,7 @@ export default function SoinsPreviewPage() {
 
 function PriseRdv() {
   const { users, profiles, absences, rdvs, findUser, now, addRdv } = useTeam();
+  const demoRange = useDemoRange();
   const active = profiles.filter((p) => findUser(p.praticienUserId)?.status === "actif");
   const [profileId, setProfileId] = useState(active[0]?.id ?? "");
   const [date, setDate] = useState(toISODate(now()));
@@ -188,7 +190,7 @@ function PriseRdv() {
             </Select>
           </div>
           <p className="text-xs text-slate-500">
-            Astuce démo : Dr Martin le mardi 1er ou mercredi 2 septembre (Thomas en arrêt maladie), ou Dr Dray le 14 septembre.
+            Astuce démo : Dr Martin {demoRange("abs-t1")} (Thomas en arrêt maladie), ou Dr Dray {demoRange("abs-t2")} (Camille en congé).
           </p>
         </CardContent>
       </Card>
@@ -299,7 +301,7 @@ function FichePatient() {
       <Card>
         <CardHeader>
           <CardTitle>Marc Fontaine · 54 ans</CardTitle>
-          <CardDescription>Fiche patient Soins · dernière visite le 12 juin 2026</CardDescription>
+          <CardDescription>Fiche patient Soins · dernière visite il y a 3 mois</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {other && (
@@ -393,10 +395,12 @@ function FichePatient() {
 // --- Stérilisation : opérateur explicite sur poste partagé --------------------
 
 function Sterilisation() {
-  const { users, roles, sessionUser, workstation, log } = useTeam();
+  const { users, roles, sessionUser, workstation, log, audit } = useTeam();
   const [operator, setOperator] = useState<string>("");
   const [autoclave, setAutoclave] = useState("A");
-  const [cycle, setCycle] = useState(1303);
+  // Numéro suivant déduit du journal : il continue après un rechargement.
+  const cycle =
+    1 + Math.max(1302, ...audit.filter((e) => e.action === "sterilisation.cycle").map((e) => Number(/n°(\d+)/.exec(e.summary)?.[1] ?? 0)));
   const operators = users.filter((u) => u.status === "actif" && permissionsOf(u, roles).has("sterilisation"));
   const op = users.find((u) => u.id === operator);
 
@@ -461,7 +465,6 @@ function Sterilisation() {
                 workstation: workstation ?? "Poste stérilisation",
               });
               toast.success(`Cycle n°${cycle} lancé`, { description: `Opérateur tracé : ${fullName(op)}` });
-              setCycle((c) => c + 1);
               setOperator("");
             }}
           >
@@ -488,6 +491,7 @@ function Sterilisation() {
 
 function AgendaFerme() {
   const { absences, findUser } = useTeam();
+  const demoRange = useDemoRange();
   const { absencePeriods } = useAgendaData();
   const synced = absencePeriods.filter((a) => a.id.startsWith("team-"));
   const praticienAbsences = absences.filter((a) => findUser(a.userId)?.poste === "praticien" && a.status !== "refusee");
@@ -522,7 +526,7 @@ function AgendaFerme() {
         <CardContent className="space-y-3">
           {synced.length === 0 ? (
             <p className="text-sm text-slate-500">
-              Rien pour l&apos;instant. Validez la demande de congé de Dr Perche (21 → 25 sept.) dans Planning → Demandes à valider.
+              Rien pour l&apos;instant. Validez la demande de congé de Dr Perche{demoRange("abs-t3", " ")} dans Planning → Demandes à valider.
             </p>
           ) : (
             <ul className="space-y-1 text-sm">
@@ -547,4 +551,14 @@ function AgendaFerme() {
       </Card>
     </div>
   );
+}
+
+/** Dates d'une absence de la démo, pour les astuces (elles suivent la date du jour). */
+function useDemoRange() {
+  const { absences } = useTeam();
+  return (id: string, prefix = "") => {
+    const a = absences.find((x) => x.id === id);
+    if (!a) return id === "abs-t3" ? "" : "un jour où son équipe est incomplète";
+    return id === "abs-t3" ? `${prefix}(${rangeShort(a.startDate, a.endDate)})` : rangeLong(a.startDate, a.endDate);
+  };
 }

@@ -13,10 +13,9 @@ import {
 } from "@/types/team";
 import { Weekday } from "@/types";
 import { addDays, toISODate, toWeekday } from "@/utils/date";
+import { demoShift, rangeLong, rangeShort, shiftDeep } from "@/lib/demoClock";
 
 export const TEAM_CABINET_NAME = "Cabinet Oralpes";
-/** Date de démo partagée avec Soins (mardi 1er septembre 2026, 10h30). */
-export const TEAM_TODAY = new Date(2026, 8, 1, 10, 30);
 
 export const PERMISSION_CATEGORIES: { id: PermissionCategory; label: string; hint: string }[] = [
   { id: "clinique", label: "Clinique", hint: "La décision clinique est réservée aux professionnels de santé." },
@@ -232,7 +231,7 @@ export const COLLABORATIONS: { praticienUserId: string; assistantUserId: string;
   { praticienUserId: "u-dray", assistantUserId: "u-thomas", count: 2 },
 ];
 
-export const ABSENCES: TeamAbsence[] = [
+const ABSENCES: TeamAbsence[] = [
   { id: "abs-t1", userId: "u-thomas", type: "maladie", startDate: "2026-09-01", endDate: "2026-09-02", motif: "Arrêt maladie", status: "validee", declaredAt: "2026-09-01T07:40:00", declaredById: "u-thomas" },
   { id: "abs-t2", userId: "u-camille", type: "conge", startDate: "2026-09-14", endDate: "2026-09-18", status: "validee", declaredAt: "2026-07-10T11:02:00", declaredById: "u-camille" },
   { id: "abs-t3", userId: "u-flore", type: "conge", startDate: "2026-09-21", endDate: "2026-09-25", motif: "Vacances", status: "demandee", declaredAt: "2026-08-31T17:20:00", declaredById: "u-flore" },
@@ -243,23 +242,23 @@ export const ABSENCES: TeamAbsence[] = [
   { id: "abs-t6", userId: "u-lea", type: "conge", startDate: "2026-09-14", endDate: "2026-09-15", status: "demandee", declaredAt: "2026-08-28T16:45:00", declaredById: "u-lea" },
 ];
 
-export const AUDIT_LOG: AuditEntry[] = [
+const AUDIT_LOG: AuditEntry[] = [
   { id: "a-1", at: "2025-06-02T09:10:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "user.create", summary: "Création de Michel Fontaine (Praticien, remplaçant saisonnier)", targetUserId: "u-michel" },
   { id: "a-2", at: "2025-09-30T18:02:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "user.archive", summary: "Archivage de Michel Fontaine : remplacement saisonnier terminé", targetUserId: "u-michel" },
   { id: "a-3", at: "2026-03-12T08:14:00", actorId: "u-hugo", actorRoles: ["Aide dentaire", "Resp. stérilisation"], action: "sterilisation.cycle", summary: "Cycle de stérilisation n°1187 lancé (autoclave B)", workstation: "Poste stérilisation" },
   { id: "a-4", at: "2026-05-28T12:40:00", actorId: "u-hugo", actorRoles: ["Aide dentaire", "Resp. stérilisation"], action: "sterilisation.cycle", summary: "Cycle de stérilisation n°1243 lancé (autoclave A)", workstation: "Poste stérilisation" },
   { id: "a-5", at: "2026-06-30T18:00:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "user.archive", summary: "Archivage de Hugo Petit : fin de CDD", targetUserId: "u-hugo" },
-  { id: "a-6", at: "2026-07-10T11:02:00", actorId: "u-camille", actorRoles: ["Assistant dentaire"], action: "absence.declare", summary: "Demande de congé du 14 au 18 septembre", targetUserId: "u-camille" },
-  { id: "a-7", at: "2026-07-11T09:15:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "absence.validate", summary: "Congé de Camille Laurent validé (14 → 18 sept.)", targetUserId: "u-camille" },
+  { id: "a-6", at: "2026-07-10T11:02:00", actorId: "u-camille", actorRoles: ["Assistant dentaire"], action: "absence.declare", summary: "Demande de congé {long:abs-t2}", targetUserId: "u-camille" },
+  { id: "a-7", at: "2026-07-11T09:15:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "absence.validate", summary: "Congé de Camille Laurent validé ({short:abs-t2})", targetUserId: "u-camille" },
   { id: "a-8", at: "2026-08-20T14:12:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "user.create", summary: "Création de Julie Dubois (Secrétaire), invitation envoyée", targetUserId: "u-julie" },
   { id: "a-9", at: "2026-08-25T10:30:00", actorId: "u-sophie", actorRoles: ["Praticien", "Gestionnaire"], action: "role.assign", summary: "Nathalie Roux : retrait du rôle Gestionnaire", targetUserId: "u-nathalie" },
   { id: "a-10", at: "2026-08-27T16:05:00", actorId: "u-nathalie", actorRoles: ["Secrétaire"], action: "paiement.note", summary: "Note ajoutée sur un paiement échelonné (patient C. Bernard)", workstation: "Poste accueil" },
-  { id: "a-11", at: "2026-08-31T17:20:00", actorId: "u-flore", actorRoles: ["Praticien"], action: "absence.declare", summary: "Demande de congé du 21 au 25 septembre", targetUserId: "u-flore" },
-  { id: "a-12", at: "2026-09-01T07:40:00", actorId: "u-thomas", actorRoles: ["Assistant dentaire"], action: "absence.declare", summary: "Arrêt maladie déclaré le jour même (1er → 2 sept.)", targetUserId: "u-thomas" },
+  { id: "a-11", at: "2026-08-31T17:20:00", actorId: "u-flore", actorRoles: ["Praticien"], action: "absence.declare", summary: "Demande de congé {long:abs-t3}", targetUserId: "u-flore" },
+  { id: "a-12", at: "2026-09-01T07:40:00", actorId: "u-thomas", actorRoles: ["Assistant dentaire"], action: "absence.declare", summary: "Arrêt maladie déclaré le jour même ({short:abs-t1})", targetUserId: "u-thomas" },
   { id: "a-13", at: "2026-09-01T08:05:00", actorId: "u-ines", actorRoles: ["Assistant dentaire", "Resp. stérilisation"], action: "sterilisation.cycle", summary: "Cycle de stérilisation n°1302 lancé (autoclave A)", workstation: "Poste stérilisation" },
 ];
 
-export const NOTIFICATIONS: TeamNotification[] = [
+const NOTIFICATIONS: TeamNotification[] = [
   {
     id: "n-1",
     at: "2026-09-01T07:41:00",
@@ -274,7 +273,7 @@ export const NOTIFICATIONS: TeamNotification[] = [
     at: "2026-08-31T17:21:00",
     kind: "conge_request",
     title: "Demande de congé : Dr Flore Perche",
-    body: "Du 21 au 25 septembre. Vérifiez la charge d'agenda avant de valider.",
+    body: "{Long:abs-t3}. Vérifiez la charge d'agenda avant de valider.",
     href: "/team/planning?tab=demandes",
     read: false,
   },
@@ -301,16 +300,15 @@ export function defaultAssistantFor(profile: PraticienProfile, day: Weekday): st
   return titulaires[0]?.userId ?? null;
 }
 
-function buildRdvs(): SoinsRdv[] {
+function buildRdvs(start: Date, users: TeamUser[]): SoinsRdv[] {
   const result: SoinsRdv[] = [];
-  const start = new Date(2026, 7, 31);
   let seq = 0;
   for (let d = 0; d < 42; d++) {
     const date = addDays(start, d);
     const day = toWeekday(date);
     if (!day || day === "samedi") continue;
     for (const profile of PRATICIEN_PROFILES) {
-      const praticien = USERS.find((u) => u.id === profile.praticienUserId)!;
+      const praticien = users.find((u) => u.id === profile.praticienUserId)!;
       if (praticien.status !== "actif" || !praticien.workDays.includes(day)) continue;
       const count = 2 + ((d * 7 + praticien.lastName.length) % 3);
       const acts: ActeCategory[] = [...praticien.specialties, "soins"];
@@ -334,4 +332,38 @@ function buildRdvs(): SoinsRdv[] {
   return result;
 }
 
-export const SOINS_RDVS: SoinsRdv[] = buildRdvs();
+// --- Données de démo recalées sur la date du jour ----------------------------
+
+/** Ce qui se passe « aujourd'hui » dans le scénario (arrêt maladie du matin, alertes) suit le jour exact. */
+const TODAY_ANCHORED = new Set(["abs-t1", "a-11", "a-12", "a-13", "n-1", "n-2"]);
+
+export interface TeamSeed {
+  users: TeamUser[];
+  absences: TeamAbsence[];
+  audit: AuditEntry[];
+  notifications: TeamNotification[];
+  rdvs: SoinsRdv[];
+}
+
+/** Jeu de données de démo, daté autour de `today` (voir `lib/demoClock`). */
+export function buildTeamSeed(today: Date = new Date()): TeamSeed {
+  const shift = demoShift(today);
+  const move = <T extends { id: string }>(x: T): T => shiftDeep(x, TODAY_ANCHORED.has(x.id) ? shift.day : shift.week);
+  const absences = ABSENCES.map(move);
+  // Les textes du journal citent les dates des absences : on les réécrit avec les dates recalées.
+  const text = (s: string) =>
+    s.replace(/\{(long|Long|short):([\w-]+)\}/g, (_, kind: string, id: string) => {
+      const a = absences.find((x) => x.id === id)!;
+      if (kind === "short") return rangeShort(a.startDate, a.endDate);
+      const long = rangeLong(a.startDate, a.endDate);
+      return kind === "Long" ? long[0].toUpperCase() + long.slice(1) : long;
+    });
+  const users = USERS.map((u) => shiftDeep(u, shift.week));
+  return {
+    users,
+    absences,
+    audit: AUDIT_LOG.map(move).map((e) => ({ ...e, summary: text(e.summary) })),
+    notifications: NOTIFICATIONS.map(move).map((n) => ({ ...n, body: text(n.body) })),
+    rdvs: buildRdvs(addDays(new Date(2026, 7, 31), shift.week), users),
+  };
+}

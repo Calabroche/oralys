@@ -1,3 +1,4 @@
+import { demoShift, shiftDeep } from "@/lib/demoClock";
 import {
   AbsencePeriod,
   ActivityType,
@@ -9,7 +10,6 @@ import {
 
 export const CABINET_NAME = "Cabinet Oralys";
 export const PRATICIEN_NAME = "Flore Perche";
-export const REFERENCE_TODAY = new Date(2026, 8, 1, 10, 30); // 1 septembre 2026, 10h30
 
 export const activityTypes: ActivityType[] = [
   {
@@ -72,7 +72,7 @@ export const weekSlots: WeekSlot[] = [
   { id: "ws-9", day: "vendredi", activityTypeId: "tous-motifs", start: "12:00", end: "18:00" },
 ];
 
-export const specialSlots: SpecialSlot[] = [
+const specialSlots: SpecialSlot[] = [
   {
     id: "ss-1",
     activityTypeId: "consultation",
@@ -97,7 +97,7 @@ export const specialSlots: SpecialSlot[] = [
   },
 ];
 
-export const absencePeriods: AbsencePeriod[] = [
+const absencePeriods: AbsencePeriod[] = [
   {
     id: "abs-1",
     motif: "Congés",
@@ -125,8 +125,18 @@ export function getPatient(id: string): Patient {
   return found;
 }
 
-export const appointments: Appointment[] = [
+const appointments: Appointment[] = [
   { id: "apt-1", patientId: "p-3", activityTypeId: "hors-bloc", date: "2026-08-31", start: "14:00", end: "14:45" },
   { id: "apt-2", patientId: "p-2", activityTypeId: "urgences", date: "2026-09-01", start: "08:00", end: "08:15" },
   { id: "apt-3", patientId: "p-4", activityTypeId: "bloc", date: "2026-09-03", start: "15:30", end: "16:30" },
 ];
+
+/** Agenda de démo recalé sur la date du jour (voir `lib/demoClock`) : le RDV d'urgence tombe aujourd'hui. */
+export function buildAgendaSeed(today: Date = new Date()) {
+  const shift = demoShift(today);
+  return {
+    specialSlots: shiftDeep(specialSlots, shift.week),
+    absencePeriods: shiftDeep(absencePeriods, shift.week),
+    appointments: appointments.map((a) => shiftDeep(a, a.id === "apt-2" ? shift.day : shift.week)),
+  };
+}
