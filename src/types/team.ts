@@ -106,6 +106,8 @@ export interface Punch {
   /** poste : pointé dans Oralys ; badge : importé des bipeurs actuels ; correction : ajouté par un gestionnaire. */
   source: "poste" | "badge" | "correction";
   workstation?: string;
+  /** Pointage confirmé par le code PIN de la personne (pas de pointage à la place d'un autre). */
+  pinVerified?: boolean;
   /** Pour une correction : qui l'a faite et pourquoi. */
   correctedById?: string;
   note?: string;

@@ -637,10 +637,10 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     punch: (kind) => {
       const cur = latest.current;
       const u = cur.users.find((x) => x.id === cur.sessionUserId);
-      const p: Punch = { id: newId("pt"), userId: cur.sessionUserId, at: isoNow(), kind, source: "poste", workstation: cur.workstation ?? undefined };
+      const p: Punch = { id: newId("pt"), userId: cur.sessionUserId, at: isoNow(), kind, source: "poste", workstation: cur.workstation ?? undefined, pinVerified: true };
       mutate((d) => ({ ...d, punches: [...d.punches, p] }), {
         action: "pointage.punch",
-        summary: `${PUNCH_LABELS[kind]} de ${u ? fullName(u) : "?"} à ${timeOf(p.at)}${cur.workstation ? ` (${cur.workstation})` : ""}`,
+        summary: `${PUNCH_LABELS[kind]} de ${u ? fullName(u) : "?"} à ${timeOf(p.at)}, code PIN vérifié${cur.workstation ? ` (${cur.workstation})` : ""}`,
         extra: { targetUserId: cur.sessionUserId },
       });
     },

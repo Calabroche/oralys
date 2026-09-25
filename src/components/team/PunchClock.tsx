@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowRight, Clock, Coffee, LogIn, LogOut, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTeam } from "@/context/TeamDataContext";
 import { UserAvatar } from "@/components/team/shared";
@@ -34,6 +35,11 @@ export function PunchClock({ onSwitchUser }: { onSwitchUser: () => void }) {
     return () => clearInterval(id);
   }, []);
 
+  // Chaque pointage se confirme avec le code PIN de la personne : personne ne pointe à la place d'un autre.
+  const [pending, setPending] = useState<PunchKind | null>(null);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
+
   if (!sessionUser?.weeklyHours) return null; // Les praticiens libéraux ne pointent pas.
   const today = toISODate(now);
   const day = dayTime(sessionUser.id, today, punches, nowMinutesOf(now));
@@ -48,15 +54,32 @@ export function PunchClock({ onSwitchUser }: { onSwitchUser: () => void }) {
           ? { text: `Journée finie · ${formatMinutes(day.workedMinutes)}`, cls: "border-slate-200 bg-slate-50 text-slate-600", dot: "bg-slate-400" }
           : { text: "Pas encore pointé", cls: "border-pink-200 bg-pink-50 text-pink-800", dot: "bg-pink-400" };
 
+  function resetPin() {
+    setPending(null);
+    setPin("");
+    setPinError(false);
+  }
+
+  function confirmPin(value: string) {
+    if (!pending) return;
+    if (value !== sessionUser!.pin) {
+      setPinError(true);
+      setPin("");
+      return;
+    }
+    doPunch(pending);
+    resetPin();
+  }
+
   function doPunch(kind: PunchKind) {
     punch(kind);
     toast.success(`${PUNCH_LABELS[kind]} pointé(e) à ${now.toTimeString().slice(0, 5)}`, {
-      description: `${fullName(sessionUser!)}${workstation ? ` · ${workstation}` : ""}`,
+      description: `${fullName(sessionUser!)} · code PIN vérifié${workstation ? ` · ${workstation}` : ""}`,
     });
   }
 
   return (
-    <Popover>
+    <Popover onOpenChange={(o) => !o && resetPin()}>
       <PopoverTrigger asChild>
         <button className={cn("flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium", chip.cls)} aria-label="Pointage">
           <span className={cn("size-2 rounded-full", chip.dot, day.state === "en_poste" && "animate-pulse")} />
@@ -80,16 +103,48 @@ export function PunchClock({ onSwitchUser }: { onSwitchUser: () => void }) {
           Ce n&apos;est pas vous ? Changer d&apos;utilisateur
         </button>
 
-        <div className="mt-3 grid gap-2">
-          {kinds.map((k) => {
-            const A = ACTION[k];
-            return (
-              <Button key={k} onClick={() => doPunch(k)} variant={k === "depart" ? "outline" : "default"} className="justify-start">
-                <A.icon /> {A.label}
-              </Button>
-            );
-          })}
-        </div>
+        {pending ? (
+          <div className="mt-3 flex flex-col items-center gap-2.5 rounded-lg border bg-slate-50 p-3">
+            <p className="text-center text-sm text-slate-700">
+              Code PIN de {sessionUser.firstName} pour confirmer
+              <span className="block font-medium text-slate-900">« {ACTION[pending].label} »</span>
+            </p>
+            <InputOTP
+              maxLength={4}
+              value={pin}
+              autoFocus
+              aria-label="Code PIN"
+              onChange={(v) => {
+                setPinError(false);
+                setPin(v);
+                if (v.length === 4) confirmPin(v);
+              }}
+            >
+              <InputOTPGroup>
+                {[0, 1, 2, 3].map((i) => (
+                  <InputOTPSlot key={i} index={i} className="size-10 bg-white text-base" />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+            <p className={cn("text-xs", pinError ? "text-destructive" : "text-slate-400")}>
+              {pinError ? "Code incorrect : rien n'a été pointé. Réessayez." : "Démo : le code est 1234 pour tout le monde."}
+            </p>
+            <Button variant="ghost" size="sm" onClick={resetPin}>
+              Annuler
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-2">
+            {kinds.map((k) => {
+              const A = ACTION[k];
+              return (
+                <Button key={k} onClick={() => setPending(k)} variant={k === "depart" ? "outline" : "default"} className="justify-start">
+                  <A.icon /> {A.label}
+                </Button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="mt-4 border-t pt-3">
           <p className="mb-1.5 flex items-center justify-between text-xs font-medium text-slate-500">

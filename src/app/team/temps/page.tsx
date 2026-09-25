@@ -272,7 +272,9 @@ function DayDialog({
               <span className="flex-1">
                 <span className="text-slate-800">{PUNCH_LABELS[p.kind]}</span>
                 {p.note && <span className="block text-xs text-slate-500">« {p.note} » · par {findUser(p.correctedById)?.firstName ?? "?"}</span>}
-                {p.workstation && <span className="block text-xs text-slate-400">{p.workstation}</span>}
+                {(p.workstation || p.pinVerified) && (
+                  <span className="block text-xs text-slate-400">{[p.workstation, p.pinVerified && "code PIN vérifié"].filter(Boolean).join(" · ")}</span>
+                )}
               </span>
               <span
                 className={cn(

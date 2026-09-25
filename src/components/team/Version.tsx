@@ -99,7 +99,7 @@ export const VERSIONS: VersionInfo[] = [
     pitch: "Chacun pointe son arrivée, ses pauses et son départ ; les heures et heures sup se calculent seules.",
     problem: "Aujourd'hui, la clinique pointe avec des bipeurs : les heures ne sont reliées ni au planning, ni aux absences, ni au contrat.",
     canDo: [
-      "Pointer son arrivée, sa pause, sa reprise et son départ depuis son poste, sur son propre profil",
+      "Pointer son arrivée, sa pause, sa reprise et son départ depuis son poste, confirmé par son code PIN",
       "Voir les heures de chacun par semaine, comparées à son contrat",
       "Repérer les heures supplémentaires et les anomalies : départ oublié, pause trop courte, journée trop longue",
       "Corriger un pointage oublié, avec une trace dans le journal d'audit",

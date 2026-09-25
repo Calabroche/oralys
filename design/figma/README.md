@@ -83,7 +83,7 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | Disponibilités, actes préférés, préférences de binôme | V3 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Modifier les habilitations | V3 | ✓ | — | — | — | — | — | — |
 | **Temps de travail** |  |  |  |  |  |  |  |  |
-| Pointer (arrivée, pause, départ) et voir ses propres heures | V4 | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Pointer (arrivée, pause, départ) avec son code PIN, voir ses propres heures | V4 | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Voir les heures de toute l'équipe, corriger un pointage | V4 | ✓ | — | ✓ | — | — | — | — |
 
 ## Identité de la planète Team
