@@ -1,14 +1,14 @@
 # Oralys Team : maquettes pour Figma
 
-Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), généré le 24/09/2026 à partir de l'app qui tourne (`/team`).
-Données de démo : cabinet Oralpes, date de référence mardi 1er septembre 2026, session Delphine Girard (Gestionnaire).
+Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), régénéré le 25/09/2026 à partir de l'app qui tourne (`/team`).
+Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La démo vit à la date du jour : ces maquettes ont été capturées le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre).
 
 ## Contenu du dossier
 
 | Dossier / fichier | Rôle |
 |---|---|
-| `Oralys-Team-planche-complete.svg` | **Les 42 écrans en un seul fichier**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
-| `screens/*.svg` | Les 42 maquettes vectorielles, un fichier par écran (1440 px de large) |
+| `Oralys-Team-planche-complete.svg` | **Les 44 écrans en un seul fichier**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
+| `screens/*.svg` | Les 44 maquettes vectorielles, un fichier par écran (1440 px de large) |
 | `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
 | `index.html` | Planche de consultation dans un navigateur |
@@ -55,6 +55,8 @@ Les SVG ont été produits par un exportateur écrit pour Figma (et non une simp
 | 06 | `06-planning-toutes-absences` | Liste de toutes les absences, badge cliquable, annulation | Historique des absences |
 | 07 | `07-planning-absence-retour-arriere` | Popover d'absence : détails, « Présent(e) finalement le … », « Annuler toute l'absence », lien vers les RDV impactés | Retour arrière total ou pour un jour |
 | 08 | `08-planning-binome-actions` | Popover sur une puce d'assistant : déclarer absent ce jour, voir la fiche (et « Retirer le prêt » pour un prêt) | Action directe depuis le planning |
+| 43 | `43-planning-manque-pourquoi-et-actions` | Clic sur « Manque 1 » : où est chaque assistant rattaché ce jour-là (prêté à un autre praticien, absent, présent), boutons « Récupérer » (annule un prêt) et « Retirer l'absence », action **« Confirmer : 1 assistant suffit »** pour cette journée seulement, lien vers les prêts | Comprendre un manque et agir sans quitter le planning |
+| 44 | `44-planning-besoin-ajuste-journee` | Après confirmation : case verte, mention « Besoin 1 ce jour (au lieu de 2) », popover avec « Rétablir 2 » | Accepter de travailler avec moins d'assistants un jour donné, réversible |
 | 09 | `09-planning-declarer-absence` | Modale de déclaration : collaborateur, motif (segmenté), dates, précision, alerte « dernier moment » | Déclarer une absence (maladie, congé, formation) |
 
 ### Remplacements
@@ -142,7 +144,7 @@ Composants propres à Team (à créer comme composants Figma) :
 ## Parcours à prototyper dans Figma
 
 1. **Absence de dernier moment** : 01 (alerte rouge) → 10 (RDV à réaffecter) → 11 (pourquoi ce binôme) → affecter → 01 (alerte passée au vert « gérée »).
-2. **Manque sur une journée** : 02 (clic « Manque 1 ») → 14 (solutions : prêter un assistant) → 02 (puce violette ⇄).
+2. **Manque sur une journée** : 02 (clic « Manque 1 ») → 43 (pourquoi : Thomas prêté à Dr Dray, Camille à Dr Perche) → « Confirmer : 1 assistant suffit » → 44 (case verte, réversible). Variante : 43 → « Récupérer » (annule le prêt), ou 43 → 14 (prêter un assistant pour la journée) → 02 (puce violette ⇄).
 3. **Congé praticien** : 05 (charge d'agenda) → valider → 22 (agenda Soins fermé).
 4. **Retour arrière** : 03 → 07 (« Présent(e) finalement ») → toast « Annuler ».
 5. **Nouvel utilisateur** : 24 → 26 (doublon) → 27 (permissions couvertes) → 30 (invitation) → 25 (renvoyer le mail).
@@ -152,9 +154,9 @@ Composants propres à Team (à créer comme composants Figma) :
 
 ## Liens directs dans l'app (pour html.to.design ou revue)
 
-- Planning binômes : `/team/planning?date=2026-09-14`
-- Planning par personne, une personne en avant : `/team/planning?view=personnes&user=u-camille&date=2026-09-14`
-- Remplacements pour un manque : `/team/remplacements?date=2026-09-14&praticien=u-flore`
+- Planning binômes : `/team/planning?date=2026-10-05`
+- Planning par personne, une personne en avant : `/team/planning?view=personnes&user=u-camille&date=2026-10-05`
+- Remplacements pour un manque : `/team/remplacements?date=2026-10-07&praticien=u-sophie`
 - Fiche praticien : `/team/equipes?praticien=env-dray`
 - Journal filtré : `/team/reglages/journal?user=u-hugo`
 
