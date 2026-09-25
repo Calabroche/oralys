@@ -104,6 +104,7 @@ export const VERSIONS: VersionInfo[] = [
       "Repérer les heures supplémentaires et les anomalies : départ oublié, pause trop courte, journée trop longue",
       "Corriger un pointage oublié, avec une trace dans le journal d'audit",
       "Préparer la paie : récapitulatif du mois (heures, heures sup à 25 et 50 %, absences) et export CSV",
+      "Préparer la paie : récapitulatif du mois (heures, heures sup à 25 et 50 %, absences) et export CSV",
     ],
     tryHref: "/team/temps",
     screens: [49, 50, 51, 52],
