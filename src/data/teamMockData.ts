@@ -404,7 +404,7 @@ function jitter(key: string, span: number): number {
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00`;
 
 /**
- * Deux semaines de pointages : la semaine dernière vient des badges actuels (import), la semaine en cours d'Oralys.
+ * Pointages depuis le 1er du mois précédent : avant la semaine en cours, ils viennent des badges actuels (import), ensuite d'Oralys.
  * Quelques cas réels pour la démo : heures sup d'Inès, oubli de départ de Camille, pause trop courte de Nathalie.
  * Delphine (session par défaut) n'a pas encore pointé aujourd'hui : on peut essayer le bouton.
  */
@@ -413,14 +413,19 @@ function buildPunches(today: Date, users: TeamUser[], absences: TeamAbsence[]): 
   const todayIso = toISODate(today);
   const nowMin = today.getHours() * 60 + today.getMinutes();
   const monday = addDays(today, -((today.getDay() + 6) % 7));
-  const start = addDays(monday, -7);
+  // Depuis le 1er du mois précédent : de quoi voir un mois complet et le mois en cours.
+  const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const prevMonday = addDays(monday, -7);
   const validated = absences.filter((a) => a.status === "validee");
   let seq = 0;
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 75; i++) {
     const date = addDays(start, i);
     const iso = toISODate(date);
     if (iso > todayIso) break;
-    const lastWeek = date < monday;
+    // Avant la semaine en cours : pointages importés des badges. Les cas de démo visent la semaine dernière.
+    const imported = date < monday;
+    const lastWeek = date >= prevMonday && date < monday;
+    const thisWeek = date >= monday;
     const weekday = toWeekday(date);
     for (const u of users) {
       const hours = WEEKLY_HOURS[u.id];
@@ -437,9 +442,9 @@ function buildPunches(today: Date, users: TeamUser[], absences: TeamAbsence[]): 
       let noDepart = false;
       // Cas de démo.
       if (u.id === "u-ines" && lastWeek && (weekday === "mardi" || weekday === "jeudi")) depart += 95;
-      if (u.id === "u-manon" && !lastWeek && weekday === "lundi") depart += 70;
+      if (u.id === "u-manon" && thisWeek && weekday === "lundi") depart += 70;
       if (u.id === "u-camille" && lastWeek && weekday === "mercredi") noDepart = true;
-      if (u.id === "u-nathalie" && !lastWeek && weekday === "mardi") shortBreak = 10;
+      if (u.id === "u-nathalie" && thisWeek && weekday === "mardi") shortBreak = 10;
       if (breakLen && shortBreak !== breakLen) depart -= breakLen - shortBreak;
       if (!breakLen) pause = -1;
       const events: [PunchKind, number][] = [["arrivee", arrival]];
@@ -452,8 +457,8 @@ function buildPunches(today: Date, users: TeamUser[], absences: TeamAbsence[]): 
           userId: u.id,
           at: `${iso}T${hhmm(min)}`,
           kind,
-          source: lastWeek ? "badge" : "poste",
-          workstation: lastWeek ? undefined : STATION[u.id] ?? "Poste salle 1",
+          source: imported ? "badge" : "poste",
+          workstation: imported ? undefined : STATION[u.id] ?? "Poste salle 1",
         });
       }
     }

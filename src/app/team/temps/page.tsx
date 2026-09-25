@@ -1,5 +1,8 @@
 "use client";
 
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { usePersistentState } from "@/lib/persist";
+import { MonthView } from "@/components/team/time/MonthView";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, ChevronLeft, ChevronRight, Clock, Plus, Timer, Trash2, UserCheck } from "lucide-react";
@@ -42,6 +45,8 @@ function Temps() {
   const today = toISODate(now);
   const [monday, setMonday] = useState(() => toISODate(startOfWeek(now)));
   const [open, setOpen] = useState<{ user: TeamUser; day: DayTime } | null>(null);
+  // Semaine pour le suivi au quotidien, Mois pour préparer la paie (et exporter).
+  const [view, setView] = usePersistentState<"semaine" | "mois">("temps-vue", "semaine");
   const manager = can("team.planning") || can("param.cabinet");
 
   const dates = useMemo(() => Array.from({ length: 6 }, (_, i) => toISODate(addDays(fromISODate(monday), i))), [monday]);
@@ -65,7 +70,22 @@ function Temps() {
       <PageHeader
         title="Temps de travail"
         description="Arrivée, pause, reprise et départ, pointés par chacun sur son profil. Les heures sont comparées au contrat."
+        actions={
+          <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as typeof view)}>
+            <ToggleGroupItem value="semaine" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
+              Semaine
+            </ToggleGroupItem>
+            <ToggleGroupItem value="mois" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
+              Mois (paie)
+            </ToggleGroupItem>
+          </ToggleGroup>
+        }
       />
+
+      {view === "mois" ? (
+        <MonthView staff={staff.filter((u) => u.weeklyHours)} manager={manager} now={now} />
+      ) : (
+      <>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Kpi icon={UserCheck} label="En poste maintenant" value={onSite === null ? "—" : String(onSite)} />
@@ -203,6 +223,9 @@ function Temps() {
         Règles appliquées : 20 min de pause dès 6 h travaillées, 10 h de travail effectif au maximum par jour. Les praticiens libéraux ne pointent pas.
         {!manager && " Vous voyez vos propres heures ; le gestionnaire voit celles de toute l'équipe."}
       </p>
+
+      </>
+      )}
 
       <DayDialog open={open} day={openDay} canEdit={manager} onClose={() => setOpen(null)} />
     </div>

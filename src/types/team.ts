@@ -207,7 +207,8 @@ export type AuditAction =
   | "binome.pret"
   | "binome.besoin"
   | "pointage.punch"
-  | "pointage.correction";
+  | "pointage.correction"
+  | "pointage.export";
 
 export interface AuditEntry {
   id: string;

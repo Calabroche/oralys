@@ -49,6 +49,7 @@ export const AUDIT_ACTION_META: Record<AuditAction, { label: string; icon: typeo
   "binome.besoin": { label: "Besoin ajusté pour la journée", icon: Repeat },
   "pointage.punch": { label: "Pointage", icon: Clock },
   "pointage.correction": { label: "Correction de pointage", icon: Clock, sensitive: true },
+  "pointage.export": { label: "Export des heures (paie)", icon: Clock, sensitive: true },
 };
 
 export function AuditList({ entries, compact }: { entries: AuditEntry[]; compact?: boolean }) {

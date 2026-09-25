@@ -1,4 +1,4 @@
-import { Punch, PunchKind, TeamUser } from "@/types/team";
+import { Punch, PunchKind, TeamAbsence, TeamUser } from "@/types/team";
 
 /**
  * Pointage (V4) : à partir des pointages d'une journée (arrivée, pause, reprise, départ),
@@ -133,3 +133,121 @@ export function weekTime(user: TeamUser, dates: string[], punches: Punch[], toda
 }
 
 export const nowMinutesOf = (d: Date) => d.getHours() * 60 + d.getMinutes();
+
+// --- Récapitulatif du mois (préparation de la paie) -------------------------
+
+/**
+ * Règles retenues pour le prototype, à valider avec le cabinet comptable :
+ * - contrat mensualisé = heures hebdo × 52 / 12 (35 h → 151,67 h) ;
+ * - heures au-delà du contrat comptées à la semaine (lundi → dimanche), la semaine étant rattachée
+ *   au mois de son dimanche ; temps plein : +25 % jusqu'à 43 h, +50 % au-delà ; temps partiel : heures complémentaires.
+ */
+export interface MonthWeek {
+  /** Lundi de la semaine. */
+  start: string;
+  label: string;
+  workedMinutes: number;
+  overMinutes: number;
+}
+
+export interface MonthTime {
+  workedMinutes: number;
+  contractMinutes: number;
+  weeks: MonthWeek[];
+  overtime25: number;
+  overtime50: number;
+  complementary: number;
+  absenceDays: Record<TeamAbsence["type"], number>;
+  anomalies: number;
+  /** Nombre de jours avec au moins un pointage. */
+  daysWorked: number;
+}
+
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const addD = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+/** Numéro de semaine ISO (S39…), tel qu'il figure sur les plannings et bulletins. */
+export function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+const SHORT_MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
+export function monthTime(
+  user: TeamUser,
+  year: number,
+  month: number,
+  punches: Punch[],
+  absences: TeamAbsence[],
+  today: string,
+  nowMinutes: number,
+  worksOn: (u: TeamUser, iso: string) => boolean
+): MonthTime {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const inMonth = (d: string) => d >= iso(first) && d <= iso(last);
+  const day = (d: string) => (d > today ? null : dayTime(user.id, d, punches, d === today ? nowMinutes : undefined));
+
+  let worked = 0;
+  let anomalies = 0;
+  let daysWorked = 0;
+  const absenceDays: Record<TeamAbsence["type"], number> = { conge: 0, maladie: 0, formation: 0, autre: 0 };
+  for (let d = first; d <= last; d = addD(d, 1)) {
+    const k = iso(d);
+    const t = day(k);
+    if (t) {
+      worked += t.workedMinutes;
+      anomalies += t.anomalies.length;
+      if (t.punches.length) daysWorked++;
+    }
+    const abs = absences.find((a) => a.userId === user.id && a.status === "validee" && a.startDate <= k && a.endDate >= k);
+    if (abs && worksOn(user, k)) absenceDays[abs.type]++;
+  }
+
+  // Semaines rattachées au mois : celles dont le dimanche tombe dans le mois.
+  const weekly = (user.weeklyHours ?? 0) * 60;
+  const weeks: MonthWeek[] = [];
+  let overtime25 = 0;
+  let overtime50 = 0;
+  let complementary = 0;
+  const firstMonday = addD(first, -((first.getDay() + 6) % 7));
+  for (let m = firstMonday; m <= last; m = addD(m, 7)) {
+    const sunday = addD(m, 6);
+    if (!inMonth(iso(sunday))) continue;
+    let w = 0;
+    for (let i = 0; i < 7; i++) w += day(iso(addD(m, i)))?.workedMinutes ?? 0;
+    const over = weekly > 0 && w - weekly > EXTRA_TOLERANCE ? w - weekly : 0;
+    if (weekly >= 35 * 60) {
+      const at25 = Math.min(over, Math.max(0, 43 * 60 - weekly));
+      overtime25 += at25;
+      overtime50 += over - at25;
+    } else {
+      complementary += over;
+    }
+    weeks.push({
+      start: iso(m),
+      label: `S${isoWeek(m)} · ${m.getDate()} ${SHORT_MONTHS[m.getMonth()]} → ${sunday.getDate()} ${SHORT_MONTHS[sunday.getMonth()]}`,
+      workedMinutes: w,
+      overMinutes: over,
+    });
+  }
+
+  return {
+    workedMinutes: worked,
+    contractMinutes: Math.round((weekly * 52) / 12),
+    weeks,
+    overtime25,
+    overtime50,
+    complementary,
+    absenceDays,
+    anomalies,
+    daysWorked,
+  };
+}
+
+/** Heures décimales pour la paie : 151,67. */
+export const decimalHours = (minutes: number) => (minutes / 60).toFixed(2).replace(".", ",");
