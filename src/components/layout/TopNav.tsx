@@ -47,7 +47,7 @@ export function TopNav() {
                   <span className="flex items-center gap-2 px-3 py-2 font-medium text-slate-900">
                     <span className="h-2.5 w-2.5 rounded-full bg-lime-300" /> Oralys Soins ✓
                   </span>
-                  <Link href="/team" onClick={() => setPlanetOpen(false)} className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50">
+                  <Link href="/team/accueil" onClick={() => setPlanetOpen(false)} className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50">
                     <span className="h-2.5 w-2.5 rounded-full bg-pink-400" /> Oralys Team
                   </Link>
                 </div>

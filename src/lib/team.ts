@@ -432,6 +432,12 @@ export const ROLE_MIN_COVERAGE: Record<string, { min: number; label: string }> =
   "role-aide": { min: 1, label: "Stérilisation sans aide dentaire" },
 };
 
+/** Vue d'accueil : tableau de bord pour gestionnaires et praticiens, planning pour les autres. */
+export function homePathFor(u: TeamUser | undefined): string {
+  if (!u) return "/team";
+  return u.roleIds.some((r) => r === "role-gestionnaire" || r === "role-praticien") ? "/team" : "/team/planning";
+}
+
 export function primaryRoleId(u: TeamUser): string {
   return ROLE_ORDER.find((r) => u.roleIds.includes(r)) ?? u.roleIds[0] ?? "autre";
 }

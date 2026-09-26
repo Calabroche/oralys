@@ -54,7 +54,7 @@ export function AccessGate({ access, children }: { access: AccessKey; children: 
         {sessionUser && ` Vous êtes connecté(e) en tant que ${fullName(sessionUser)} (${roleNames(sessionUser, roles).join(", ")}).`}
       </p>
       <Button className="mt-6" variant="outline" asChild>
-        <Link href="/team">Retour au tableau de bord</Link>
+        <Link href="/team/accueil">Retour à l&apos;accueil</Link>
       </Button>
     </div>
   );

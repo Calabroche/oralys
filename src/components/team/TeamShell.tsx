@@ -223,7 +223,7 @@ function Header() {
       <header className="border-b-[3px] border-pink-300 bg-white">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
           <div className="flex items-center gap-3">
-            <Link href="/team" aria-label="Accueil Oralys Team">
+            <Link href="/team/accueil" aria-label="Accueil Oralys Team">
               <OralysLogo />
             </Link>
             <PlanetSwitcher />

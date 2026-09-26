@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, MonitorSmartphone } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useTeam } from "@/context/TeamDataContext";
 import { UserAvatar } from "@/components/team/shared";
-import { fullName, roleNames } from "@/lib/team";
+import { fullName, homePathFor, roleNames } from "@/lib/team";
 import { TeamUser } from "@/types/team";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ export const WORKSTATIONS = ["Poste accueil", "Poste stérilisation", "Poste sal
  */
 export function QuickSwitchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { users, roles, sessionUserId, workstation, switchSession } = useTeam();
+  const router = useRouter();
   const [selected, setSelected] = useState<TeamUser | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
@@ -50,6 +52,7 @@ export function QuickSwitchDialog({ open, onOpenChange }: { open: boolean; onOpe
       description: station === "none" ? undefined : `Poste partagé : ${station}`,
     });
     close(false);
+    router.push(homePathFor(selected));
   }
 
   return (
