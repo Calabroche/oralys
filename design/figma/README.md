@@ -50,6 +50,8 @@ Différences visibles d'une version à l'autre (utile pour le développement) : 
 
 Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droits (`src/components/team/Access.tsx`) : si le gestionnaire donne un droit à quelqu'un, la fonctionnalité apparaît pour lui. Resp. stérilisation s'ajoute au rôle principal (droits additionnés). Les praticiens, libéraux, ne pointent pas. Assistants et aides voient le planning en lecture seule.
 
+**Vue par défaut** (à la connexion, au changement d'utilisateur, au clic sur le logo ou en venant de Soins) : **Tableau de bord** pour les gestionnaires et les praticiens, **Planning** pour tous les autres profils (assistant, aide, secrétaire, comptable, resp. stérilisation). Un rôle cumulé avec praticien ou gestionnaire arrive sur le tableau de bord. L'onglet Tableau de bord reste accessible à tous.
+
 | Ce qu'on peut faire | Version | Gestionnaire | Praticien | Secrétaire | Assistant dentaire | Aide dentaire | Comptable | Resp. stérilisation |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Général** |  |  |  |  |  |  |  |  |
@@ -129,15 +131,15 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 |---|---|---|---|
 | 10 | `10-remplacements-brique1-regles` | Liste des RDV à réaffecter, filtres par absence, candidats classés par règles (titulaire, back-up n°), « Meilleur binôme », RDV à reporter (praticien absent) | Brique 1 : substitution par règles |
 | 11 | `11-remplacements-brique2-affinite` | Classement par score d'affinité 0-100, détail « Pourquoi ? » (rattachement, historique Soins, actes, retours, habilitations, préférences), personnes écartées et raisons | Brique 2 : score d'affinité |
-| 12 | `12-remplacements-aucun-admissible` | État vide « Aucun assistant admissible » avec « Reprogrammer le RDV » | Nettoyer les RDV sans solution |
-| 13 | `13-remplacements-reprogrammer-rdv` | Modale : 6 prochains créneaux où praticien libre + binôme dispo (score), « Choisir », « Annuler le RDV » | Rebooker un RDV |
+| 12 | `12-remplacements-aucun-admissible` | État vide « Aucun assistant admissible » avec « Reprogrammer le RDV » ou « Maintenir sans assistant » (le RDV reste, sans alerte) | Nettoyer les RDV sans solution, garder le RDV au besoin |
+| 13 | `13-remplacements-reprogrammer-rdv` | Modale ouverte depuis le même état vide : 6 prochains créneaux où praticien libre + binôme dispo (score), « Choisir », « Annuler le RDV » | Rebooker un RDV |
 | 14 | `14-remplacements-journee-pret-assistant` | Arrivée depuis un « Manque » du planning (bandeau filtré), équipe du jour avec raison de chaque absence, **Solutions** : prêter un assistant pour la journée avec impact simulé | Combler un manque sans toucher aux rattachements |
 
 ### Praticiens & équipes
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
-| 15 | `15-equipes-fiche-praticien` | Fiche 360° : spécialités, salles, jours, charge, absences à venir, équipe rattachée (ordre, titulaire / back-up, jours), titulaires par jour, affinités | Fiche praticien centralisée, vue équipe par praticien |
-| 16 | `16-equipes-besoin-assistants` | Liste « Besoin : 0 à 3 assistants / jour » (0 = travaille seul) | Dimensionner l'équipe |
+| 15 | `15-equipes-fiche-praticien` | Fiche 360° : spécialités, salles, jours de travail, absences à venir, équipe rattachée (ordre, titulaire / back-up, jours avec le praticien), titulaires prévus par jour / besoin, affinités. Plus de jauge de charge agenda | Fiche praticien centralisée, vue équipe par praticien |
+| 16 | `16-equipes-besoin-assistants` | Liste « Besoin : 0 à 3 assistants / jour » (0 = travaille seul). Cases de jours : cochées = jours avec le praticien, pointillé rose = aucun jour coché donc tous ses jours, barrées = le praticien ne consulte pas | Dimensionner l'équipe |
 | 17 | `17-equipes-specialites` | Multi-sélection de spécialités (liste de la prod) avec recherche, sauvegarde auto « Spécialités sauvegardées » | Spécialités visibles par le secrétariat |
 | 18 | `18-equipes-nouveau-profil-bloque` | Création de profil praticien bloquée sans utilisateur rattaché | Blocage profil praticien orphelin |
 
@@ -179,9 +181,9 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 ### Vues par rôle
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
-| 53 | `53-role-assistant-tableau-de-bord` | Tableau de bord de Thomas (assistant) : présents, « Qui est là », absences à venir ; pas d'alertes, de demandes ni de gestion des comptes | Chacun ne voit que ce qui le concerne |
-| 54 | `54-role-assistant-planning-lecture-seule` | Planning consultable sans aucun clic, sans demandes à valider ni bouton de déclaration | Assistants et aides : visualiser seulement |
-| 55 | `55-role-section-reservee` | Lien direct vers une section non autorisée : droit requis et personne connectée, retour au tableau de bord | Pas de page cassée |
+| 53 | `53-role-assistant-tableau-de-bord` | Tableau de bord de Thomas (assistant), accessible par l'onglet mais plus sa vue par défaut : présents, « Qui est là », absences à venir ; pas d'alertes, de demandes ni de gestion des comptes | Chacun ne voit que ce qui le concerne |
+| 54 | `54-role-assistant-planning-lecture-seule` | **Vue par défaut** des assistants, aides, secrétaires et comptables. Planning consultable sans aucun clic, sans demandes à valider ni bouton de déclaration | Assistants et aides : visualiser seulement |
+| 55 | `55-role-section-reservee` | Lien direct vers une section non autorisée : droit requis et personne connectée, bouton « Retour à l'accueil » (vue par défaut de la personne) | Pas de page cassée |
 | 56 | `56-role-praticien-sa-fiche` | Dr Perche ne voit et ne règle que sa propre fiche (équipe, besoin, spécialités) | Le praticien règle son équipe |
 
 ### Éléments globaux
