@@ -20,7 +20,7 @@ export default function MoiPage() {
   const { sessionUser } = useTeam();
   if (!sessionUser) return null;
   return (
-    // Mon profil existe dès le MVP (identité, jours et demi-journées de travail, absences) ; compétences et préférences arrivent en V3.
+    // Mon profil existe dès le MVP (identité, jours et demi-journées de travail, absences) ; compétences et préférences arrivent en V2.
     <Profile key={sessionUser.id} user={sessionUser} />
   );
 }

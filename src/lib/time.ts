@@ -1,7 +1,7 @@
 import { Punch, PunchKind, TeamAbsence, TeamUser } from "@/types/team";
 
 /**
- * Pointage (V4) : à partir des pointages d'une journée (arrivée, pause, reprise, départ),
+ * Pointage (V3) : à partir des pointages d'une journée (arrivée, pause, reprise, départ),
  * on calcule le temps travaillé, les pauses et les anomalies à corriger.
  * Règles reprises du Code du travail : 20 min de pause dès 6 h travaillées, 10 h de travail effectif max par jour.
  */

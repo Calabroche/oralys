@@ -73,7 +73,7 @@ function Remplacements() {
   });
   const { has } = useVersion();
   const [storedMode, setMode] = usePersistentState<"regles" | "affinite">("remplacements-mode", "regles");
-  // La Brique 2 (score d'affinité) arrive en V2.
+  // La Brique 2 (score d'affinité) arrive en V1.
   const mode = has("affinite") ? storedMode : "regles";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // RDV traités : on les garde visibles (avec le remplaçant choisi) au lieu de les faire disparaître, même après rechargement.

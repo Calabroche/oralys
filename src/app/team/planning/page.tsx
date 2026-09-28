@@ -55,7 +55,7 @@ function Planning() {
     "binomes",
     params.get("view") === "personnes" || params.get("user") ? "personnes" : params.get("view") === "binomes" ? "binomes" : null
   );
-  // Avant la V1, pas de binômes : seule la vue par personne existe.
+  // La vue Binômes existe dès le MVP (drapeau gardé pour pouvoir la décaler).
   const view = has("binomes") ? storedView : "personnes";
   const [declareOpen, setDeclareOpen] = useState(false);
   const [prefill, setPrefill] = useState<DeclarePrefill | undefined>();

@@ -122,7 +122,7 @@ function Equipes() {
 }
 
 function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdit: boolean }) {
-  // Affinités et historique commun (via Soins) arrivent avec le score d'affinité en V2 : le MVP se limite au rattachement.
+  // Affinités et historique commun (via Soins) arrivent avec le score d'affinité en V1 : le MVP se limite au rattachement.
   const { has } = useVersion();
   const { findUser, users, rdvs, absences, profiles, upsertProfile, updateUser, now } = useTeam();
   const praticien = findUser(profile.praticienUserId)!;

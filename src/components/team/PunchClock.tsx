@@ -23,7 +23,7 @@ const ACTION: Record<PunchKind, { label: string; icon: typeof LogIn }> = {
 };
 
 /**
- * Pointeuse de l'en-tête (V4) : remplace les bipeurs. On pointe toujours pour la personne
+ * Pointeuse de l'en-tête (V3) : remplace les bipeurs. On pointe toujours pour la personne
  * connectée, dont le nom est rappelé en grand : sur un poste partagé, on vérifie d'abord qui on est.
  */
 export function PunchClock({ onSwitchUser }: { onSwitchUser: () => void }) {

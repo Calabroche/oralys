@@ -97,7 +97,7 @@ export interface TeamUser {
   weeklyHours?: number;
 }
 
-// --- Pointage (V4) -----------------------------------------------------------
+// --- Pointage (V3) -----------------------------------------------------------
 
 export type PunchKind = "arrivee" | "pause" | "reprise" | "depart";
 

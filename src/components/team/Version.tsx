@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * Découpage de la démo par version livrée. Le sélecteur (menu utilisateur) masque ce qui n'existe pas
  * encore dans la version choisie : on raconte la montée en puissance du module sur une seule démo.
  */
-export type Version = "mvp" | "v1" | "v2" | "v3" | "v4";
+export type Version = "mvp" | "v1" | "v2" | "v3";
 
 export interface VersionInfo {
   id: Version;
@@ -35,9 +35,9 @@ export const VERSIONS: VersionInfo[] = [
   {
     id: "mvp",
     label: "MVP",
-    title: "Qui est là, qui manque",
-    pitch: "Gérer les comptes, les absences et les équipes des praticiens, voir qui manque et agir tout de suite.",
-    problem: "Aujourd'hui, les absences vivent dans un tableau à part et l'alerte passe par téléphone.",
+    title: "Qui est là, qui manque, qui remplace",
+    pitch: "Gérer les comptes, les absences et les équipes des praticiens, voir les manques et remplacer les absents.",
+    problem: "Aujourd'hui, les absences vivent dans un tableau à part, l'alerte passe par téléphone et les remplacements se font de tête.",
     canDo: [
       "Créer, inviter, archiver ou réactiver un utilisateur (un email déjà pris est bloqué)",
       "Renseigner ses jours de travail à la demi-journée près (lundi matin, jeudi toute la journée…)",
@@ -45,35 +45,21 @@ export const VERSIONS: VersionInfo[] = [
       "Définir l'équipe de chaque praticien : besoin de 0 à 3 assistants, titulaires placés automatiquement, back-ups",
       "Voir qui est présent chaque jour, par personne ou par binôme, et les manques",
       "Agir sur un manque : affecter un assistant libre, récupérer un assistant prêté, retirer une absence ou confirmer qu'un assistant de moins suffit",
+      "Réaffecter les RDV d'un assistant absent avec des remplaçants classés par règles, reprogrammer un RDV ou le maintenir sans assistant",
       "Se mettre sur son profil en quelques secondes (changer d'utilisateur par code PIN), avec son nom affiché en haut de l'écran",
       "Être alerté d'une absence de dernier moment, et fermer l'agenda Soins d'un praticien absent",
     ],
-    tryHref: "/team",
-    screens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 40, 41, 43, 44, 53, 54, 55, 56],
+    tryHref: "/team/planning?view=binomes",
+    screens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28, 29, 30, 36, 37, 38, 39, 40, 41, 43, 44, 53, 54, 55, 56],
   },
   {
     id: "v1",
     label: "V1",
-    title: "Remplacements",
-    pitch: "Remplacer les absents RDV par RDV, avec des remplaçants classés par règles.",
-    problem: "On voit les manques et on sait qui est libre, mais les RDV patients d'un assistant absent restent à réaffecter à la main.",
-    canDo: [
-      "Réaffecter les RDV d'un assistant absent avec des remplaçants classés par règles",
-      "Reprogrammer un RDV ou le maintenir sans assistant",
-      "Chercher un prêt d'assistant pour la journée depuis un manque",
-      "Ouvrir la fiche complète d'une personne depuis le planning",
-    ],
-    tryHref: "/team/remplacements",
-    screens: [10, 12, 13, 14, 36],
-  },
-  {
-    id: "v2",
-    label: "V2",
     title: "Intelligence et conformité",
     pitch: "Des remplaçants mieux choisis, des droits sur mesure et une trace de chaque action.",
     problem: "Les remplacements fonctionnent : il faut les rendre plus justes et savoir qui a fait quoi.",
     canDo: [
-      "Classer les remplaçants par score d'affinité, avec le détail du pourquoi",
+      "Classer les remplaçants par score d'affinité, avec le détail du pourquoi, et voir les affinités sur la fiche praticien",
       "Voir le meilleur assistant suggéré au moment de prendre un RDV dans Soins",
       "Créer des rôles et régler les droits dans une grille",
       "Suivre toutes les actions dans le journal d'audit",
@@ -83,8 +69,8 @@ export const VERSIONS: VersionInfo[] = [
     screens: [11, 19, 20, 21, 31, 32, 33, 34, 35],
   },
   {
-    id: "v3",
-    label: "V3",
+    id: "v2",
+    label: "V2",
     title: "Le collaborateur",
     pitch: "Chacun renseigne ses compétences et ses préférences de binôme.",
     problem: "Le collaborateur devient acteur de son planning, au lieu de le subir.",
@@ -96,8 +82,8 @@ export const VERSIONS: VersionInfo[] = [
     screens: [42],
   },
   {
-    id: "v4",
-    label: "V4",
+    id: "v3",
+    label: "V3",
     title: "Temps de travail",
     pitch: "Chacun pointe son arrivée, ses pauses et son départ ; les heures et heures sup se calculent seules.",
     problem: "Aujourd'hui, la clinique pointe avec des bipeurs : les heures ne sont reliées ni au planning, ni aux absences, ni au contrat.",
@@ -117,21 +103,36 @@ export const VERSIONS: VersionInfo[] = [
 export const FEATURES = {
   binomes: "mvp",
   equipes: "mvp",
-  remplacements: "v1",
-  affinite: "v2",
-  suggestionSoins: "v2",
-  droitsSoins: "v2",
-  sterilisation: "v2",
-  roles: "v2",
-  journal: "v2",
-  postes: "v2",
-  profil: "v3",
-  pointage: "v4",
+  remplacements: "mvp",
+  affinite: "v1",
+  suggestionSoins: "v1",
+  droitsSoins: "v1",
+  sterilisation: "v1",
+  roles: "v1",
+  journal: "v1",
+  postes: "v1",
+  profil: "v2",
+  pointage: "v3",
 } as const satisfies Record<string, Version>;
 
 export type Feature = keyof typeof FEATURES;
 
-const ORDER: Version[] = ["mvp", "v1", "v2", "v3", "v4"];
+const ORDER: Version[] = ["mvp", "v1", "v2", "v3"];
+
+/**
+ * Le 28/09, l'ancienne V1 a été fusionnée dans le MVP et les versions suivantes renumérotées
+ * (V2 → V1, V3 → V2, V4 → V3). Une démo déjà ouverte garde sa place dans la frise.
+ */
+const RENUMBERED: Record<string, Version> = { mvp: "mvp", v1: "mvp", v2: "v1", v3: "v2", v4: "v3" };
+function initialVersion(): Version {
+  try {
+    const old = window.localStorage.getItem("oralys-ui-version");
+    if (old) return RENUMBERED[JSON.parse(old)] ?? "v3";
+  } catch {
+    // Pas d'ancienne valeur lisible.
+  }
+  return "v3";
+}
 export const versionOf = (id: Version) => VERSIONS.find((v) => v.id === id)!;
 
 interface VersionContextValue {
@@ -144,7 +145,7 @@ const VersionContext = createContext<VersionContextValue | null>(null);
 
 export function VersionProvider({ children }: { children: ReactNode }) {
   // Par défaut, tout est visible (dernière version).
-  const [version, setVersion] = usePersistentState<Version>("version", "v4");
+  const [version, setVersion] = usePersistentState<Version>("version-v2", initialVersion);
   const has = (f: Feature) => ORDER.indexOf(version) >= ORDER.indexOf(FEATURES[f]);
   return <VersionContext.Provider value={{ version, setVersion, has }}>{children}</VersionContext.Provider>;
 }

@@ -32,7 +32,7 @@ export default function TempsPage() {
 }
 
 /**
- * Temps de travail (V4) : les pointages de la semaine, personne par personne, comparés au contrat.
+ * Temps de travail (V3) : les pointages de la semaine, personne par personne, comparés au contrat.
  * Le gestionnaire voit tout le monde et corrige les oublis ; chacun voit ses propres heures.
  */
 function Temps() {

@@ -372,7 +372,7 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
   };
 }
 
-// --- Pointages de démo (V4) --------------------------------------------------
+// --- Pointages de démo (V3) --------------------------------------------------
 
 /** Contrats hebdomadaires. Les praticiens (libéraux) ne pointent pas. */
 const WEEKLY_HOURS: Record<string, number> = {
