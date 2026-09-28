@@ -39,7 +39,7 @@ export default function PlanningPage() {
 
 function Planning() {
   const params = useSearchParams();
-  const { users, absences, profiles, now, dayOverrides, dayNeeds } = useTeam();
+  const { users, absences, profiles, now, dayOverrides, dayNeeds, sessionUserId } = useTeam();
   const allowed = useAccess();
   // Sans le droit « Planning d'équipe » (assistants, aides…) : on consulte le planning, sans rien modifier.
   const readOnly = !allowed("planning");
@@ -212,6 +212,7 @@ function Planning() {
                 dates={dates}
                 staffing={staffing}
                 readOnly={readOnly}
+                editablePraticienId={profiles.some((p) => p.praticienUserId === sessionUserId) ? sessionUserId : undefined}
                 onDeclare={(userId, date) => {
                   setPrefill({ userId, date });
                   setDeclareOpen(true);

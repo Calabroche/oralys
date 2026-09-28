@@ -22,10 +22,11 @@ const DOT = {
  * et on propose d'agir tout de suite (récupérer un assistant prêté, ou accepter de travailler avec moins d'assistants ce jour-là).
  */
 export function GapActions({ day, staffing, showLink = false }: { day: PraticienDay; staffing: DayStaffing; showLink?: boolean }) {
-  const { users, absences, dayOverrides, can, removeLoan, lendAssistant, setDayNeed, removeDayNeed } = useTeam();
-  const canEdit = can("param.cabinet") || can("team.planning");
+  const { users, absences, dayOverrides, can, sessionUserId, removeLoan, lendAssistant, setDayNeed, removeDayNeed } = useTeam();
   const date = staffing.date;
   const praticien = day.praticien;
+  // Le praticien agit sur ses propres manques (il règle déjà sa fiche et ses remplacements).
+  const canEdit = can("param.cabinet") || can("team.planning") || praticien.id === sessionUserId;
   const members = teamMembersOn(day, staffing, users, absences, dayOverrides).filter((m) => m.state !== "autre_jour");
   const present = day.slots.length;
 

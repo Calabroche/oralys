@@ -24,12 +24,15 @@ export function BinomesCalendar({
   dates,
   staffing,
   readOnly = false,
+  editablePraticienId,
   onDeclare,
 }: {
   dates: string[];
   staffing: Map<string, DayStaffing>;
   /** Consultation seule (sans droit « Planning d'équipe ») : la grille est inerte, aucun clic ni action. */
   readOnly?: boolean;
+  /** En lecture seule, un praticien peut quand même agir sur sa propre ligne (manques, besoin du jour, prêts). */
+  editablePraticienId?: string;
   onDeclare: (userId: string, date: string) => void;
 }) {
   const { findUser, users, absences, now, dayOverrides, removeLoan } = useTeam();
@@ -60,12 +63,12 @@ export function BinomesCalendar({
             })}
           </tr>
         </thead>
-        <tbody inert={readOnly}>
+        <tbody>
           {rows.map(({ profile, praticien }) => {
             const titulaires = profile.team.filter((l) => l.priority === "titulaire").sort((a, b) => a.rank - b.rank);
             const backups = profile.team.filter((l) => l.priority === "backup").sort((a, b) => a.rank - b.rank);
             return (
-              <tr key={profile.id} className="border-b align-top">
+              <tr key={profile.id} className="border-b align-top" inert={readOnly && praticien.id !== editablePraticienId}>
                 <td className="sticky left-0 z-10 bg-white px-4 py-2.5">
                   <div className="flex items-center gap-2">
                     <UserAvatar user={praticien} className="size-7 text-[0.65rem]" />
@@ -151,9 +154,11 @@ export function BinomesCalendar({
                                     <Undo2 /> Retirer le prêt du jour
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => onDeclare(u.id, iso)}>
-                                  <CalendarPlus /> Déclarer absent(e) ce jour
-                                </Button>
+                                {!readOnly && (
+                                  <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => onDeclare(u.id, iso)}>
+                                    <CalendarPlus /> Déclarer absent(e) ce jour
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => openPerson(u.id)}>
                                   <UserRound /> Voir la fiche de {u.firstName}
                                 </Button>
