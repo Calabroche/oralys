@@ -75,10 +75,18 @@ function loadData(): PersistedTeamData {
     if (raw) {
       const stored = JSON.parse(raw) as Partial<PersistedTeamData>;
       // Démos enregistrées avant le pointage : on complète les contrats sans rien effacer.
-      const users = stored.users?.map((u) => ({ ...u, weeklyHours: u.weeklyHours ?? seed.users.find((x) => x.id === u.id)?.weeklyHours }));
+      const done = stored.migrations ?? [];
+      // Demi-journées (retour produit du 28/09) : les démos existantes reçoivent celles de la démo, une seule fois.
+      const users = stored.users?.map((u) => {
+        const s = seed.users.find((x) => x.id === u.id);
+        return {
+          ...u,
+          weeklyHours: u.weeklyHours ?? s?.weeklyHours,
+          ...(!done.includes("demi-journees") && !u.halfDays && s?.halfDays ? { halfDays: s.halfDays } : {}),
+        };
+      });
       // Les assistants dentaires ne prennent pas de RDV (retour produit du 25/09) : on retire ce droit une seule fois,
       // un gestionnaire peut toujours le redonner dans la grille des droits.
-      const done = stored.migrations ?? [];
       // Idem pour la secrétaire, qui reçoit le droit « Planning d'équipe & remplacements » (retour du 25/09).
       const roles = stored.roles?.map((r) => {
         if (r.id === "role-assistant" && !done.includes("assistant-sans-rdv")) return { ...r, permissions: r.permissions.filter((x) => x !== "rdv") };
@@ -91,7 +99,7 @@ function loadData(): PersistedTeamData {
         ...stored,
         ...(users ? { users } : {}),
         ...(roles ? { roles } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning"])],
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees"])],
       };
     }
   } catch {

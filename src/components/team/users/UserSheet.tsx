@@ -18,7 +18,7 @@ import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
 import { acteLabel, displayName, fullName, permissionsOf, skillLabel } from "@/lib/team";
 import { RoleBadges, StatusBadge, UserAvatar } from "@/components/team/shared";
 import { AuditList } from "@/components/team/AuditList";
-import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
+import { WorkScheduleSummary } from "@/components/team/WorkSchedule";
 import { cn } from "@/lib/utils";
 
 export function UserSheet({ userId, onClose }: { userId: string | null; onClose: () => void }) {
@@ -112,16 +112,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
               <TabsContent value="profil" className="space-y-5 text-sm">
                 <div>
                   <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Jours travaillés</p>
-                  <div className="flex gap-1">
-                    {WEEKDAYS.map((d) => (
-                      <span
-                        key={d}
-                        className={cn("rounded-md px-2 py-1 text-xs", user.workDays.includes(d) ? "bg-pink-100 text-pink-900" : "bg-slate-50 text-slate-400")}
-                      >
-                        {WEEKDAY_LABELS[d].slice(0, 3)}
-                      </span>
-                    ))}
-                  </div>
+                  <WorkScheduleSummary user={user} />
                 </div>
                 <TagList title="Habilitations" items={user.skills.map(skillLabel)} empty="Aucune habilitation déclarée" />
                 <TagList

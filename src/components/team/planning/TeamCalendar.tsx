@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { Siren } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTeam } from "@/context/TeamDataContext";
-import { ABSENCE_TYPE_LABELS, DayStaffing, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, displayName, isChairAssistant, isLastMinute, primaryRoleId, worksOn } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, DayStaffing, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, displayName, halvesOn, isChairAssistant, isLastMinute, primaryRoleId, worksOn } from "@/lib/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink } from "@/components/team/PersonSheet";
@@ -136,8 +136,11 @@ export function TeamCalendar({
                             className="group flex h-full w-full items-center justify-center rounded-md hover:bg-slate-50"
                             aria-label={`Déclarer une absence pour ${displayName(u)} le ${iso}`}
                           >
-                            <span className="group-hover:hidden">
+                            <span className="flex flex-col items-center group-hover:hidden">
                               <PresenceLabel user={u} staffing={staffing.get(iso)} compact={compact} />
+                              {!compact && halvesOn(u, iso).length === 1 && (
+                                <span className="text-[0.62rem] leading-tight text-slate-500">{halvesOn(u, iso)[0] === "matin" ? "matin" : "après-midi"}</span>
+                              )}
                             </span>
                             <span className="hidden text-xs text-slate-400 group-hover:inline">+ absence</span>
                           </button>

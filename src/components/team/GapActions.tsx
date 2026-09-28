@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, CheckCircle2, Undo2, UserMinus, UserRoundCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, Undo2, UserMinus, UserPlus, UserRoundCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { useTeam } from "@/context/TeamDataContext";
-import { DayStaffing, PraticienDay, displayName, shortDate, teamMembersOn } from "@/lib/team";
+import { DayStaffing, HALF_DAY_LABELS, PraticienDay, displayName, fullName, halvesOn, isChairAssistant, shortDate, teamMembersOn } from "@/lib/team";
+import { useVersion } from "@/components/team/Version";
+import { TeamUser } from "@/types/team";
 import { cn } from "@/lib/utils";
 
 const DOT = {
@@ -29,6 +31,37 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
   const canEdit = can("param.cabinet") || can("team.planning") || praticien.id === sessionUserId;
   const members = teamMembersOn(day, staffing, users, absences, dayOverrides).filter((m) => m.state !== "autre_jour");
   const present = day.slots.length;
+  const { has } = useVersion();
+  // Assistants présents ce jour-là sur au moins une demi-journée du praticien : d'abord les libres,
+  // puis ceux déjà avec un autre praticien (les déplacer crée un manque chez lui, on le dit).
+  const candidates = users
+    .filter((u) => isChairAssistant(u) && u.status === "actif" && !day.slots.some((s) => s.assistantId === u.id))
+    .filter((u) => staffing.free.includes(u.id) || (staffing.assignmentOf[u.id] && staffing.assignmentOf[u.id] !== praticien.id))
+    .map((u) => {
+      const mine = halvesOn(u, date);
+      const common = day.halves.filter((h) => mine.includes(h));
+      const withId = staffing.assignmentOf[u.id];
+      return {
+        user: u,
+        common,
+        partial: common.length > 0 && common.length < day.halves.length ? common[0] : undefined,
+        elsewhere: withId ? users.find((x) => x.id === withId) : undefined,
+      };
+    })
+    .filter((x) => x.common.length > 0)
+    .sort((a, b) => Number(Boolean(a.elsewhere)) - Number(Boolean(b.elsewhere)));
+
+  function assign(userId: string, from?: TeamUser) {
+    const u = users.find((x) => x.id === userId)!;
+    const o = lendAssistant(date, userId, praticien.id);
+    toast.success(`${fullName(u)} est avec ${displayName(praticien)} le ${shortDate(date)}`, {
+      description: from
+        ? `Pour cette journée uniquement. ${displayName(from)} a désormais un assistant de moins ce jour-là.`
+        : "Pour cette journée uniquement. Les équipes rattachées ne changent pas.",
+      duration: 10000,
+      action: { label: "Annuler", onClick: () => removeLoan(o.id) },
+    });
+  }
 
   function reduceNeed() {
     const n = setDayNeed(date, praticien.id, present);
@@ -88,6 +121,33 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
       </div>
 
       {day.missing > 0 && (
+        <div className="rounded-lg border p-3">
+          <p className="text-sm font-medium text-slate-900">Affecter un assistant pour la journée</p>
+          {candidates.length === 0 ? (
+            <p className="mt-0.5 text-xs text-slate-500">Aucun assistant présent ce jour-là. Retirez une absence ou réduisez le besoin.</p>
+          ) : (
+            <ul className="mt-1.5 space-y-1">
+              {candidates.map(({ user: u, partial, elsewhere }) => (
+                <li key={u.id} className="flex items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate">
+                    {fullName(u)}
+                    <span className="text-xs text-slate-500">
+                      {" · "}
+                      {elsewhere ? `avec ${displayName(elsewhere)}` : "libre"}
+                      {partial && `, le ${HALF_DAY_LABELS[partial]} seulement`}
+                    </span>
+                  </span>
+                  <Button size="xs" variant="outline" disabled={!canEdit} onClick={() => assign(u.id, elsewhere)}>
+                    <UserPlus /> {elsewhere ? "Déplacer" : "Affecter"}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {day.missing > 0 && (
         <div className="rounded-lg border bg-slate-50 p-3">
           <p className="text-sm font-medium text-slate-900">
             {present === 0 ? "Travailler sans assistant ce jour-là" : `Travailler avec ${present} assistant${present > 1 ? "s" : ""} ce jour-là`}
@@ -113,7 +173,7 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
         </div>
       )}
 
-      {showLink && day.missing > 0 && (
+      {showLink && has("remplacements") && day.missing > 0 && (
         <Link
           href={`/team/remplacements?date=${date}&praticien=${praticien.id}`}
           className="flex items-center gap-1 text-sm font-medium text-pink-700 hover:underline"

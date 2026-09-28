@@ -3,6 +3,7 @@ import {
   ActeCategory,
   DayNeed,
   DayOverride,
+  HalfDay,
   PermissionId,
   PraticienProfile,
   Role,
@@ -73,6 +74,23 @@ export function absenceOn(userId: string, iso: string, absences: TeamAbsence[]):
 export function worksOn(user: TeamUser, iso: string): boolean {
   const day = toWeekday(fromISODate(iso));
   return day !== null && user.workDays.includes(day);
+}
+
+export const HALF_DAY_LABELS: Record<HalfDay, string> = { matin: "matin", apres_midi: "après-midi" };
+
+/** Demi-journées travaillées ce jour-là : les deux pour une journée entière, aucune en repos. */
+export function halvesOn(user: TeamUser, iso: string): HalfDay[] {
+  const day = toWeekday(fromISODate(iso));
+  if (day === null || !user.workDays.includes(day)) return [];
+  const half = user.halfDays?.[day];
+  return half ? [half] : ["matin", "apres_midi"];
+}
+
+/** Horaire d'un jour de la semaine, pour l'affichage (« Journée », « Matin », « Après-midi », ou null en repos). */
+export function scheduleLabel(user: TeamUser, day: Weekday): string | null {
+  if (!user.workDays.includes(day)) return null;
+  const half = user.halfDays?.[day];
+  return half === "matin" ? "Matin" : half === "apres_midi" ? "Après-midi" : "Journée";
 }
 
 export function isAvailable(user: TeamUser, iso: string, absences: TeamAbsence[]): boolean {
@@ -299,12 +317,16 @@ export function shortDate(iso: string): string {
 export interface StaffingSlot {
   assistantId: string;
   kind: "titulaire" | "backup" | "pret";
+  /** L'assistant ne couvre qu'une demi-journée alors que le praticien travaille toute la journée. */
+  partial?: HalfDay;
 }
 
 export interface PraticienDay {
   profile: PraticienProfile;
   praticien: TeamUser;
   status: "travaille" | "absent" | "repos";
+  /** Demi-journées où le praticien consulte ce jour-là. */
+  halves: HalfDay[];
   need: number;
   /** Besoin habituel (fiche praticien), quand il est ajusté pour la journée. */
   baseNeed: number;
@@ -356,16 +378,27 @@ export function dayStaffing(
       const baseNeed = status === "travaille" ? profile.assistantsNeeded ?? 1 : 0;
       const dayNeed = status === "travaille" ? needs.find((n) => n.date === date && n.praticienId === praticien.id) : undefined;
       const need = dayNeed ? dayNeed.need : baseNeed;
-      return { profile, praticien, status, need, baseNeed, dayNeed, slots: [], missing: 0, absentTitulaires: [], busyTitulaires: [] };
+      return { profile, praticien, status, halves: halvesOn(praticien, date), need, baseNeed, dayNeed, slots: [], missing: 0, absentTitulaires: [], busyTitulaires: [] };
     });
+
+  // Un assistant ne peut être avec un praticien que sur les demi-journées où ils travaillent tous les deux.
+  const fit = (assistantId: string, p: PraticienDay): { partial?: HalfDay } | null => {
+    const a = users.find((u) => u.id === assistantId);
+    if (!a) return null;
+    const mine = halvesOn(a, date);
+    const common = p.halves.filter((h) => mine.includes(h));
+    if (common.length === 0) return null;
+    return common.length < p.halves.length ? { partial: common[0] } : {};
+  };
 
   const working = praticiens.filter((p) => p.status === "travaille");
 
   // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire.
   for (const o of overrides.filter((x) => x.date === date)) {
     const p = working.find((w) => w.praticien.id === o.praticienId);
-    if (p && available.has(o.assistantId) && !used.has(o.assistantId)) {
-      p.slots.push({ assistantId: o.assistantId, kind: "pret" });
+    const f = p ? fit(o.assistantId, p) : null;
+    if (p && f && available.has(o.assistantId) && !used.has(o.assistantId)) {
+      p.slots.push({ assistantId: o.assistantId, kind: "pret", ...f });
       used.add(o.assistantId);
     }
   }
@@ -375,9 +408,12 @@ export function dayStaffing(
   for (const p of working) {
     for (const l of p.profile.team.filter((l) => l.priority === "titulaire" && applies(l)).sort(rankSort)) {
       if (p.slots.length >= p.need) break;
-      if (available.has(l.userId) && !used.has(l.userId)) {
-        p.slots.push({ assistantId: l.userId, kind: "titulaire" });
+      const f = fit(l.userId, p);
+      if (available.has(l.userId) && !used.has(l.userId) && f) {
+        p.slots.push({ assistantId: l.userId, kind: "titulaire", ...f });
         used.add(l.userId);
+      } else if (!f) {
+        continue;
       } else if (!available.has(l.userId) && users.find((u) => u.id === l.userId && worksOn(u, date))) {
         p.absentTitulaires.push(l.userId);
       } else if (used.has(l.userId)) {
@@ -391,10 +427,10 @@ export function dayStaffing(
     for (const p of working) {
       if (p.slots.length >= slot || p.slots.length >= p.need) continue;
       const pick = p.profile.team
-        .filter((l) => l.priority === "backup" && applies(l) && available.has(l.userId) && !used.has(l.userId))
+        .filter((l) => l.priority === "backup" && applies(l) && available.has(l.userId) && !used.has(l.userId) && fit(l.userId, p))
         .sort(rankSort)[0];
       if (pick) {
-        p.slots.push({ assistantId: pick.userId, kind: "backup" });
+        p.slots.push({ assistantId: pick.userId, kind: "backup", ...fit(pick.userId, p) });
         used.add(pick.userId);
       }
     }
@@ -594,11 +630,21 @@ export function teamMembersOn(
       const user = users.find((u) => u.id === l.userId);
       if (!user || user.status !== "actif") return null;
       const role = l.priority === "titulaire" ? "titulaire" : "back-up";
-      if (day.slots.some((s) => s.assistantId === user.id)) return { user, priority: l.priority, state: "present", label: `${user.firstName} (${role}) est là` };
+      const slot = day.slots.find((s) => s.assistantId === user.id);
+      if (slot)
+        return {
+          user,
+          priority: l.priority,
+          state: "present",
+          label: slot.partial ? `${user.firstName} (${role}) est là ${slot.partial === "matin" ? "le matin" : "l'après-midi"} seulement` : `${user.firstName} (${role}) est là`,
+        };
       if (weekday && l.days.length && !l.days.includes(weekday)) return { user, priority: l.priority, state: "autre_jour", label: `${user.firstName} (${role}) n'est rattaché(e) que d'autres jours` };
       const absence = absenceOn(user.id, staffing.date, absences);
       if (absence) return { user, priority: l.priority, state: "absent", absence, label: `${user.firstName} (${role}) : ${ABSENCE_TYPE_LABELS[absence.type].toLowerCase()}` };
       if (!worksOn(user, staffing.date)) return { user, priority: l.priority, state: "off", label: `${user.firstName} (${role}) ne travaille pas ce jour-là` };
+      const mine = halvesOn(user, staffing.date);
+      if (!day.halves.some((h) => mine.includes(h)))
+        return { user, priority: l.priority, state: "off", label: `${user.firstName} (${role}) ne travaille que ${mine[0] === "matin" ? "le matin" : "l'après-midi"} ce jour-là` };
       const otherId = staffing.assignmentOf[user.id];
       if (otherId && otherId !== day.praticien.id) {
         const elsewhere = users.find((u) => u.id === otherId);

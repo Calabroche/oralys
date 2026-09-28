@@ -44,6 +44,7 @@ import { PraticienProfile, Priority } from "@/types/team";
 import { Weekday } from "@/types";
 import { WEEKDAYS, WEEKDAY_LABELS, toISODate } from "@/utils/date";
 import { VersionGate } from "@/components/team/Version";
+import { WorkScheduleSummary } from "@/components/team/WorkSchedule";
 import { cn } from "@/lib/utils";
 
 export default function EquipesPage() {
@@ -188,13 +189,8 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
         <CardContent className="grid gap-6 sm:grid-cols-2">
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Jours de travail</p>
-            <div className="flex gap-1">
-              {WEEKDAYS.map((d) => (
-                <span key={d} className={cn("rounded px-1.5 py-0.5 text-xs", praticien.workDays.includes(d) ? "bg-pink-100 text-pink-900" : "bg-slate-50 text-slate-300")}>
-                  {WEEKDAY_LABELS[d].slice(0, 2)}
-                </span>
-              ))}
-            </div>
+            <WorkScheduleSummary user={praticien} />
+            <p className="mt-1 text-[0.7rem] text-slate-400">Réglés par le praticien dans Mon profil.</p>
           </div>
           <div>
             <p className="mb-1.5 text-xs font-medium text-slate-500 uppercase">Absences à venir (praticien + équipe)</p>

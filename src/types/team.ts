@@ -62,6 +62,9 @@ export type ActeCategory =
   | "prothese"
   | "soins";
 
+/** Demi-journée de travail : un jour peut n'être travaillé que le matin ou l'après-midi. */
+export type HalfDay = "matin" | "apres_midi";
+
 export interface TeamUser {
   id: string;
   firstName: string;
@@ -81,6 +84,8 @@ export interface TeamUser {
   /** PIN court pour la bascule rapide sur un poste partagé (démo). */
   pin: string;
   workDays: Weekday[];
+  /** Jours travaillés seulement en demi-journée (les autres jours de workDays sont des journées entières). */
+  halfDays?: Partial<Record<Weekday, HalfDay>>;
   skills: SkillId[];
   preferredActs: ActeCategory[];
   /** Préférences relationnelles déclarées (ids d'utilisateurs). */

@@ -115,6 +115,9 @@ export function BinomesCalendar({
                   return (
                     <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
                       <div className={cn("flex min-h-12 flex-col gap-1 rounded-md p-1", day.missing > 0 ? "bg-rose-50 ring-1 ring-rose-200" : "bg-emerald-50/60")}>
+                        {day.halves.length === 1 && !compact && (
+                          <span className="px-1 text-[0.65rem] font-medium text-slate-500">{day.halves[0] === "matin" ? "Matin seulement" : "Après-midi seulement"}</span>
+                        )}
                         {day.need === 0 && <span className="px-1 py-0.5 text-xs text-slate-500">{compact ? "·" : "Sans assistant"}</span>}
                         {day.slots.map((s) => {
                           const u = findUser(s.assistantId)!;
@@ -135,6 +138,7 @@ export function BinomesCalendar({
                                   {s.kind === "backup" && <RefreshCw className="size-3 shrink-0" />}
                                   {s.kind === "pret" && <span className="shrink-0">⇄</span>}
                                   {compact ? u.firstName[0] + u.lastName[0] : u.firstName}
+                                  {s.partial && <span className="font-normal opacity-70">{compact ? "½" : s.partial === "matin" ? " · matin" : " · aprèm"}</span>}
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent className="w-64 p-2" align="start">

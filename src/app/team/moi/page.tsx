@@ -13,17 +13,15 @@ import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceD
 import { ACTES, SKILLS, SPECIALTIES } from "@/data/teamMockData";
 import { fullName, shortDate } from "@/lib/team";
 import { ActeCategory, SkillId, TeamUser } from "@/types/team";
-import { Weekday } from "@/types";
-import { VersionGate } from "@/components/team/Version";
-import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
+import { useVersion } from "@/components/team/Version";
+import { WorkScheduleEditor } from "@/components/team/WorkSchedule";
 
 export default function MoiPage() {
   const { sessionUser } = useTeam();
   if (!sessionUser) return null;
   return (
-    <VersionGate feature="profil">
-      <Profile key={sessionUser.id} user={sessionUser} />
-    </VersionGate>
+    // Mon profil existe dès le MVP (identité, jours et demi-journées de travail, absences) ; compétences et préférences arrivent en V3.
+    <Profile key={sessionUser.id} user={sessionUser} />
   );
 }
 
@@ -31,6 +29,8 @@ function Profile({ user }: { user: TeamUser }) {
   const { updateUser, users, absences, can } = useTeam();
   const [draft, setDraft] = useState(user);
   const [declareOpen, setDeclareOpen] = useState(false);
+  const { has } = useVersion();
+  const full = has("profil");
   const dirty = JSON.stringify(draft) !== JSON.stringify(user);
   const isPraticien = user.poste === "praticien";
   const colleagues = users.filter((u) => u.status === "actif" && u.id !== user.id && u.poste !== user.poste && (u.poste === "praticien" || u.poste === "assistant"));
@@ -39,8 +39,8 @@ function Profile({ user }: { user: TeamUser }) {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-8 py-8">
       <PageHeader
-        title="Mes disponibilités & préférences"
-        description="Ces informations alimentent le planning et les suggestions de remplacement."
+        title={full ? "Mes disponibilités & préférences" : "Mon profil"}
+        description={full ? "Ces informations alimentent le planning et les suggestions de remplacement." : "Vos jours de travail alimentent le planning et le calcul des binômes."}
         actions={
           <>
             <Button variant="outline" onClick={() => setDeclareOpen(true)}>
@@ -76,24 +76,15 @@ function Profile({ user }: { user: TeamUser }) {
       <Card>
         <CardHeader>
           <CardTitle>Jours de travail habituels</CardTitle>
-          <CardDescription>Temps partiel, jours fixes.</CardDescription>
+          <CardDescription>Pour chaque jour : repos, matin, après-midi ou journée entière. Un assistant n&apos;est mis en binôme que sur les demi-journées où il travaille.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ToggleGroup
-            type="multiple"
-            variant="outline"
-            value={draft.workDays}
-            onValueChange={(v) => setDraft({ ...draft, workDays: v as Weekday[] })}
-          >
-            {WEEKDAYS.map((d) => (
-              <ToggleGroupItem key={d} value={d} className="px-4 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
-                {WEEKDAY_LABELS[d]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          <WorkScheduleEditor value={draft} onChange={(v) => setDraft({ ...draft, ...v })} />
         </CardContent>
       </Card>
 
+      {full && (
+      <>
       <Card>
         <CardHeader>
           <CardTitle>{isPraticien ? "Mes spécialités" : "Types d'actes préférés"}</CardTitle>
@@ -189,6 +180,9 @@ function Profile({ user }: { user: TeamUser }) {
             </ul>
           </CardContent>
         </Card>
+      )}
+
+      </>
       )}
 
       <Card>

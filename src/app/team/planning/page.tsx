@@ -191,9 +191,13 @@ function Planning() {
                   {groupTensions(tensions).map((t) => (
                     <li key={t.label}>
                       <span className="font-medium">{t.label}</span> : besoin en assistants non couvert le {t.days.map(shortDate).join(", ")}.{" "}
-                      <Link href="/team/remplacements" className="underline underline-offset-2">
-                        Voir les remplaçants
-                      </Link>
+                      {has("remplacements") ? (
+                        <Link href="/team/remplacements" className="underline underline-offset-2">
+                          Voir les remplaçants
+                        </Link>
+                      ) : (
+                        <span>Cliquez sur « Manque » dans la vue Binômes pour agir.</span>
+                      )}
                     </li>
                   ))}
                   {view === "personnes" && groupCoverage(coverageGaps).map((g) => (

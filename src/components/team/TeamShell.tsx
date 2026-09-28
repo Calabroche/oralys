@@ -315,13 +315,11 @@ function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {has("profil") && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/team/moi">
-                      <UserRound /> Mon profil, dispos & préférences
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link href="/team/moi">
+                    <UserRound /> {has("profil") ? "Mon profil, dispos & préférences" : "Mon profil et mes jours de travail"}
+                  </Link>
+                </DropdownMenuItem>
                 {allowed("administration") && (
                   <DropdownMenuItem asChild>
                     <Link href="/team/reglages">
