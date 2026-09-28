@@ -126,7 +126,7 @@ function Planning() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList variant="line">
-          <TabsTrigger value="calendrier">Calendrier consolidé</TabsTrigger>
+          <TabsTrigger value="calendrier">Calendrier</TabsTrigger>
           {!readOnly && (
             <TabsTrigger value="demandes">
               Demandes à valider
