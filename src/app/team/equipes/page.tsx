@@ -43,7 +43,7 @@ import { COLLABORATIONS } from "@/data/teamMockData";
 import { PraticienProfile, Priority } from "@/types/team";
 import { Weekday } from "@/types";
 import { WEEKDAYS, WEEKDAY_LABELS, toISODate } from "@/utils/date";
-import { VersionGate } from "@/components/team/Version";
+import { VersionGate, useVersion } from "@/components/team/Version";
 import { WorkScheduleSummary } from "@/components/team/WorkSchedule";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +62,7 @@ export default function EquipesPage() {
 function Equipes() {
   const params = useSearchParams();
   const { profiles, findUser, can, sessionUserId } = useTeam();
+  const { has } = useVersion();
   // Gestionnaire (ou droit planning) : toutes les fiches. Praticien : seulement la sienne, qu'il règle lui-même.
   const manageAll = can("param.cabinet") || can("team.planning");
   const visible = profiles.filter((p) => findUser(p.praticienUserId) && (manageAll || p.praticienUserId === sessionUserId));
@@ -74,7 +75,11 @@ function Equipes() {
     <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
       <PageHeader
         title="Praticiens & équipes"
-        description="Fiche 360° par praticien : équipe rattachée et ordre de priorité, spécialités, disponibilités et affinités."
+        description={
+          has("affinite")
+            ? "Fiche 360° par praticien : équipe rattachée et ordre de priorité, spécialités, disponibilités et affinités."
+            : "Pour chaque praticien : le besoin en assistants et l'équipe rattachée (titulaires, back-ups, jours)."
+        }
         actions={
           manageAll && (
             <Button onClick={() => setCreateOpen(true)}>
@@ -117,6 +122,8 @@ function Equipes() {
 }
 
 function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdit: boolean }) {
+  // Affinités et historique commun (via Soins) arrivent avec le score d'affinité en V2 : le MVP se limite au rattachement.
+  const { has } = useVersion();
   const { findUser, users, rdvs, absences, profiles, upsertProfile, updateUser, now } = useTeam();
   const praticien = findUser(profile.praticienUserId)!;
   const today = now();
@@ -168,9 +175,11 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
                 <Link href={`/team/planning?view=personnes&user=${praticien.id}`} className="text-xs font-normal text-pink-700 hover:underline">
                   Planning →
                 </Link>
-                <Link href={`/team/remplacements?user=${praticien.id}`} className="text-xs font-normal text-pink-700 hover:underline">
-                  Remplacements →
-                </Link>
+                {has("remplacements") && (
+                  <Link href={`/team/remplacements?user=${praticien.id}`} className="text-xs font-normal text-pink-700 hover:underline">
+                    Remplacements →
+                  </Link>
+                )}
               </CardTitle>
               <div className="mt-2">
                 <SpecialtyPicker
@@ -301,7 +310,7 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
                     <PersonLink userId={u.id} className="block text-sm font-medium">
                       {fullName(u)}
                     </PersonLink>
-                    <div className="text-xs text-slate-500">{collab} RDV ensemble (12 mois, via Soins)</div>
+                    {has("affinite") && <div className="text-xs text-slate-500">{collab} RDV ensemble (12 mois, via Soins)</div>}
                   </div>
                   <Select
                     value={l.priority}
@@ -379,6 +388,7 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
         </CardContent>
       </Card>
 
+      {has("affinite") && (
       <Card>
         <CardHeader>
           <CardTitle>Affinités avec les assistants</CardTitle>
@@ -407,6 +417,7 @@ function ProfileDetail({ profile, canEdit }: { profile: PraticienProfile; canEdi
           </ul>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
