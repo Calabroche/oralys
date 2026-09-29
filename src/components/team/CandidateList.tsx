@@ -9,6 +9,7 @@ import { Candidate } from "@/lib/team";
 import { UserAvatar } from "@/components/team/shared";
 import { fullName } from "@/lib/team";
 import { cn } from "@/lib/utils";
+import { useVersion } from "@/components/team/Version";
 
 export function CandidateList({
   candidates,
@@ -27,6 +28,9 @@ export function CandidateList({
   emptyAction?: React.ReactNode;
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  // Le score d'affinité (et son détail) arrive en V1 : en MVP, on classe par les règles et la priorité déclarée.
+  const { has } = useVersion();
+  const showScore = has("affinite");
   const eligible = candidates.filter((c) => c.eligible);
   const excluded = candidates.filter((c) => !c.eligible);
 
@@ -50,23 +54,27 @@ export function CandidateList({
                   <span className="font-medium text-slate-900">{fullName(c.user)}</span>
                   {i === 0 && (
                     <Badge className="bg-pink-500">
-                      <Sparkles /> Meilleur binôme
+                      <Sparkles /> {showScore ? "Meilleur binôme" : "Premier appelé"}
                     </Badge>
                   )}
                   <Badge variant="outline" className={cn(c.tier === 0 && "border-emerald-200 text-emerald-700", c.tier === 1 && "border-sky-200 text-sky-700")}>
                     {c.tierLabel}
                   </Badge>
                 </div>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <Progress value={c.score} className="h-1.5 w-32" />
-                  <span className={cn("text-xs", mode === "affinite" ? "font-semibold text-slate-800" : "text-slate-500")}>
-                    Affinité {c.score}/100
-                  </span>
-                </div>
+                {showScore && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <Progress value={c.score} className="h-1.5 w-32" />
+                    <span className={cn("text-xs", mode === "affinite" ? "font-semibold text-slate-800" : "text-slate-500")}>
+                      Affinité {c.score}/100
+                    </span>
+                  </div>
+                )}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setOpen(expanded ? null : c.user.id)} aria-expanded={expanded}>
-                Pourquoi ? <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
-              </Button>
+              {showScore && (
+                <Button variant="ghost" size="sm" onClick={() => setOpen(expanded ? null : c.user.id)} aria-expanded={expanded}>
+                  Pourquoi ? <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
+                </Button>
+              )}
               {onAssign &&
                 (currentId === c.user.id ? (
                   <Badge variant="secondary">
@@ -78,7 +86,7 @@ export function CandidateList({
                   </Button>
                 ))}
             </div>
-            {expanded && (
+            {showScore && expanded && (
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t px-4 py-3 text-xs sm:grid-cols-3">
                 {c.parts.map((p) => (
                   <div key={p.label}>

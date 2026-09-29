@@ -17,6 +17,7 @@ import { UserAvatar } from "@/components/team/shared";
 import { acteLabel, displayName, findRebookSlots, fullName, shortDate } from "@/lib/team";
 import { SoinsRdv } from "@/types/team";
 import { toISODate } from "@/utils/date";
+import { useVersion } from "@/components/team/Version";
 
 /**
  * Reprogrammer un RDV qu'on ne peut pas couvrir : Oralys propose les prochains créneaux
@@ -24,6 +25,7 @@ import { toISODate } from "@/utils/date";
  */
 export function RebookDialog({ rdv, onClose, onDone }: { rdv: SoinsRdv | null; onClose: () => void; onDone?: (rdvId: string) => void }) {
   const { users, profiles, absences, rdvs, findUser, now, rescheduleRdv, cancelRdv, can } = useTeam();
+  const showScore = useVersion().has("affinite");
   if (!rdv) return null;
   const praticien = findUser(rdv.praticienUserId);
   const slots = findRebookSlots(rdv, toISODate(now()), { users, profiles, absences, rdvs });
@@ -61,7 +63,7 @@ export function RebookDialog({ rdv, onClose, onDone }: { rdv: SoinsRdv | null; o
                       <UserAvatar user={s.assistant.user} className="size-6 text-[0.6rem]" />
                       <span className="truncate">{fullName(s.assistant.user)}</span>
                       <Badge variant="outline" className="shrink-0">
-                        {s.assistant.score}/100
+                        {showScore ? `${s.assistant.score}/100` : s.assistant.tierLabel}
                       </Badge>
                     </>
                   ) : (
