@@ -19,6 +19,7 @@ import {
 } from "@/types/team";
 import { BESOINS_PAR_ACTIVITE, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
 import { scheduleFromSlots } from "@/lib/semaine";
+import { daysFromHours } from "@/lib/horaires";
 import { fromISODate, toWeekday } from "@/utils/date";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
@@ -240,7 +241,9 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     () =>
       data.users.map((u) => {
         const p = profiles.find((x) => x.praticienUserId === u.id);
-        return p?.weekSlots?.length ? { ...u, ...scheduleFromSlots(p.weekSlots) } : u;
+        if (p?.weekSlots?.length) return { ...u, ...scheduleFromSlots(p.weekSlots) };
+        // Horaires saisis dans le profil : ils décident des jours et demi-journées travaillés.
+        return u.schedule ? { ...u, ...daysFromHours(u.schedule) } : u;
       }),
     [data.users, profiles]
   );

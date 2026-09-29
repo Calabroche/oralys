@@ -62,6 +62,15 @@ export type ActeCategory =
   | "prothese"
   | "soins";
 
+/** Plage horaire de travail, ex. 08:30 → 12:30. */
+export interface TimeRange {
+  start: string;
+  end: string;
+}
+
+/** Horaires habituels de la semaine : les plages de chaque jour travaillé. */
+export type WeekHours = Partial<Record<Weekday, TimeRange[]>>;
+
 /** Demi-journée de travail : un jour peut n'être travaillé que le matin ou l'après-midi. */
 export type HalfDay = "matin" | "apres_midi";
 
@@ -86,6 +95,8 @@ export interface TeamUser {
   workDays: Weekday[];
   /** Jours travaillés seulement en demi-journée (les autres jours de workDays sont des journées entières). */
   halfDays?: Partial<Record<Weekday, HalfDay>>;
+  /** Horaires habituels (plages par jour). Quand ils existent, les jours et demi-journées en sont déduits. */
+  schedule?: WeekHours;
   skills: SkillId[];
   preferredActs: ActeCategory[];
   /** Préférences relationnelles déclarées (ids d'utilisateurs). */

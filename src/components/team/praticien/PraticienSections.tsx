@@ -15,6 +15,7 @@ import { COLLABORATIONS } from "@/data/teamMockData";
 import { activityTypes } from "@/data/mockData";
 import { acteLabel, adjustTeamToNeed, dayFit, displayName, fullName, isChairAssistant, sortCandidates, suggestAssistants, titularCoverage } from "@/lib/team";
 import { HALVES, activitiesOf, activityName, dayPlan, halvesOfSlot, needForActivity } from "@/lib/semaine";
+import { hoursLabel, toMinutes } from "@/lib/horaires";
 import { HalfDay, PraticienProfile, Priority, TeamUser } from "@/types/team";
 import { WeekSlot, Weekday } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
@@ -97,6 +98,12 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
     );
   }
 
+  // Horaires précis d'un créneau (ex. 08:30 → 12:30) : ils comptent pour les heures de la semaine.
+  function changeTimes(slotId: string, start: string, end: string) {
+    if (!start || !end || end <= start) return;
+    save({ ...current, weekSlots: slots.map((x) => (x.id === slotId ? { ...x, start, end } : x)) });
+  }
+
   function changeHalf(day: Weekday, half: HalfDay, value: string) {
     const activityId = value === "repos" ? null : value;
     commit(
@@ -109,7 +116,10 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Jours de travail et besoin en assistants</CardTitle>
+        <CardTitle className="flex flex-wrap items-baseline gap-x-3">
+          Jours de travail et besoin en assistants
+          <span className="text-sm font-normal text-slate-500">{hoursLabel(slots.reduce((m, x) => m + Math.max(0, toMinutes(x.end) - toMinutes(x.start)), 0))} par semaine</span>
+        </CardTitle>
         <CardDescription>
           Pour chaque demi-journée, choisissez repos ou le type d&apos;activité de {displayName(praticien)}. Puis réglez juste en dessous combien d&apos;assistants
           chaque activité demande : une demi-journée prend le plus grand besoin de ses activités.
@@ -183,6 +193,22 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
                               {plan.need === 0 ? "Sans assistant" : `${plan.need} assistant${plan.need > 1 ? "s" : ""}`}
                             </p>
                           )}
+                          {plan &&
+                            (() => {
+                              const inHalf = slots.filter((x) => x.day === d && halvesOfSlot(x).includes(half)).sort((a, b) => a.start.localeCompare(b.start));
+                              // Un seul créneau : horaires modifiables ; plusieurs (réglés dans Soins) : on les liste.
+                              if (inHalf.length === 1 && canEdit) {
+                                const x = inHalf[0];
+                                return (
+                                  <div className="mt-0.5 flex items-center gap-0.5 px-1 text-[0.7rem] text-slate-600">
+                                    <input type="time" step={900} value={x.start} onChange={(e) => changeTimes(x.id, e.target.value, x.end)} className="w-[4.6rem] bg-transparent tabular-nums outline-none" aria-label="Début" />
+                                    →
+                                    <input type="time" step={900} value={x.end} onChange={(e) => changeTimes(x.id, x.start, e.target.value)} className="w-[4.6rem] bg-transparent tabular-nums outline-none" aria-label="Fin" />
+                                  </div>
+                                );
+                              }
+                              return <p className="px-1.5 text-[0.7rem] text-slate-500 tabular-nums">{inHalf.map((x) => `${x.start}–${x.end}`).join(", ")}</p>;
+                            })()}
                         </div>
                       </td>
                     );
