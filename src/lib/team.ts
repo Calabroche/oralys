@@ -82,9 +82,25 @@ export const HALF_DAY_LABELS: Record<HalfDay, string> = { matin: "matin", apres_
 /** Demi-journées travaillées ce jour-là : les deux pour une journée entière, aucune en repos. */
 export function halvesOn(user: TeamUser, iso: string): HalfDay[] {
   const day = toWeekday(fromISODate(iso));
-  if (day === null || !user.workDays.includes(day)) return [];
+  return day === null ? [] : halvesOnDay(user, day);
+}
+
+/** Demi-journées habituellement travaillées un jour de la semaine. */
+export function halvesOnDay(user: TeamUser, day: Weekday): HalfDay[] {
+  if (!user.workDays.includes(day)) return [];
   const half = user.halfDays?.[day];
   return half ? [half] : ["matin", "apres_midi"];
+}
+
+/**
+ * Un assistant peut-il être avec ce praticien tel jour de la semaine ?
+ * ok : il couvre toutes les demi-journées du praticien ; partiel : une seule ; non : il ne travaille pas quand le praticien consulte.
+ */
+export function dayFit(assistant: TeamUser, profile: PraticienProfile, praticien: TeamUser, day: Weekday): { status: "ok" | "partiel" | "non"; common: HalfDay[] } {
+  const needed = dayPlan(profile, praticien, day).map((p) => p.half);
+  const mine = halvesOnDay(assistant, day);
+  const common = needed.filter((h) => mine.includes(h));
+  return { status: common.length === 0 ? "non" : common.length < needed.length ? "partiel" : "ok", common };
 }
 
 /** Horaire d'un jour de la semaine, pour l'affichage (« Journée », « Matin », « Après-midi », ou null en repos). */
@@ -538,10 +554,15 @@ export function isChairAssistant(u: TeamUser): boolean {
 /** Nombre de titulaires couvrant chaque jour travaillé du praticien, face au plus grand besoin du jour. */
 export function titularCoverage(profile: PraticienProfile, praticien: TeamUser, users?: TeamUser[]): { day: Weekday; count: number; need: number }[] {
   // Un rattaché qui n'est pas assistant dentaire ne va jamais au fauteuil : il ne compte pas.
-  const chair = (id: string) => !users || Boolean(users.find((u) => u.id === id && isChairAssistant(u)));
+  // Ni un jour où il ne travaille pas.
+  const chair = (id: string, day: Weekday) => {
+    if (!users) return true;
+    const u = users.find((x) => x.id === id);
+    return Boolean(u && isChairAssistant(u) && dayFit(u, profile, praticien, day).status !== "non");
+  };
   return praticien.workDays.map((day) => ({
     day,
-    count: profile.team.filter((l) => l.priority === "titulaire" && chair(l.userId) && (l.days.length === 0 || l.days.includes(day))).length,
+    count: profile.team.filter((l) => l.priority === "titulaire" && chair(l.userId, day) && (l.days.length === 0 || l.days.includes(day))).length,
     need: maxNeedOn(profile, praticien, day),
   }));
 }

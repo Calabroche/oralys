@@ -13,7 +13,7 @@ import { PersonLink } from "@/components/team/PersonSheet";
 import { useVersion } from "@/components/team/Version";
 import { COLLABORATIONS } from "@/data/teamMockData";
 import { activityTypes } from "@/data/mockData";
-import { acteLabel, adjustTeamToNeed, displayName, fullName, isChairAssistant, sortCandidates, suggestAssistants, titularCoverage } from "@/lib/team";
+import { acteLabel, adjustTeamToNeed, dayFit, displayName, fullName, isChairAssistant, sortCandidates, suggestAssistants, titularCoverage } from "@/lib/team";
 import { HALVES, activitiesOf, activityName, dayPlan, halvesOfSlot, needForActivity } from "@/lib/semaine";
 import { HalfDay, PraticienProfile, Priority, TeamUser } from "@/types/team";
 import { WeekSlot, Weekday } from "@/types";
@@ -328,45 +328,70 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
                     <SelectItem value="backup">Back-up</SelectItem>
                   </SelectContent>
                 </Select>
-                <ToggleGroup
-                  type="multiple"
-                  size="sm"
-                  variant="outline"
-                  disabled={!canEdit}
-                  // Ce qui est coché est ce qui compte : « tous ses jours » s'affiche tous cochés (et suit la semaine type du praticien).
-                  value={l.days.length ? l.days.filter((d) => workDays.includes(d)) : workDays}
-                  onValueChange={(v) => {
-                    const days = workDays.filter((d) => v.includes(d));
-                    if (days.length === 0) {
-                      toast("Au moins un jour", { description: `Pour ne plus rattacher ${fullName(u)}, utilisez la croix à droite.` });
-                      return;
-                    }
-                    save({ ...profile, team: team.map((x) => (x.userId === l.userId ? { ...x, days: days.length === workDays.length ? [] : days } : x)) });
-                  }}
-                  aria-label="Jours du rattachement"
-                >
-                  {dayOptions.map((d) => {
-                    const off = !praticien.workDays.includes(d);
-                    return (
-                      <ToggleGroupItem
-                        key={d}
-                        value={d}
-                        disabled={off}
-                        title={
-                          off
-                            ? `${displayName(praticien)} ne consulte pas le ${WEEKDAY_LABELS[d].toLowerCase()}`
-                            : `${WEEKDAY_LABELS[d]} avec ${displayName(praticien)} : cliquer pour cocher ou décocher`
+                {(() => {
+                  // Jours possibles : le praticien consulte ET l'assistant travaille à ce moment-là (sa fiche : jours et demi-journées).
+                  const fit = Object.fromEntries(workDays.map((d) => [d, dayFit(u, profile, praticien, d)])) as Record<Weekday, ReturnType<typeof dayFit>>;
+                  const possible = workDays.filter((d) => fit[d].status !== "non");
+                  const current = (l.days.length ? l.days : workDays).filter((d) => possible.includes(d));
+                  const halfLabel = (d: Weekday) => (fit[d].common[0] === "matin" ? "le matin" : "l'après-midi");
+                  return (
+                    <ToggleGroup
+                      type="multiple"
+                      size="sm"
+                      variant="outline"
+                      disabled={!canEdit}
+                      value={current}
+                      onValueChange={(v) => {
+                        const days = possible.filter((d) => v.includes(d));
+                        if (days.length === 0) {
+                          toast("Au moins un jour", { description: `Pour ne plus rattacher ${fullName(u)}, utilisez la croix à droite.` });
+                          return;
                         }
-                        className={cn(
-                          "w-9 px-0 text-xs text-slate-400 data-[state=on]:border-pink-300 data-[state=on]:bg-pink-100 data-[state=on]:font-medium data-[state=on]:text-pink-900",
-                          off && "bg-slate-50 text-slate-300 line-through opacity-100"
-                        )}
-                      >
-                        {WEEKDAY_LABELS[d].slice(0, 2)}
-                      </ToggleGroupItem>
-                    );
-                  })}
-                </ToggleGroup>
+                        save({ ...profile, team: team.map((x) => (x.userId === l.userId ? { ...x, days: days.length === possible.length ? [] : days } : x)) });
+                        // Alerte : on ajoute un jour où la personne n'est là qu'une demi-journée, alors que le praticien consulte toute la journée.
+                        const partial = days.filter((d) => !current.includes(d) && fit[d].status === "partiel");
+                        if (partial.length)
+                          toast.warning(`Attention : ${u.firstName} ne travaille qu'une demi-journée`, {
+                            description: partial
+                              .map((d) => `Le ${WEEKDAY_LABELS[d].toLowerCase()}, ${u.firstName} n'est là que ${halfLabel(d)} alors que ${displayName(praticien)} consulte toute la journée.`)
+                              .join(" "),
+                          });
+                      }}
+                      aria-label="Jours du rattachement"
+                    >
+                      {dayOptions.map((d) => {
+                        const off = !praticien.workDays.includes(d);
+                        const unavailable = !off && fit[d].status === "non";
+                        const partial = !off && fit[d].status === "partiel";
+                        return (
+                          <ToggleGroupItem
+                            key={d}
+                            value={d}
+                            disabled={off || unavailable}
+                            title={
+                              off
+                                ? `${displayName(praticien)} ne consulte pas le ${WEEKDAY_LABELS[d].toLowerCase()}`
+                                : unavailable
+                                  ? `${u.firstName} ne travaille pas le ${WEEKDAY_LABELS[d].toLowerCase()} quand ${displayName(praticien)} consulte (voir son profil)`
+                                  : partial
+                                    ? `${u.firstName} n'est là que ${halfLabel(d)} le ${WEEKDAY_LABELS[d].toLowerCase()}`
+                                    : `${WEEKDAY_LABELS[d]} avec ${displayName(praticien)} : cliquer pour cocher ou décocher`
+                            }
+                            className={cn(
+                              "relative w-9 px-0 text-xs text-slate-400 data-[state=on]:border-pink-300 data-[state=on]:bg-pink-100 data-[state=on]:font-medium data-[state=on]:text-pink-900",
+                              partial && "data-[state=on]:border-amber-300 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900",
+                              off && "bg-slate-50 text-slate-300 line-through opacity-100",
+                              unavailable && "bg-[repeating-linear-gradient(135deg,#f1f5f9,#f1f5f9_3px,transparent_3px,transparent_6px)] text-slate-300 opacity-100"
+                            )}
+                          >
+                            {WEEKDAY_LABELS[d].slice(0, 2)}
+                            {partial && <span className="absolute -top-1.5 -right-1 rounded-full bg-amber-400 px-0.5 text-[0.55rem] leading-3 font-semibold text-white">½</span>}
+                          </ToggleGroupItem>
+                        );
+                      })}
+                    </ToggleGroup>
+                  );
+                })()}
                 {canEdit && (
                   <Button
                     variant="ghost"
@@ -384,8 +409,8 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
         <TeamCoverage profile={profile} canEdit={canEdit} />
         <p className="mt-2 text-xs text-slate-500">
           <CalendarDays className="mr-1 inline size-3.5" />
-          Jours en rose : la personne travaille avec {displayName(praticien)} ce jour-là. Cliquez pour ajouter ou retirer un jour. Jours barrés :{" "}
-          {displayName(praticien)} ne consulte pas.
+          Jours en rose : la personne travaille avec {displayName(praticien)} ce jour-là. En orange « ½ » : elle n&apos;est là qu&apos;une demi-journée. Hachurés :
+          elle ne travaille pas ce jour-là (d&apos;après son profil). Barrés : {displayName(praticien)} ne consulte pas.
         </p>
       </CardContent>
     </Card>
