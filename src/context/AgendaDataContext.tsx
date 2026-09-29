@@ -3,6 +3,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
 import {
+  ASSISTANT_NEEDS,
   DEFAULT_SOINS_PRATICIEN,
   OTHER_WEEK_SLOTS,
   activityTypes as initialActivityTypes,
@@ -21,7 +22,11 @@ export const slotOwner = (s: WeekSlot) => s.praticienId ?? DEFAULT_SOINS_PRATICI
 const STORAGE_KEY = "oralys-agenda-data-v3";
 const PRATICIEN_KEY = "oralys-agenda-praticien";
 
+/** Assistants nécessaires : praticien → type d'activité → nombre. */
+type AssistantNeeds = Record<string, Record<string, number>>;
+
 interface PersistedData {
+  assistantNeeds?: AssistantNeeds;
   activityTypes: ActivityType[];
   weekSlots: WeekSlot[];
   specialSlots: SpecialSlot[];
@@ -35,6 +40,9 @@ interface AgendaDataContextValue extends PersistedData {
   /** Praticien dont on règle / consulte l'agenda dans Soins. */
   agendaPraticienId: string;
   setAgendaPraticienId: (id: string) => void;
+  /** Assistants nécessaires pour ce praticien pendant ce type d'activité (défaut : celui du type, sinon 1). */
+  needFor: (praticienId: string, activityTypeId: string) => number;
+  setAssistantNeed: (praticienId: string, activityTypeId: string, need: number) => void;
   addActivityType: (type: ActivityType) => void;
   updateActivityType: (type: ActivityType) => void;
   deleteActivityType: (id: string) => void;
@@ -57,6 +65,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(initialActivityTypes);
   const [allWeekSlots, setWeekSlots] = useState<WeekSlot[]>([...initialWeekSlots, ...OTHER_WEEK_SLOTS]);
   const [agendaPraticienId, setAgendaPraticienId] = useState(DEFAULT_SOINS_PRATICIEN);
+  const [assistantNeeds, setAssistantNeeds] = useState<AssistantNeeds>(ASSISTANT_NEEDS);
   const weekSlots = allWeekSlots.filter((s) => slotOwner(s) === agendaPraticienId);
   const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
   const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
@@ -84,6 +93,8 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
       setActivityTypes(
         parsed.activityTypes.map((t) => ({ ...t, assistantsNeeded: t.assistantsNeeded ?? initialActivityTypes.find((x) => x.id === t.id)?.assistantsNeeded ?? 1 }))
       );
+    // Besoin par praticien et type d'activité (retour du 29/09) : besoins de la démo si rien n'est sauvegardé.
+    setAssistantNeeds(parsed.assistantNeeds ?? ASSISTANT_NEEDS);
     // Une semaine type par praticien : on ajoute celles de Dr Martin et Dr Dray si l'agenda sauvegardé ne les a pas.
     if (parsed.weekSlots) {
       const saved = parsed.weekSlots;
@@ -107,13 +118,13 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, specialSlots, absencePeriods, appointments };
+      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeeds, specialSlots, absencePeriods, appointments };
       window.localStorage.setItem(PRATICIEN_KEY, JSON.stringify(agendaPraticienId));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // quota dépassé ou stockage désactivé : on continue sans persister.
     }
-  }, [hydrated, activityTypes, allWeekSlots, agendaPraticienId, specialSlots, absencePeriods, appointments]);
+  }, [hydrated, activityTypes, allWeekSlots, assistantNeeds, agendaPraticienId, specialSlots, absencePeriods, appointments]);
 
   const value: AgendaDataContextValue = {
     activityTypes,
@@ -121,6 +132,10 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     allWeekSlots,
     agendaPraticienId,
     setAgendaPraticienId,
+    needFor: (praticienId, typeId) =>
+      assistantNeeds[praticienId]?.[typeId] ?? activityTypes.find((t) => t.id === typeId)?.assistantsNeeded ?? 1,
+    setAssistantNeed: (praticienId, typeId, need) =>
+      setAssistantNeeds((prev) => ({ ...prev, [praticienId]: { ...prev[praticienId], [typeId]: Math.max(0, Math.min(6, need)) } })),
     specialSlots,
     absencePeriods,
     appointments,

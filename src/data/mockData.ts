@@ -73,6 +73,13 @@ export const SOINS_PRATICIENS: { id: string; name: string }[] = [
 ];
 export const DEFAULT_SOINS_PRATICIEN = "env-perche";
 
+/** Assistants nécessaires par type d'activité, pour chaque praticien (ex. bloc : 2 pour Dr Martin, 1 pour Dr Dray). */
+export const ASSISTANT_NEEDS: Record<string, Record<string, number>> = {
+  "env-perche": { "tous-motifs": 1, consultation: 1, urgences: 1, bloc: 2, "hors-bloc": 1 },
+  "env-martin": { "tous-motifs": 1, consultation: 1, urgences: 1, bloc: 2, "hors-bloc": 1 },
+  "env-dray": { "tous-motifs": 1, consultation: 1, urgences: 1, bloc: 1, "hors-bloc": 1 },
+};
+
 const slot = (id: string, praticienId: string, day: WeekSlot["day"], activityTypeId: string, start: string, end: string): WeekSlot => ({ id, praticienId, day, activityTypeId, start, end });
 /** Semaines types des autres praticiens de la démo. */
 export const OTHER_WEEK_SLOTS: WeekSlot[] = [

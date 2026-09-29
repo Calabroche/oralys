@@ -5,6 +5,7 @@ import { ActivityType, SpecialSlot, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { minutesToDurationLabel } from "@/utils/date";
 import { ActivityTypeModal } from "./ActivityTypeModal";
+import { useAgendaData } from "@/context/AgendaDataContext";
 
 interface Props {
   activityTypes: ActivityType[];
@@ -114,12 +115,14 @@ export function TypesActiviteSection({
   );
 }
 
-/** Assistants nécessaires pendant l'activité : réglable même sur les types verrouillés, lu par Team. */
-function AssistantsStepper({ type, onChange }: { type: ActivityType; onChange: (t: ActivityType) => void }) {
-  const n = type.assistantsNeeded ?? 1;
-  const set = (v: number) => onChange({ ...type, assistantsNeeded: Math.max(0, Math.min(6, v)) });
+/** Assistants nécessaires pendant l'activité, pour ce praticien : réglable même sur les types verrouillés, lu par Team. */
+function AssistantsStepper({ type }: { type: ActivityType; onChange?: (t: ActivityType) => void }) {
+  // Réglé pour le praticien dont on affiche l'agenda (chaque praticien a ses besoins).
+  const { agendaPraticienId, needFor, setAssistantNeed } = useAgendaData();
+  const n = needFor(agendaPraticienId, type.id);
+  const set = (v: number) => setAssistantNeed(agendaPraticienId, type.id, v);
   return (
-    <div className="mt-2 flex items-center gap-1.5 border-t border-black/5 pt-2 text-xs text-slate-600" title="Assistants dentaires nécessaires pendant cette activité (utilisé par Team)">
+    <div className="mt-2 flex items-center gap-1.5 border-t border-black/5 pt-2 text-xs text-slate-600" title="Assistants dentaires nécessaires pour ce praticien pendant cette activité (utilisé par Team)">
       <span aria-hidden>👥</span>
       <button type="button" onClick={() => set(n - 1)} disabled={n === 0} className="size-5 rounded border bg-white leading-none disabled:opacity-40" aria-label={`Un assistant de moins pour ${type.name}`}>
         −

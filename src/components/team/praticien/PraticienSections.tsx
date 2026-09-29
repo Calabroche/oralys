@@ -145,7 +145,7 @@ export function SemaineTypeCard({ profile }: { profile: PraticienProfile; canEdi
               </table>
             </div>
             <div>
-              <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Assistants par type d&apos;activité (réglés dans Soins, pour tout le cabinet)</p>
+              <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Assistants par type d&apos;activité (réglés dans son agenda Soins)</p>
               <div className="flex flex-wrap gap-2">
                 {activities.map((a) => {
                   const need = needForActivity(profile, a);

@@ -16,6 +16,7 @@ import { RecurrenceFields } from "./RecurrenceFields";
 import { firstUnusedColor } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, timeToMinutes, toWeekday } from "@/utils/date";
 import { buildSlotFromChoice } from "@/utils/slotRouting";
+import { useAgendaData } from "@/context/AgendaDataContext";
 
 export function ActivityTypeModal({
   existing,
@@ -103,7 +104,8 @@ export function ActivityTypeModal({
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [color, setColor] = useState<ActivityColor>(() => existing?.color ?? firstUnusedColor(usedColors));
-  const [assistants, setAssistants] = useState(existing?.assistantsNeeded ?? 1);
+  const { agendaPraticienId, needFor, setAssistantNeed } = useAgendaData();
+  const [assistants, setAssistants] = useState(existing ? needFor(agendaPraticienId, existing.id) : 1);
 
   const [days, setDays] = useState<Weekday[]>(initialDays);
   const initialScheduleValue = initialSchedule();
@@ -151,7 +153,7 @@ export function ActivityTypeModal({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">
             Assistants nécessaires
-            <span className="ml-1 font-normal text-slate-400">— utilisé par Team pour repérer les manques</span>
+            <span className="ml-1 font-normal text-slate-400">pour ce praticien, utilisé par Team pour repérer les manques</span>
           </label>
           <div className="flex gap-1">
             {[0, 1, 2, 3, 4].map((n) => (
@@ -278,8 +280,8 @@ export function ActivityTypeModal({
               color,
               durationMinutes: computedDuration,
               locked: existing?.locked,
-              assistantsNeeded: assistants,
             });
+            setAssistantNeed(agendaPraticienId, id, assistants);
 
             if (isEditing) {
               existingWeekSlots.forEach((s) => deleteWeekSlot(s.id));

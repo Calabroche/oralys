@@ -22,7 +22,7 @@ export interface ActivityType {
   color: ActivityColor;
   durationMinutes: number;
   locked?: boolean;
-  /** Assistants dentaires nécessaires pendant cette activité (commun au cabinet). Lu par Team pour calculer les manques. */
+  /** Besoin par défaut en assistants pour ce type (chaque praticien peut avoir le sien, voir assistantNeeds). */
   assistantsNeeded?: number;
 }
 

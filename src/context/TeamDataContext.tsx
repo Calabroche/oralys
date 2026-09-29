@@ -234,17 +234,16 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
   // Soins est la source : la semaine type de chaque praticien (quand il travaille et sur quelle activité)
   // et le nombre d'assistants par type d'activité viennent de l'agenda Soins. Team les lit, sans les modifier.
   setActivityCatalog(agenda.activityTypes);
-  const needsByActivity = useMemo(
-    () => Object.fromEntries(agenda.activityTypes.map((t) => [t.id, t.assistantsNeeded ?? 1])),
-    [agenda.activityTypes]
-  );
+  const { needFor } = agenda;
   const profiles = useMemo(
     () =>
       data.profiles.map((p) => {
         const slots = agenda.allWeekSlots.filter((s) => slotOwner(s) === p.id);
+        // Besoin propre à chaque praticien, par type d'activité (réglé dans son agenda Soins).
+        const needsByActivity = Object.fromEntries(agenda.activityTypes.map((t) => [t.id, needFor(p.id, t.id)]));
         return { ...p, weekSlots: slots.length ? slots : undefined, needsByActivity };
       }),
-    [data.profiles, agenda.allWeekSlots, needsByActivity]
+    [data.profiles, agenda.allWeekSlots, agenda.activityTypes, needFor]
   );
   const users = useMemo(
     () =>
