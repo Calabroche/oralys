@@ -26,7 +26,8 @@ const PRATICIEN_KEY = "oralys-agenda-praticien";
 type AssistantNeeds = Record<string, Record<string, number>>;
 
 interface PersistedData {
-  assistantNeeds?: AssistantNeeds;
+  /** v2 : bloc à 4 pour Dr Martin dans la démo (les réglages sauvegardés avant sont ignorés). */
+  assistantNeedsV2?: AssistantNeeds;
   activityTypes: ActivityType[];
   weekSlots: WeekSlot[];
   specialSlots: SpecialSlot[];
@@ -94,7 +95,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
         parsed.activityTypes.map((t) => ({ ...t, assistantsNeeded: t.assistantsNeeded ?? initialActivityTypes.find((x) => x.id === t.id)?.assistantsNeeded ?? 1 }))
       );
     // Besoin par praticien et type d'activité (retour du 29/09) : besoins de la démo si rien n'est sauvegardé.
-    setAssistantNeeds(parsed.assistantNeeds ?? ASSISTANT_NEEDS);
+    setAssistantNeeds(parsed.assistantNeedsV2 ?? ASSISTANT_NEEDS);
     // Une semaine type par praticien : on ajoute celles de Dr Martin et Dr Dray si l'agenda sauvegardé ne les a pas.
     if (parsed.weekSlots) {
       const saved = parsed.weekSlots;
@@ -118,7 +119,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeeds, specialSlots, absencePeriods, appointments };
+      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeedsV2: assistantNeeds, specialSlots, absencePeriods, appointments };
       window.localStorage.setItem(PRATICIEN_KEY, JSON.stringify(agendaPraticienId));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {

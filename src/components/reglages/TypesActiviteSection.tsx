@@ -6,6 +6,7 @@ import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { minutesToDurationLabel } from "@/utils/date";
 import { ActivityTypeModal } from "./ActivityTypeModal";
 import { useAgendaData } from "@/context/AgendaDataContext";
+import { SOINS_PRATICIENS } from "@/data/mockData";
 
 interface Props {
   activityTypes: ActivityType[];
@@ -35,6 +36,8 @@ export function TypesActiviteSection({
   deleteSpecialSlot,
 }: Props) {
   const [modalState, setModalState] = useState<null | "new" | ActivityType>(null);
+  const { agendaPraticienId } = useAgendaData();
+  const praticienName = SOINS_PRATICIENS.find((p) => p.id === agendaPraticienId)?.name ?? "ce praticien";
   const tousMotifs = activityTypes.find((t) => t.id === "tous-motifs");
   const others = activityTypes.filter((t) => t.id !== "tous-motifs");
 
@@ -44,6 +47,10 @@ export function TypesActiviteSection({
         <h2 className="text-sm font-semibold text-slate-900">Types d&apos;activité</h2>
         <span className="text-slate-400" title="Types d'activité utilisés pour la semaine type et les rendez-vous">ⓘ</span>
       </div>
+      <p className="-mt-1 mb-3 rounded-md bg-pink-50 px-3 py-2 text-xs text-pink-900">
+        👥 Sur chaque type : nombre d&apos;assistants nécessaires pour <b>{praticienName}</b>. Chaque praticien a ses propres valeurs (changez de praticien avec
+        « Agenda de »). Team s&apos;en sert pour calculer les manques.
+      </p>
 
       <div className="grid grid-cols-4 gap-3">
         {others.map((type) => {
