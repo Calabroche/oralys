@@ -138,7 +138,7 @@ export function TeamCalendar({
                           >
                             <span className="flex flex-col items-center group-hover:hidden">
                               <PresenceLabel user={u} staffing={staffing.get(iso)} compact={compact} />
-                              {!compact && halvesOn(u, iso).length === 1 && (
+                              {!compact && !isChairAssistant(u) && halvesOn(u, iso).length === 1 && (
                                 <span className="text-[0.62rem] leading-tight text-slate-500">{halvesOn(u, iso)[0] === "matin" ? "matin" : "après-midi"}</span>
                               )}
                             </span>
@@ -165,18 +165,28 @@ function PresenceLabel({ user, staffing, compact }: { user: TeamUser; staffing?:
   const { findUser } = useTeam();
   if (!staffing || compact) return <span className="inline-block size-1.5 rounded-full bg-emerald-400" />;
   if (isChairAssistant(user)) {
-    const pratId = staffing.assignmentOf[user.id];
-    if (!pratId) return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans binôme</span>;
-    const prat = findUser(pratId);
-    const slot = staffing.praticiens.find((p) => p.praticien.id === pratId)?.slots.find((s) => s.assistantId === user.id);
+    // Avec qui, et quand : une assistante peut être avec un praticien le matin et un autre l'après-midi.
+    const withWhom = staffing.praticiens
+      .map((p) => ({ p, slot: p.slots.find((s) => s.assistantId === user.id) }))
+      .filter((x) => x.slot)
+      .sort((a, b) => (a.slot!.partial === "apres_midi" ? 1 : 0) - (b.slot!.partial === "apres_midi" ? 1 : 0));
+    if (!withWhom.length) return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans binôme</span>;
     return (
-      <span
-        className={cn(
-          "rounded px-1.5 py-0.5 text-xs font-medium",
-          slot?.kind === "backup" ? "border border-dashed border-sky-300 bg-sky-50 text-sky-900" : "bg-emerald-100 text-emerald-900"
-        )}
-      >
-        {slot?.kind === "backup" ? "↻ " : ""}Dr {prat?.lastName}
+      <span className="flex flex-col items-center gap-0.5">
+        {withWhom.map(({ p, slot }) => (
+          <span
+            key={p.praticien.id}
+            className={cn(
+              "rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap",
+              slot!.kind === "backup" ? "border border-dashed border-sky-300 bg-sky-50 text-sky-900" : "bg-emerald-100 text-emerald-900"
+            )}
+          >
+            {slot!.kind === "backup" ? "↻ " : ""}Dr {findUser(p.praticien.id)?.lastName}
+            {p.halves.length === 2 && (
+              <span className="font-normal opacity-70">{slot!.partial === "matin" ? " · matin" : slot!.partial === "apres_midi" ? " · aprèm" : " · matin + aprèm"}</span>
+            )}
+          </span>
+        ))}
       </span>
     );
   }

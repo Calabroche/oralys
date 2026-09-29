@@ -5,6 +5,7 @@ import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
 import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, teamMembersOn } from "@/lib/team";
 import { activityName, needSummary } from "@/lib/semaine";
+import { HalfDay } from "@/types/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink, usePersonSheet } from "@/components/team/PersonSheet";
@@ -21,6 +22,9 @@ const KIND_LABEL = { titulaire: "titulaire", backup: "back-up", pret: "prêté(e
  * Vue « binômes » : une ligne par praticien, et pour chaque jour les assistants réellement
  * à ses côtés (titulaire ou back-up), avec les manques par rapport à son besoin.
  */
+/** Tri des assistants dans une case : matin seulement, journée, après-midi seulement. */
+const halfOrder = (partial?: HalfDay) => (partial === "matin" ? 0 : partial === "apres_midi" ? 2 : 1);
+
 export function BinomesCalendar({
   dates,
   staffing,
@@ -118,7 +122,8 @@ export function BinomesCalendar({
                           <span className="px-1 text-[0.65rem] font-medium text-slate-500">{day.halves[0] === "matin" ? "Matin seulement" : "Après-midi seulement"}</span>
                         )}
                         {day.need === 0 && <span className="px-1 py-0.5 text-xs text-slate-500">{compact ? "·" : "Sans assistant"}</span>}
-                        {day.slots.map((s) => {
+                        {/* Ordre de la journée : ceux du matin seulement, puis la journée entière, puis l'après-midi seulement. */}
+                        {[...day.slots].sort((a, b) => halfOrder(a.partial) - halfOrder(b.partial)).map((s) => {
                           const u = findUser(s.assistantId)!;
                           return (
                             <Popover key={s.assistantId}>
@@ -137,7 +142,11 @@ export function BinomesCalendar({
                                   {s.kind === "backup" && <RefreshCw className="size-3 shrink-0" />}
                                   {s.kind === "pret" && <span className="shrink-0">⇄</span>}
                                   {compact ? u.firstName[0] + u.lastName[0] : u.firstName}
-                                  {s.partial && <span className="font-normal opacity-70">{compact ? "½" : s.partial === "matin" ? " · matin" : " · aprèm"}</span>}
+                                  {compact
+                                    ? s.partial && <span className="font-normal opacity-70">½</span>
+                                    : day.halves.length === 2 && (
+                                        <span className="font-normal opacity-70">{s.partial === "matin" ? " · matin" : s.partial === "apres_midi" ? " · aprèm" : " · matin + aprèm"}</span>
+                                      )}
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent className="w-64 p-2" align="start">
@@ -178,8 +187,10 @@ export function BinomesCalendar({
                               >
                                 <UserX className="size-3 shrink-0" />
                                 {compact ? `−${day.missing}` : `Manque ${day.missing}`}
-                                {!compact && day.missingHalves.length === 1 && day.halves.length === 2 && (
-                                  <span className="font-normal">{day.missingHalves[0] === "matin" ? " · matin" : " · aprèm"}</span>
+                                {!compact && day.halves.length === 2 && (
+                                  <span className="font-normal">
+                                    {day.missingHalves.length === 2 ? " · matin + aprèm" : day.missingHalves[0] === "matin" ? " · matin" : " · aprèm"}
+                                  </span>
                                 )}
                               </button>
                             </PopoverTrigger>
