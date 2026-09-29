@@ -536,10 +536,12 @@ export function isChairAssistant(u: TeamUser): boolean {
 // --- Ajustement de l'équipe au besoin en assistants --------------------------
 
 /** Nombre de titulaires couvrant chaque jour travaillé du praticien, face au plus grand besoin du jour. */
-export function titularCoverage(profile: PraticienProfile, praticien: TeamUser): { day: Weekday; count: number; need: number }[] {
+export function titularCoverage(profile: PraticienProfile, praticien: TeamUser, users?: TeamUser[]): { day: Weekday; count: number; need: number }[] {
+  // Un rattaché qui n'est pas assistant dentaire ne va jamais au fauteuil : il ne compte pas.
+  const chair = (id: string) => !users || Boolean(users.find((u) => u.id === id && isChairAssistant(u)));
   return praticien.workDays.map((day) => ({
     day,
-    count: profile.team.filter((l) => l.priority === "titulaire" && (l.days.length === 0 || l.days.includes(day))).length,
+    count: profile.team.filter((l) => l.priority === "titulaire" && chair(l.userId) && (l.days.length === 0 || l.days.includes(day))).length,
     need: maxNeedOn(profile, praticien, day),
   }));
 }
@@ -557,19 +559,19 @@ function renumberTeam(team: PraticienProfile["team"]): PraticienProfile["team"] 
  */
 export function adjustTeamToNeed(profile: PraticienProfile, praticien: TeamUser, users: TeamUser[]) {
   // Sans assistant nulle part : on garde l'équipe telle quelle, elle resservira si le besoin remonte.
-  if (titularCoverage(profile, praticien).every((c) => c.need === 0)) return { team: profile.team, changes: [] as string[], stillMissing: [] as Weekday[] };
+  if (titularCoverage(profile, praticien, users).every((c) => c.need === 0)) return { team: profile.team, changes: [] as string[], stillMissing: [] as Weekday[] };
   let team = profile.team.map((l) => ({ ...l }));
   const changes: string[] = [];
   const name = (id: string) => users.find((u) => u.id === id)?.firstName ?? "?";
   const lacks = (t: typeof team) =>
-    titularCoverage({ ...profile, team: t }, praticien).filter((c) => c.count < c.need).map((c) => c.day);
+    titularCoverage({ ...profile, team: t }, praticien, users).filter((c) => c.count < c.need).map((c) => c.day);
 
   // Promotion
   for (;;) {
     const missingDays = lacks(team);
     if (!missingDays.length) break;
     const candidate = team
-      .filter((l) => l.priority === "backup" && (l.days.length === 0 || l.days.some((d) => missingDays.includes(d))))
+      .filter((l) => l.priority === "backup" && users.some((u) => u.id === l.userId && isChairAssistant(u)) && (l.days.length === 0 || l.days.some((d) => missingDays.includes(d))))
       .sort((a, b) => a.rank - b.rank)[0];
     if (!candidate) break;
     candidate.priority = "titulaire";
@@ -583,7 +585,7 @@ export function adjustTeamToNeed(profile: PraticienProfile, praticien: TeamUser,
     const titulaires = team.filter((l) => l.priority === "titulaire").sort((a, b) => b.rank - a.rank);
     const removable = titulaires.find((l) => {
       const without = team.map((x) => (x === l ? { ...x, priority: "backup" as const } : x));
-      return titularCoverage({ ...profile, team: without }, praticien).every((c) => c.count >= c.need);
+      return titularCoverage({ ...profile, team: without }, praticien, users).every((c) => c.count >= c.need);
     });
     if (!removable) break;
     removable.priority = "backup";
@@ -664,8 +666,6 @@ export interface TeamMemberStatus {
   loan?: DayOverride;
   /** Assistant libre ce jour-là : on peut l'affecter tout de suite. */
   free?: boolean;
-  /** Rattaché(e) mais pas assistant(e) dentaire : ne peut pas être au fauteuil. */
-  notChair?: boolean;
   absence?: TeamAbsence;
   label: string;
 }
@@ -683,7 +683,8 @@ export function teamMembersOn(
     .sort((a, b) => (a.priority === b.priority ? a.rank - b.rank : a.priority === "titulaire" ? -1 : 1))
     .map((l): TeamMemberStatus | null => {
       const user = users.find((u) => u.id === l.userId);
-      if (!user || user.status !== "actif") return null;
+      // Seuls les assistants dentaires vont au fauteuil : les autres rattachés ne sont ni proposés ni affichés.
+      if (!user || user.status !== "actif" || !isChairAssistant(user)) return null;
       const role = l.priority === "titulaire" ? "titulaire" : "back-up";
       const slot = day.slots.find((s) => s.assistantId === user.id);
       if (slot)
@@ -714,8 +715,6 @@ export function teamMembersOn(
           label: loan ? `${user.firstName} (${role}) est prêté(e) à ${where}` : `${user.firstName} (${role}) est avec ${where}`,
         };
       }
-      if (!isChairAssistant(user))
-        return { user, priority: l.priority, state: "off", notChair: true, label: `${user.firstName} (${role}) n'est pas assistant(e) dentaire : pas au fauteuil` };
       return { user, priority: l.priority, state: "off", free: true, label: `${user.firstName} (${role}) est libre` };
     })
     .filter((x): x is TeamMemberStatus => x !== null);

@@ -3,7 +3,7 @@
 import { RefreshCw, UserX } from "lucide-react";
 import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
-import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, teamMembersOn } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, isChairAssistant, teamMembersOn } from "@/lib/team";
 import { activityName, needSummary } from "@/lib/semaine";
 import { HalfDay } from "@/types/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
@@ -70,8 +70,10 @@ export function BinomesCalendar({
         </thead>
         <tbody>
           {rows.map(({ profile, praticien }) => {
-            const titulaires = profile.team.filter((l) => l.priority === "titulaire").sort((a, b) => a.rank - b.rank);
-            const backups = profile.team.filter((l) => l.priority === "backup").sort((a, b) => a.rank - b.rank);
+            // Seuls les assistants dentaires comptent (un rattachement d'aide dentaire est signalé dans le profil, pas ici).
+            const chair = (l: { userId: string }) => { const u = findUser(l.userId); return Boolean(u && isChairAssistant(u)); };
+            const titulaires = profile.team.filter((l) => l.priority === "titulaire" && chair(l)).sort((a, b) => a.rank - b.rank);
+            const backups = profile.team.filter((l) => l.priority === "backup" && chair(l)).sort((a, b) => a.rank - b.rank);
             return (
               <tr key={profile.id} className="border-b align-top" inert={readOnly && praticien.id !== editablePraticienId}>
                 <td className="sticky left-0 z-10 bg-white px-4 py-2.5">

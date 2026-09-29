@@ -258,7 +258,7 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
               value=""
               onValueChange={(id) => {
                 // Tant que le besoin n'est pas couvert, un nouvel assistant rattaché devient titulaire.
-                const priority: Priority = titularCoverage(profile, praticien).some((c) => c.count < c.need) ? "titulaire" : "backup";
+                const priority: Priority = titularCoverage(profile, praticien, users).some((c) => c.count < c.need) ? "titulaire" : "backup";
                 save(
                   { ...profile, team: renumber([...team, { userId: id, priority, rank: 99, days: [] }]) },
                   `${fullName(findUser(id)!)} ajouté(e) en ${priority === "titulaire" ? "titulaire" : "back-up"}`
@@ -397,7 +397,7 @@ function TeamCoverage({ profile, canEdit }: { profile: PraticienProfile; canEdit
   const { findUser, users } = useTeam();
   const save = useSave();
   const praticien = findUser(profile.praticienUserId)!;
-  const coverage = titularCoverage(profile, praticien).filter((c) => c.need > 0);
+  const coverage = titularCoverage(profile, praticien, users).filter((c) => c.need > 0);
   const missing = coverage.filter((c) => c.count < c.need);
   const options = users.filter((u) => isChairAssistant(u) && u.status !== "archive" && profile.team.find((l) => l.userId === u.id)?.priority !== "titulaire");
 
