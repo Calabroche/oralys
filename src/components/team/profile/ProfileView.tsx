@@ -269,9 +269,11 @@ export function ProfileView({ user }: { user: TeamUser }) {
         </>
       )}
 
+      {/* Pas de liste d'absences sur un profil praticien : elles se suivent dans le planning. */}
+      {!profile && (
       <Card>
         <CardHeader>
-          <CardTitle>{profile ? "Absences (praticien et équipe)" : self ? "Mes absences" : "Absences"}</CardTitle>
+          <CardTitle>{self ? "Mes absences" : "Absences"}</CardTitle>
         </CardHeader>
         <CardContent>
           {upcoming.length === 0 ? (
@@ -281,7 +283,6 @@ export function ProfileView({ user }: { user: TeamUser }) {
               {upcoming.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-center justify-between gap-y-1.5 py-2 text-sm">
                   <span>
-                    {profile && <span className="mr-2 font-medium">{users.find((u) => u.id === a.userId)?.firstName}</span>}
                     {shortDate(a.startDate)} → {shortDate(a.endDate)}
                   </span>
                   <span className="flex items-center gap-2">
@@ -298,6 +299,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
           )}
         </CardContent>
       </Card>
+      )}
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={self ? undefined : { userId: user.id, date: today }} />
     </div>
   );
