@@ -230,8 +230,12 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
   }, [data]);
 
   // Les jours de travail d'un praticien découlent de sa semaine type, réglée dans son profil Team
-  // (demi-journée par demi-journée : repos ou type d'activité).
-  const profiles = data.profiles;
+  // (demi-journée par demi-journée : repos ou type d'activité). Pour Dr Perche, c'est la même semaine type
+  // que son agenda Soins de la démo : une seule source, modifiable des deux côtés.
+  const profiles = useMemo(
+    () => data.profiles.map((p) => (p.id === SOINS_DEMO_PROFILE_ID ? { ...p, weekSlots: agenda.weekSlots } : p)),
+    [data.profiles, agenda.weekSlots]
+  );
   const users = useMemo(
     () =>
       data.users.map((u) => {
@@ -453,6 +457,10 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       const owner = data.users.find((u) => u.id === profile.praticienUserId);
       if (!owner || owner.status === "archive") {
         return { ok: false, error: "Un profil praticien doit avoir au moins un utilisateur actif rattaché." };
+      }
+      // Semaine type de Dr Perche : elle vit dans l'agenda Soins, on l'y écrit directement.
+      if (profile.id === SOINS_DEMO_PROFILE_ID && profile.weekSlots && JSON.stringify(profile.weekSlots) !== JSON.stringify(agenda.weekSlots)) {
+        agenda.replaceWeekSlots(profile.weekSlots);
       }
       mutate((d) => ({
         ...d,

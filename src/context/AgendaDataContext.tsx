@@ -25,6 +25,8 @@ interface AgendaDataContextValue extends PersistedData {
   deleteActivityType: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   deleteWeekSlot: (id: string) => void;
+  /** Remplace toute la semaine type (réglée depuis la fiche praticien de Team). */
+  replaceWeekSlots: (slots: WeekSlot[]) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
   deleteSpecialSlot: (id: string) => void;
   upsertAbsence: (absence: AbsencePeriod) => void;
@@ -99,6 +101,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     },
     upsertWeekSlot: (slot) => setWeekSlots((prev) => upsertById(prev, slot)),
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
+    replaceWeekSlots: (slots) => setWeekSlots(slots),
     upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),
     deleteSpecialSlot: (id) => setSpecialSlots((prev) => prev.filter((s) => s.id !== id)),
     upsertAbsence: (absence) => setAbsencePeriods((prev) => upsertById(prev, absence)),
