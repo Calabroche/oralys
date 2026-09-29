@@ -17,7 +17,6 @@ import { activityTypes } from "@/data/mockData";
 import { acteLabel, adjustTeamToNeed, displayName, fullName, isChairAssistant, sortCandidates, suggestAssistants, titularCoverage } from "@/lib/team";
 import { HALVES, activitiesOf, activityName, dayPlan, needForActivity } from "@/lib/semaine";
 import { PraticienProfile, Priority } from "@/types/team";
-import { Weekday } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
@@ -197,6 +196,7 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
   const team = renumber(profile.team);
   // Jours proposés : du lundi au vendredi, plus le samedi si le praticien consulte ce jour-là.
   const dayOptions = WEEKDAYS.filter((d) => d !== "samedi" || praticien.workDays.includes(d));
+  const workDays = dayOptions.filter((d) => praticien.workDays.includes(d));
   const addable = users.filter((u) => isChairAssistant(u) && u.status !== "archive" && !profile.team.some((l) => l.userId === u.id));
 
   function move(userId: string, dir: -1 | 1) {
@@ -291,14 +291,20 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
                   size="sm"
                   variant="outline"
                   disabled={!canEdit}
-                  value={l.days}
-                  onValueChange={(v) => save({ ...profile, team: team.map((x) => (x.userId === l.userId ? { ...x, days: v as Weekday[] } : x)) })}
+                  // Ce qui est coché est ce qui compte : « tous ses jours » s'affiche tous cochés (et suit la semaine type du praticien).
+                  value={l.days.length ? l.days.filter((d) => workDays.includes(d)) : workDays}
+                  onValueChange={(v) => {
+                    const days = workDays.filter((d) => v.includes(d));
+                    if (days.length === 0) {
+                      toast("Au moins un jour", { description: `Pour ne plus rattacher ${fullName(u)}, utilisez la croix à droite.` });
+                      return;
+                    }
+                    save({ ...profile, team: team.map((x) => (x.userId === l.userId ? { ...x, days: days.length === workDays.length ? [] : days } : x)) });
+                  }}
                   aria-label="Jours du rattachement"
                 >
                   {dayOptions.map((d) => {
                     const off = !praticien.workDays.includes(d);
-                    // Aucun jour coché = tous les jours de consultation : on le montre en rose clair.
-                    const implicit = l.days.length === 0 && !off;
                     return (
                       <ToggleGroupItem
                         key={d}
@@ -307,13 +313,10 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
                         title={
                           off
                             ? `${displayName(praticien)} ne consulte pas le ${WEEKDAY_LABELS[d].toLowerCase()}`
-                            : implicit
-                              ? "Tous les jours (aucun jour coché) : cliquer pour limiter à certains jours"
-                              : `${WEEKDAY_LABELS[d]} avec ${displayName(praticien)}`
+                            : `${WEEKDAY_LABELS[d]} avec ${displayName(praticien)} : cliquer pour cocher ou décocher`
                         }
                         className={cn(
-                          "w-9 px-0 text-xs data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900",
-                          implicit && "border-dashed border-pink-200 bg-pink-50/60 text-pink-800",
+                          "w-9 px-0 text-xs text-slate-400 data-[state=on]:border-pink-300 data-[state=on]:bg-pink-100 data-[state=on]:font-medium data-[state=on]:text-pink-900",
                           off && "bg-slate-50 text-slate-300 line-through opacity-100"
                         )}
                       >
@@ -339,8 +342,8 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
         <TeamCoverage profile={profile} canEdit={canEdit} />
         <p className="mt-2 text-xs text-slate-500">
           <CalendarDays className="mr-1 inline size-3.5" />
-          Cochez les jours où chaque personne travaille avec {displayName(praticien)}. Aucun jour coché (cases en pointillé) : tous ses jours de consultation.
-          Jours barrés : {displayName(praticien)} ne consulte pas.
+          Jours en rose : la personne travaille avec {displayName(praticien)} ce jour-là. Cliquez pour ajouter ou retirer un jour. Jours barrés :{" "}
+          {displayName(praticien)} ne consulte pas.
         </p>
       </CardContent>
     </Card>
