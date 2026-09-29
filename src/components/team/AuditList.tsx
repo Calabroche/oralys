@@ -18,7 +18,10 @@ import {
   UserRoundCheck,
   Repeat,
   Undo2,
-  Redo2, Clock } from "lucide-react";
+  Redo2,
+  Clock,
+  Paperclip,
+} from "lucide-react";
 import { useTeam } from "@/context/TeamDataContext";
 import { AuditAction, AuditEntry } from "@/types/team";
 import { fullName } from "@/lib/team";
@@ -39,6 +42,7 @@ export const AUDIT_ACTION_META: Record<AuditAction, { label: string; icon: typeo
   "absence.refuse": { label: "Refus d'absence", icon: CalendarX },
   "absence.cancel": { label: "Absence annulée (retour arrière)", icon: Undo2 },
   "absence.restore": { label: "Absence rétablie", icon: Redo2 },
+  "absence.justificatif": { label: "Justificatif d'absence", icon: Paperclip },
   "sterilisation.cycle": { label: "Cycle de stérilisation", icon: FlaskConical, sensitive: true },
   "paiement.note": { label: "Note sur paiement", icon: Receipt, sensitive: true },
   "session.switch": { label: "Bascule de session", icon: Repeat },

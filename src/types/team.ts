@@ -178,6 +178,20 @@ export interface TeamAbsence {
   status: AbsenceStatus;
   declaredAt: string; // ISO datetime
   declaredById: string;
+  /** Justificatifs joints (certificat d'arrêt maladie, justificatif médical…), visibles par la personne et le gestionnaire. */
+  documents?: AbsenceDocument[];
+}
+
+/** Pièce jointe d'une absence. Dans la démo, le fichier est gardé dans le navigateur s'il est assez léger. */
+export interface AbsenceDocument {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  uploadedAt: string;
+  uploadedById: string;
+  /** Contenu du fichier (data URL). Absent si le fichier dépasse la limite de la démo : seul le nom est gardé. */
+  dataUrl?: string;
 }
 
 /** RDV tel que remonté par Soins (vue simplifiée pour le prototype). */
@@ -209,6 +223,7 @@ export type AuditAction =
   | "absence.refuse"
   | "absence.cancel"
   | "absence.restore"
+  | "absence.justificatif"
   | "sterilisation.cycle"
   | "paiement.note"
   | "session.switch"

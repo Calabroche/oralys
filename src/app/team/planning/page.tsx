@@ -21,6 +21,7 @@ import { PersonLink } from "@/components/team/PersonSheet";
 import { AbsencePopover, useAbsenceActions } from "@/components/team/AbsencePopover";
 import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
 import { BinomesCalendar } from "@/components/team/planning/BinomesCalendar";
+import { DocumentBadge } from "@/components/team/Justificatifs";
 import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 
 export default function PlanningPage() {
@@ -336,11 +337,14 @@ function AllAbsences() {
                 {shortDate(a.startDate)} → {shortDate(a.endDate)}
               </TableCell>
               <TableCell>
-                <AbsencePopover absence={a}>
-                  <button className="rounded hover:ring-1 hover:ring-slate-300">
-                    <AbsenceBadge absence={a} compact />
-                  </button>
-                </AbsencePopover>
+                <span className="flex items-center gap-1.5">
+                  <AbsencePopover absence={a}>
+                    <button className="rounded hover:ring-1 hover:ring-slate-300">
+                      <AbsenceBadge absence={a} compact />
+                    </button>
+                  </AbsencePopover>
+                  {(can("team.planning") || a.userId === sessionUserId) && <DocumentBadge absence={a} />}
+                </span>
               </TableCell>
               <TableCell className="text-sm">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "À valider" : "Refusée"}</TableCell>
               <TableCell className="text-xs text-slate-500">

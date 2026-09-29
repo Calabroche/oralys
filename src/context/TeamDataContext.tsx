@@ -13,6 +13,7 @@ import {
   Role,
   SoinsRdv,
   TeamAbsence,
+  AbsenceDocument,
   TeamNotification,
   TeamUser,
 } from "@/types/team";
@@ -128,7 +129,7 @@ function loadData(): PersistedTeamData {
 }
 
 export type NewUserInput = Pick<TeamUser, "firstName" | "lastName" | "email" | "roleIds" | "poste" | "defaultEnvironmentId">;
-export type NewAbsenceInput = Pick<TeamAbsence, "userId" | "type" | "startDate" | "endDate" | "motif">;
+export type NewAbsenceInput = Pick<TeamAbsence, "userId" | "type" | "startDate" | "endDate" | "motif" | "documents">;
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -152,6 +153,9 @@ interface TeamDataContextValue extends PersistedTeamData {
   deleteRole: (roleId: string) => Result;
   upsertProfile: (profile: PraticienProfile) => Result;
   declareAbsence: (input: NewAbsenceInput) => TeamAbsence;
+  /** Joint un justificatif à une absence (certificat d'arrêt, justificatif médical). */
+  attachDocument: (absenceId: string, doc: Omit<AbsenceDocument, "id" | "uploadedAt" | "uploadedById">) => void;
+  removeDocument: (absenceId: string, docId: string) => void;
   validateAbsence: (id: string) => void;
   refuseAbsence: (id: string) => void;
   /** Retour arrière complet : supprime l'absence, ses alertes et la fermeture d'agenda Soins. Renvoie l'absence pour pouvoir la rétablir. */
@@ -517,7 +521,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       }
       mutate((d) => ({ ...d, absences: [...d.absences, absence], notifications: [...notifs, ...d.notifications] }), {
         action: "absence.declare",
-        summary: `${ABSENCE_TYPE_LABELS[input.type]} déclaré(e) pour ${target ? fullName(target) : "?"} du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}${lastMinute ? " (dernier moment)" : ""}`,
+        summary: `${ABSENCE_TYPE_LABELS[input.type]} déclaré(e) pour ${target ? fullName(target) : "?"} du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}${lastMinute ? " (dernier moment)" : ""}${input.documents?.length ? `, justificatif joint (${input.documents.map((d) => d.name).join(", ")})` : ""}`,
         extra: { targetUserId: input.userId },
       });
       if (absence.status === "validee") syncToSoins(absence, data.users);
@@ -543,6 +547,31 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       mutate((d) => ({ ...d, absences: d.absences.map((a) => (a.id === id ? { ...a, status: "refusee" } : a)) }), {
         action: "absence.refuse",
         summary: `Demande de ${ABSENCE_TYPE_LABELS[abs.type].toLowerCase()} de ${u ? fullName(u) : "?"} refusée`,
+        extra: { targetUserId: abs.userId },
+      });
+    },
+
+    attachDocument: (absenceId, doc) => {
+      const abs = latest.current.absences.find((a) => a.id === absenceId);
+      if (!abs) return;
+      const u = latest.current.users.find((x) => x.id === abs.userId);
+      const full: AbsenceDocument = { ...doc, id: newId("doc"), uploadedAt: isoNow(), uploadedById: latest.current.sessionUserId };
+      mutate((d) => ({ ...d, absences: d.absences.map((a) => (a.id === absenceId ? { ...a, documents: [...(a.documents ?? []), full] } : a)) }), {
+        action: "absence.justificatif",
+        // Le journal garde le nom du fichier, jamais son contenu (donnée de santé).
+        summary: `Justificatif « ${doc.name} » joint à l'absence de ${u ? fullName(u) : "?"} (${shortDate(abs.startDate)} → ${shortDate(abs.endDate)})`,
+        extra: { targetUserId: abs.userId },
+      });
+    },
+
+    removeDocument: (absenceId, docId) => {
+      const abs = latest.current.absences.find((a) => a.id === absenceId);
+      const doc = abs?.documents?.find((x) => x.id === docId);
+      if (!abs || !doc) return;
+      const u = latest.current.users.find((x) => x.id === abs.userId);
+      mutate((d) => ({ ...d, absences: d.absences.map((a) => (a.id === absenceId ? { ...a, documents: a.documents?.filter((x) => x.id !== docId) } : a)) }), {
+        action: "absence.justificatif",
+        summary: `Justificatif « ${doc.name} » retiré de l'absence de ${u ? fullName(u) : "?"}`,
         extra: { targetUserId: abs.userId },
       });
     },

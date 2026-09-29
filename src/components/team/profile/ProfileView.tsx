@@ -13,6 +13,7 @@ import { AbsenceBadge, PageHeader, RoleBadges, UserAvatar } from "@/components/t
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
 import { WorkScheduleEditor } from "@/components/team/WorkSchedule";
+import { AbsenceDocuments } from "@/components/team/Justificatifs";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
 import { useVersion } from "@/components/team/Version";
 import { ACTES, SKILLS } from "@/data/teamMockData";
@@ -257,7 +258,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
           ) : (
             <ul className="divide-y">
               {upcoming.map((a) => (
-                <li key={a.id} className="flex items-center justify-between py-2 text-sm">
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-y-1.5 py-2 text-sm">
                   <span>
                     {profile && <span className="mr-2 font-medium">{users.find((u) => u.id === a.userId)?.firstName}</span>}
                     {shortDate(a.startDate)} → {shortDate(a.endDate)}
@@ -266,6 +267,10 @@ export function ProfileView({ user }: { user: TeamUser }) {
                     <AbsenceBadge absence={a} />
                     <span className="text-xs text-slate-500">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "En attente" : "Refusée"}</span>
                   </span>
+                  {/* Justificatifs (donnée de santé) : seulement pour la personne concernée et le gestionnaire. */}
+                  {(a.userId === sessionUserId || manager) && (
+                    <AbsenceDocuments absence={a} canEdit={a.userId === sessionUserId || manager} className="basis-full" />
+                  )}
                 </li>
               ))}
             </ul>

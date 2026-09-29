@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTeam } from "@/context/TeamDataContext";
+import { DocumentDraft, JustificatifPicker } from "@/components/team/Justificatifs";
 import { ABSENCE_TYPE_LABELS, displayName, isLastMinute } from "@/lib/team";
 import { AbsenceType } from "@/types/team";
 import { toISODate } from "@/utils/date";
@@ -55,6 +56,7 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
   const [start, setStart] = useState(prefill?.date ?? today);
   const [end, setEnd] = useState(prefill?.date ?? today);
   const [motif, setMotif] = useState("");
+  const [documents, setDocuments] = useState<DocumentDraft[]>([]);
 
   const target = findUser(userId);
   const invalid = !start || !end || end < start;
@@ -67,7 +69,15 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
 
   function submit() {
     if (invalid) return;
-    const abs = declareAbsence({ userId, type, startDate: start, endDate: end, motif: motif.trim() || undefined });
+    const uploadedAt = now().toISOString();
+    const abs = declareAbsence({
+      userId,
+      type,
+      startDate: start,
+      endDate: end,
+      motif: motif.trim() || undefined,
+      documents: documents.length ? documents.map((d, i) => ({ ...d, id: `doc-${Date.now().toString(36)}-${i}`, uploadedAt, uploadedById: sessionUserId })) : undefined,
+    });
     toast.success(abs.status === "validee" ? "Absence enregistrée" : "Demande envoyée au gestionnaire", {
       description: isLastMinute(abs)
         ? "Absence de dernier moment : alerte immédiate envoyée au planning Soins."
@@ -146,6 +156,12 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
             Précision <span className="font-normal text-slate-400">(optionnel)</span>
           </Label>
           <Textarea value={motif} onChange={(e) => setMotif(e.target.value)} rows={2} placeholder="ex. Formation radioprotection" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>
+            {type === "maladie" ? "Arrêt de travail" : "Justificatif"} <span className="font-normal text-slate-400">(optionnel)</span>
+          </Label>
+          <JustificatifPicker value={documents} onChange={setDocuments} maladie={type === "maladie"} />
         </div>
 
         {lastMinute && (
