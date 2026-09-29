@@ -4,7 +4,8 @@ import { RefreshCw, UserX } from "lucide-react";
 import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
 import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, isChairAssistant, teamMembersOn } from "@/lib/team";
-import { activityName, needSummary } from "@/lib/semaine";
+import { activityName, activityType, needSummary } from "@/lib/semaine";
+import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { HalfDay } from "@/types/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
@@ -117,18 +118,12 @@ export function BinomesCalendar({
                       </td>
                     );
                   }
-                  return (
-                    <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
-                      <div className={cn("flex min-h-12 flex-col gap-1 rounded-md p-1", day.missing > 0 ? "bg-rose-50 ring-1 ring-rose-200" : "bg-emerald-50/60")}>
-                        {day.halves.length === 1 && !compact && (
-                          <span className="px-1 text-[0.65rem] font-medium text-slate-500">{day.halves[0] === "matin" ? "Matin seulement" : "Après-midi seulement"}</span>
-                        )}
-                        {day.need === 0 && <span className="px-1 py-0.5 text-xs text-slate-500">{compact ? "·" : "Sans assistant"}</span>}
-                        {/* Ordre de la journée : ceux du matin seulement, puis la journée entière, puis l'après-midi seulement. */}
-                        {[...day.slots].sort((a, b) => halfOrder(a.partial) - halfOrder(b.partial)).map((s) => {
-                          const u = findUser(s.assistantId)!;
-                          return (
-                            <Popover key={s.assistantId}>
+                  // Une case = une journée ; en vue semaine, elle est découpée par demi-journée (activité, besoin, présents, manque).
+                  const slotOf = (id: string) => day.slots.find((x) => x.assistantId === id)!;
+                  const renderChip = (s: (typeof day.slots)[number], key: string) => {
+                    const u = findUser(s.assistantId)!;
+                    return (
+                            <Popover key={key}>
                               <PopoverTrigger asChild>
                                 <button
                                   title={`${fullName(u)} · ${KIND_LABEL[s.kind]}. Cliquer pour agir.`}
@@ -144,11 +139,7 @@ export function BinomesCalendar({
                                   {s.kind === "backup" && <RefreshCw className="size-3 shrink-0" />}
                                   {s.kind === "pret" && <span className="shrink-0">⇄</span>}
                                   {compact ? u.firstName[0] + u.lastName[0] : u.firstName}
-                                  {compact
-                                    ? s.partial && <span className="font-normal opacity-70">½</span>
-                                    : day.halves.length === 2 && (
-                                        <span className="font-normal opacity-70">{s.partial === "matin" ? " · matin" : s.partial === "apres_midi" ? " · aprèm" : " · matin + aprèm"}</span>
-                                      )}
+                                  {compact && s.partial && <span className="font-normal opacity-70">½</span>}
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent className="w-64 p-2" align="start">
@@ -178,9 +169,9 @@ export function BinomesCalendar({
                                 </Button>
                               </PopoverContent>
                             </Popover>
-                          );
-                        })}
-                        {day.missing > 0 && (
+                    );
+                  };
+                  const renderGap = (label: React.ReactNode) => (
                           <Popover>
                             <PopoverTrigger asChild>
                               <button
@@ -188,12 +179,7 @@ export function BinomesCalendar({
                                 className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-0.5 text-left text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
                                 <UserX className="size-3 shrink-0" />
-                                {compact ? `−${day.missing}` : `Manque ${day.missing}`}
-                                {!compact && day.halves.length === 2 && (
-                                  <span className="font-normal">
-                                    {day.missingHalves.length === 2 ? " · matin + aprèm" : day.missingHalves[0] === "matin" ? " · matin" : " · aprèm"}
-                                  </span>
-                                )}
+                                {label}
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-96 p-4" align="start">
@@ -213,6 +199,36 @@ export function BinomesCalendar({
                               <GapActions day={day} staffing={staffing.get(iso)!} showLink />
                             </PopoverContent>
                           </Popover>
+                  );
+                  return (
+                    <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
+                      <div className={cn("flex min-h-12 flex-col gap-1 rounded-md p-1", day.missing > 0 ? "bg-rose-50 ring-1 ring-rose-200" : "bg-emerald-50/60")}>
+                        {compact ? (
+                          <>
+                            {day.need === 0 && <span className="px-1 py-0.5 text-xs text-slate-500">·</span>}
+                            {[...day.slots].sort((a, b) => halfOrder(a.partial) - halfOrder(b.partial)).map((s) => renderChip(s, s.assistantId))}
+                            {day.missing > 0 && renderGap(`−${day.missing}`)}
+                          </>
+                        ) : (
+                          day.byHalf.map((h) => (
+                            <div key={h.half} className={cn("rounded border bg-white/80 p-1", h.missing > 0 ? "border-rose-200" : "border-emerald-100")}>
+                              <div className="mb-0.5 flex flex-wrap items-center gap-1 px-0.5">
+                                <span className="text-[0.62rem] font-semibold tracking-wide text-slate-500 uppercase">{h.half === "matin" ? "Matin" : "Aprèm"}</span>
+                                {h.activities.map((a) => (
+                                  <span key={a} className={cn("rounded border px-1 text-[0.6rem] font-medium", ACTIVITY_COLOR_CLASSES[activityType(a)?.color ?? "gray"].chip)}>
+                                    {activityName(a)}
+                                  </span>
+                                ))}
+                                <span className={cn("ml-auto text-[0.65rem] font-semibold tabular-nums", h.missing > 0 ? "text-rose-700" : "text-emerald-700")} title="Présents / besoin">
+                                  {h.need === 0 ? "sans assistant" : `${h.assistants.length}/${h.need}`}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                {h.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${id}`))}
+                                {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
+                              </div>
+                            </div>
+                          ))
                         )}
                         {day.dayNeed && !compact && (
                           <Popover>
