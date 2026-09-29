@@ -25,7 +25,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
+      {/* Certaines extensions (ex. pipette de couleurs) ajoutent des attributs au body : on ne le signale pas comme une erreur. */}
+      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900" suppressHydrationWarning>
         <AgendaDataProvider>
           <TopNav />
           <main className="flex-1">{children}</main>

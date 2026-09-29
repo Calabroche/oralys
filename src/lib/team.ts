@@ -662,6 +662,10 @@ export interface TeamMemberStatus {
   elsewhere?: TeamUser;
   /** Prêt du jour qui l'envoie ailleurs (on peut l'annuler pour la récupérer). */
   loan?: DayOverride;
+  /** Assistant libre ce jour-là : on peut l'affecter tout de suite. */
+  free?: boolean;
+  /** Rattaché(e) mais pas assistant(e) dentaire : ne peut pas être au fauteuil. */
+  notChair?: boolean;
   absence?: TeamAbsence;
   label: string;
 }
@@ -710,7 +714,9 @@ export function teamMembersOn(
           label: loan ? `${user.firstName} (${role}) est prêté(e) à ${where}` : `${user.firstName} (${role}) est avec ${where}`,
         };
       }
-      return { user, priority: l.priority, state: "off", label: `${user.firstName} (${role}) est libre` };
+      if (!isChairAssistant(user))
+        return { user, priority: l.priority, state: "off", notChair: true, label: `${user.firstName} (${role}) n'est pas assistant(e) dentaire : pas au fauteuil` };
+      return { user, priority: l.priority, state: "off", free: true, label: `${user.firstName} (${role}) est libre` };
     })
     .filter((x): x is TeamMemberStatus => x !== null);
 }

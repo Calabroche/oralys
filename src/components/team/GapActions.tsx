@@ -107,6 +107,11 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
                     <Undo2 /> Récupérer
                   </Button>
                 )}
+                {m.free && day.missing > 0 && candidates.some((c) => c.user.id === m.user.id) && (
+                  <Button size="xs" variant="outline" disabled={!canEdit} onClick={() => assign(m.user.id)}>
+                    <UserPlus /> Affecter
+                  </Button>
+                )}
                 {m.absence && (
                   <AbsencePopover absence={m.absence} date={date}>
                     <Button size="xs" variant="outline">

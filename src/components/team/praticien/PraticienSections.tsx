@@ -309,6 +309,9 @@ export function EquipeCard({ profile, canEdit }: { profile: PraticienProfile; ca
                     {fullName(u)}
                   </PersonLink>
                   {has("affinite") && <div className="text-xs text-slate-500">{collab} RDV ensemble (12 mois, via Soins)</div>}
+                  {!isChairAssistant(u) && (
+                    <div className="text-xs text-amber-700">Pas assistant(e) dentaire : jamais placé(e) au fauteuil. Donnez-lui ce rôle ou retirez-le/la.</div>
+                  )}
                 </div>
                 <Select
                   value={l.priority}
