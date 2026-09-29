@@ -60,12 +60,12 @@ const TABS: {
   feature?: Feature;
   access?: AccessKey;
 }[] = [
-  // Remplacements vit dans le Planning (onglet « À remplacer ») ; la fiche praticien, dans le profil.
+  // Remplacements vit dans le Planning (onglet « À remplacer ») ; la fiche praticien, dans le profil ;
+  // l'Administration s'ouvre depuis le menu utilisateur (pas de doublon dans la barre).
   { label: "Tableau de bord", href: "/team", exact: true, access: "tableau" },
   { label: "Planning", href: "/team/planning" },
   { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
-  { label: "Administration", href: "/team/reglages", access: "administration" },
 ];
 
 export const PLANETS = [
