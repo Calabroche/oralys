@@ -41,7 +41,7 @@ export const VERSIONS: VersionInfo[] = [
     canDo: [
       "Créer, inviter, archiver ou réactiver un utilisateur (un email déjà pris est bloqué)",
       "Retrouver tout ce qui concerne une personne dans son profil : jours de travail à la demi-journée, absences et, pour un praticien, son équipe",
-      "Régler le besoin en assistants de chaque praticien par type d'activité de sa semaine type Soins (ex. 2 au bloc, 1 en consultation)",
+      "Régler dans le profil du praticien ses demi-journées de travail et leur activité, puis le besoin en assistants par activité (ex. 2 au bloc, 1 en consultation)",
       "Traiter les absences au même endroit, onglet « À traiter » du planning : demandes à valider, absences de dernier moment, manques",
       "Voir qui est présent chaque jour, par personne ou par binôme, et les manques à la demi-journée",
       "Agir sur un manque : affecter un assistant, récupérer un prêt, retirer une absence ou confirmer qu'un assistant de moins suffit",

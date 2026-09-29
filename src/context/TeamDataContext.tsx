@@ -229,12 +229,9 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     }
   }, [data]);
 
-  // La fiche de Dr Perche lit la semaine type de l'agenda Soins de la démo : ce qu'on y change se voit dans Team.
-  // Les jours de travail d'un praticien découlent de sa semaine type (on les règle dans Soins, pas dans Team).
-  const profiles = useMemo(
-    () => data.profiles.map((p) => (p.id === SOINS_DEMO_PROFILE_ID ? { ...p, weekSlots: agenda.weekSlots } : p)),
-    [data.profiles, agenda.weekSlots]
-  );
+  // Les jours de travail d'un praticien découlent de sa semaine type, réglée dans son profil Team
+  // (demi-journée par demi-journée : repos ou type d'activité).
+  const profiles = data.profiles;
   const users = useMemo(
     () =>
       data.users.map((u) => {

@@ -35,7 +35,6 @@ export function ProfileView({ user }: { user: TeamUser }) {
   const manager = can("param.cabinet") || can("team.planning");
   const canEdit = self || manager;
   const profile = profiles.find((p) => p.praticienUserId === user.id);
-  const hasSemaine = Boolean(profile?.weekSlots?.length);
   const full = has("profil") && self;
   const dirty = JSON.stringify(draft) !== JSON.stringify(user);
   const colleagues = users.filter((u) => u.status === "actif" && u.id !== user.id && u.poste !== user.poste && (u.poste === "praticien" || u.poste === "assistant"));
@@ -68,7 +67,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
                 <CalendarPlus /> Déclarer une absence
               </Button>
             )}
-            {canEdit && (!hasSemaine || full) && (
+            {canEdit && (!profile || full) && (
               <Button
                 disabled={!dirty}
                 onClick={() => {
@@ -127,7 +126,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
 
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
 
-      {!hasSemaine && (
+      {!profile && (
         <Card>
           <CardHeader>
             <CardTitle>Jours de travail habituels</CardTitle>

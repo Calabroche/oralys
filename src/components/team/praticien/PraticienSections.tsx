@@ -1,22 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Ban, CalendarDays, ExternalLink, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { SOINS_DEMO_PROFILE_ID, useTeam } from "@/context/TeamDataContext";
+import { useTeam } from "@/context/TeamDataContext";
 import { UserAvatar } from "@/components/team/shared";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { useVersion } from "@/components/team/Version";
 import { COLLABORATIONS } from "@/data/teamMockData";
 import { activityTypes } from "@/data/mockData";
 import { acteLabel, adjustTeamToNeed, displayName, fullName, isChairAssistant, sortCandidates, suggestAssistants, titularCoverage } from "@/lib/team";
-import { HALVES, activitiesOf, activityName, dayPlan, needForActivity } from "@/lib/semaine";
-import { PraticienProfile, Priority } from "@/types/team";
+import { HALVES, activitiesOf, activityName, dayPlan, halvesOfSlot, needForActivity } from "@/lib/semaine";
+import { HalfDay, PraticienProfile, Priority, TeamUser } from "@/types/team";
+import { WeekSlot, Weekday } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
@@ -39,27 +39,70 @@ function renumber(list: PraticienProfile["team"]) {
 
 const colorOf = (activityId: string) => ACTIVITY_COLOR_CLASSES[activityTypes.find((t) => t.id === activityId)?.color ?? "gray"];
 
+/** Horaires standard d'une demi-journée saisie dans Team. */
+const HALF_TIMES = { matin: ["08:00", "12:00"], apres_midi: ["14:00", "18:00"] } as const;
+
+/** Semaine de départ d'un praticien sans semaine type : ses jours de travail, en « Tous motifs ». */
+function startingSlots(praticien: TeamUser): WeekSlot[] {
+  return praticien.workDays.flatMap((day) =>
+    (praticien.halfDays?.[day] ? [praticien.halfDays[day]!] : HALVES).map((half) => ({
+      id: `w-${day}-${half}`,
+      day,
+      activityTypeId: "tous-motifs",
+      start: HALF_TIMES[half][0],
+      end: HALF_TIMES[half][1],
+    }))
+  );
+}
+
+/** Remplace l'activité d'une demi-journée (ou la passe en repos). Un créneau à cheval sur midi garde son autre moitié. */
+function setHalf(slots: WeekSlot[], day: Weekday, half: HalfDay, activityId: string | null): WeekSlot[] {
+  const other: HalfDay = half === "matin" ? "apres_midi" : "matin";
+  const next: WeekSlot[] = [];
+  for (const s of slots) {
+    if (s.day !== day || !halvesOfSlot(s).includes(half)) next.push(s);
+    else if (halvesOfSlot(s).includes(other)) next.push({ ...s, id: `${s.id}-${other}`, start: HALF_TIMES[other][0], end: HALF_TIMES[other][1] });
+  }
+  if (activityId) next.push({ id: `w-${day}-${half}-${Date.now().toString(36)}`, day, activityTypeId: activityId, start: HALF_TIMES[half][0], end: HALF_TIMES[half][1] });
+  return next;
+}
+
 /**
- * Semaine type (lue dans l'agenda Soins) et besoin en assistants par type d'activité.
- * Le besoin d'une demi-journée = le plus grand besoin des activités qui s'y trouvent.
+ * Semaine type du praticien, réglée dans Team : pour chaque demi-journée, repos ou type d'activité.
+ * Le besoin en assistants se règle par activité ; une demi-journée demande le plus grand besoin de ses activités.
  */
 export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfile; canEdit: boolean }) {
   const { findUser, users } = useTeam();
   const save = useSave();
   const praticien = findUser(profile.praticienUserId)!;
-  const days = WEEKDAYS.filter((d) => d !== "samedi" || dayPlan(profile, praticien, d).length > 0);
-  const activities = activitiesOf(profile);
-  const isSoinsDemo = profile.id === SOINS_DEMO_PROFILE_ID;
+  const slots = profile.weekSlots?.length ? profile.weekSlots : startingSlots(praticien);
+  const current = { ...profile, weekSlots: slots };
+  const days = WEEKDAYS;
+  const activities = activitiesOf(current);
 
-  function setNeed(activityId: string, need: number) {
-    const next = { ...profile, needsByActivity: { ...profile.needsByActivity, [activityId]: need } };
+  function commit(next: PraticienProfile, message: string, fallback = "Équipe déjà dimensionnée.") {
     const { team, changes, stillMissing } = adjustTeamToNeed(next, praticien, users);
     save(
       { ...next, team },
-      `${activityName(activityId)} : ${need === 0 ? "sans assistant" : `${need} assistant${need > 1 ? "s" : ""}`}`,
-      [changes.join(", "), stillMissing.length ? `Titulaire à pourvoir le ${stillMissing.map((d) => WEEKDAY_LABELS[d].toLowerCase()).join(", ")}` : ""]
-        .filter(Boolean)
-        .join(". ") || "Équipe déjà dimensionnée."
+      message,
+      [changes.join(", "), stillMissing.length ? `Titulaire à pourvoir le ${stillMissing.map((d) => WEEKDAY_LABELS[d].toLowerCase()).join(", ")}` : ""].filter(Boolean).join(". ") ||
+        fallback
+    );
+  }
+
+  function setNeed(activityId: string, need: number) {
+    commit(
+      { ...current, needsByActivity: { ...profile.needsByActivity, [activityId]: need } },
+      `${activityName(activityId)} : ${need === 0 ? "sans assistant" : `${need} assistant${need > 1 ? "s" : ""}`}`
+    );
+  }
+
+  function changeHalf(day: Weekday, half: HalfDay, value: string) {
+    const activityId = value === "repos" ? null : value;
+    commit(
+      { ...current, weekSlots: setHalf(slots, day, half, activityId) },
+      `${WEEKDAY_LABELS[day]} ${half === "matin" ? "matin" : "après-midi"} : ${activityId ? activityName(activityId).toLowerCase() : "repos"}`,
+      "Planning mis à jour."
     );
   }
 
@@ -68,121 +111,94 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
       <CardHeader>
         <CardTitle>Jours de travail et besoin en assistants</CardTitle>
         <CardDescription>
-          Les jours et demi-journées de travail viennent de la semaine type de l&apos;agenda Soins de {displayName(praticien)} : on les change dans Soins
-          {isSoinsDemo ? "" : " (dans la démo, seul l'agenda de Dr Flore Perche est modifiable)"}. Le besoin se règle ici, par type d&apos;activité : une
-          demi-journée demande le plus grand besoin de ses activités.
+          Pour chaque demi-journée, choisissez repos ou le type d&apos;activité de {displayName(praticien)}. Puis réglez juste en dessous combien d&apos;assistants
+          chaque activité demande : une demi-journée prend le plus grand besoin de ses activités.
         </CardDescription>
-        {isSoinsDemo && (
-          <CardAction>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/reglages/agenda">
-                Modifier dans Soins <ExternalLink />
-              </Link>
-            </Button>
-          </CardAction>
-        )}
       </CardHeader>
       <CardContent className="space-y-5">
-        {!profile.weekSlots?.length ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="flex-1 text-sm text-slate-500">
-              Pas encore de semaine type dans l&apos;agenda Soins : le besoin ci-contre s&apos;applique à tous ses jours de travail, réglés plus bas.
-            </p>
-            <Select
-              value={String(profile.assistantsNeeded ?? 1)}
-              disabled={!canEdit}
-              onValueChange={(v) => {
-                const next = { ...profile, assistantsNeeded: Number(v) };
-                save({ ...next, team: adjustTeamToNeed(next, praticien, users).team }, "Besoin enregistré");
-              }}
-            >
-              <SelectTrigger size="sm" className="w-44" aria-label="Besoin en assistants">
-                <span>{(profile.assistantsNeeded ?? 1) === 0 ? "Aucun assistant" : `${profile.assistantsNeeded ?? 1} assistant${(profile.assistantsNeeded ?? 1) > 1 ? "s" : ""}`}</span>
-              </SelectTrigger>
-              <SelectContent position="popper" align="end">
-                {[0, 1, 2, 3].map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n === 0 ? "Aucun assistant" : `${n} assistant${n > 1 ? "s" : ""}`}
-                  </SelectItem>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="w-24" />
+                {days.map((d) => (
+                  <th key={d} className="px-1 pb-1.5 text-center text-xs font-medium text-slate-500">
+                    {WEEKDAY_LABELS[d]}
+                  </th>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className="w-28" />
-                  {days.map((d) => (
-                    <th key={d} className="px-1 pb-1.5 text-center text-xs font-medium text-slate-500">
-                      {WEEKDAY_LABELS[d]}
+              </tr>
+              {/* Présence du jour en clair : journée, matin, après-midi ou repos. */}
+              <tr>
+                <th className="pr-2 pb-2 text-left text-xs font-normal text-slate-500">Travaille</th>
+                {days.map((d) => {
+                  const halves = dayPlan(current, praticien, d).map((p) => p.half);
+                  const label = halves.length === 2 ? "Journée" : halves[0] === "matin" ? "Matin" : halves[0] === "apres_midi" ? "Après-midi" : "Repos";
+                  return (
+                    <th key={d} className="px-1 pb-2 text-center">
+                      <span
+                        className={cn(
+                          "inline-block w-full rounded-md px-1.5 py-1 text-xs font-medium",
+                          label === "Journée" && "bg-pink-100 text-pink-900",
+                          (label === "Matin" || label === "Après-midi") && "border border-dashed border-pink-300 bg-pink-50 text-pink-900",
+                          label === "Repos" && "bg-slate-50 text-slate-400"
+                        )}
+                      >
+                        {label}
+                      </span>
                     </th>
-                  ))}
-                </tr>
-                {/* Présence du jour en clair : journée, matin, après-midi ou repos. */}
-                <tr>
-                  <th className="pr-2 pb-2 text-left text-xs font-normal text-slate-500">Travaille</th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {HALVES.map((half) => (
+                <tr key={half}>
+                  <td className="pr-2 text-xs text-slate-500">{half === "matin" ? "Matin" : "Après-midi"}</td>
                   {days.map((d) => {
-                    const halves = dayPlan(profile, praticien, d).map((p) => p.half);
-                    const label = halves.length === 2 ? "Journée" : halves[0] === "matin" ? "Matin" : halves[0] === "apres_midi" ? "Après-midi" : "Repos";
+                    const plan = dayPlan(current, praticien, d).find((p) => p.half === half);
+                    // Plusieurs activités sur la demi-journée : on affiche celle qui demande le plus d'assistants.
+                    const main = plan?.activities.slice().sort((x, y) => needForActivity(current, y) - needForActivity(current, x))[0];
                     return (
-                      <th key={d} className="px-1 pb-2 text-center">
-                        <span
-                          className={cn(
-                            "inline-block w-full rounded-md px-1.5 py-1 text-xs font-medium",
-                            label === "Journée" && "bg-pink-100 text-pink-900",
-                            (label === "Matin" || label === "Après-midi") && "border border-dashed border-pink-300 bg-pink-50 text-pink-900",
-                            label === "Repos" && "bg-slate-50 text-slate-400"
+                      <td key={d} className="p-0.5 align-top">
+                        <div className={cn("min-h-16 rounded-md border p-1", plan ? colorOf(main!).bg : "border-dashed bg-slate-50/60")}>
+                          <Select value={main ?? "repos"} disabled={!canEdit} onValueChange={(v) => changeHalf(d, half, v)}>
+                            <SelectTrigger
+                              size="sm"
+                              className={cn("h-7 w-full border-0 bg-transparent px-1.5 text-xs shadow-none", plan ? cn("font-medium", colorOf(main!).text) : "text-slate-400")}
+                              aria-label={`${WEEKDAY_LABELS[d]} ${half === "matin" ? "matin" : "après-midi"}`}
+                            >
+                              <span className="truncate">{plan ? (plan.activities.length > 1 ? `${activityName(main!)} +${plan.activities.length - 1}` : activityName(main!)) : "Repos"}</span>
+                            </SelectTrigger>
+                            <SelectContent position="popper">
+                              <SelectItem value="repos">Repos</SelectItem>
+                              {activityTypes.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>
+                                  <span className={cn("size-2 rounded-full", ACTIVITY_COLOR_CLASSES[t.color].dot)} /> {t.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {plan && (
+                            <p className={cn("px-1.5 text-[0.7rem]", plan.need === 0 ? "text-slate-400" : "text-slate-600")}>
+                              {plan.need === 0 ? "Sans assistant" : `${plan.need} assistant${plan.need > 1 ? "s" : ""}`}
+                            </p>
                           )}
-                        >
-                          {label}
-                        </span>
-                      </th>
+                        </div>
+                      </td>
                     );
                   })}
                 </tr>
-              </thead>
-              <tbody>
-                {HALVES.map((half) => (
-                  <tr key={half}>
-                    <td className="pr-2 text-xs text-slate-500">{half === "matin" ? "Matin" : "Après-midi"}</td>
-                    {days.map((d) => {
-                      const plan = dayPlan(profile, praticien, d).find((p) => p.half === half);
-                      return (
-                        <td key={d} className="p-0.5 align-top">
-                          {plan ? (
-                            <div className="min-h-14 rounded-md border bg-white p-1.5">
-                              <div className="flex flex-wrap gap-1">
-                                {plan.activities.map((a) => (
-                                  <span key={a} className={cn("rounded border px-1 text-[0.65rem] font-medium", colorOf(a).chip)}>
-                                    {activityName(a)}
-                                  </span>
-                                ))}
-                              </div>
-                              <p className={cn("mt-1 text-[0.7rem]", plan.need === 0 ? "text-slate-400" : "font-medium text-slate-700")}>
-                                {plan.need === 0 ? "Sans assistant" : `${plan.need} assistant${plan.need > 1 ? "s" : ""}`}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="min-h-14 rounded-md bg-[repeating-linear-gradient(135deg,#f1f5f9,#f1f5f9_3px,transparent_3px,transparent_7px)]" title="Ne consulte pas" />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {activities.length > 0 && (
           <div>
             <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Assistants nécessaires par activité</p>
             <ul className="grid gap-2 sm:grid-cols-2">
               {activities.map((a) => {
-                const need = needForActivity(profile, a);
+                const need = needForActivity(current, a);
                 return (
                   <li key={a} className="flex items-center gap-2 rounded-lg border px-3 py-2">
                     <span className={cn("size-2.5 shrink-0 rounded-full", colorOf(a).dot)} />
