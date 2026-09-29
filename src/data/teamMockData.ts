@@ -156,7 +156,7 @@ function user(partial: Partial<TeamUser> & Pick<TeamUser, "id" | "firstName" | "
 export const USERS: TeamUser[] = [
   user({ id: "u-delphine", firstName: "Delphine", lastName: "Girard", roleIds: ["role-gestionnaire"], poste: "gestion", skills: ["cotation"], createdAt: "2023-02-01T09:00:00" }),
   user({ id: "u-sophie", firstName: "Sophie", lastName: "Martin", roleIds: ["role-praticien", "role-gestionnaire"], poste: "praticien", defaultEnvironmentId: "env-martin", specialties: ["implantologie", "chirurgie_orale"], prefersWith: ["u-thomas"], createdAt: "2023-02-01T09:00:00" }),
-  user({ id: "u-flore", firstName: "Flore", lastName: "Perche", roleIds: ["role-praticien"], poste: "praticien", defaultEnvironmentId: "env-perche", specialties: ["parodontie", "prothese"] }),
+  user({ id: "u-flore", firstName: "Flore", lastName: "Perche", roleIds: ["role-praticien"], poste: "praticien", defaultEnvironmentId: "env-perche", specialties: ["parodontie", "prothese"], workDays: ["lundi", "mardi", "jeudi", "vendredi"] }),
   user({ id: "u-dray", firstName: "Paul", lastName: "Dray", roleIds: ["role-praticien"], poste: "praticien", defaultEnvironmentId: "env-dray", specialties: ["pedodontie", "endodontie"], workDays: ["lundi", "mardi", "jeudi", "vendredi"], halfDays: { vendredi: "matin" }, avoidsWith: ["u-thomas"] }),
   user({ id: "u-thomas", firstName: "Thomas", lastName: "Dupont", roleIds: ["role-assistant"], poste: "assistant", defaultEnvironmentId: "env-martin", skills: ["radioprotection", "aide_operatoire"], preferredActs: ["implantologie", "chirurgie_orale"] }),
   user({ id: "u-ines", firstName: "Inès", lastName: "Moreau", roleIds: ["role-assistant", "role-sterilisation"], poste: "assistant", defaultEnvironmentId: "env-perche", skills: ["radioprotection", "aide_operatoire", "sterilisation"], preferredActs: ["chirurgie_orale", "parodontie"] }),
@@ -170,6 +170,48 @@ export const USERS: TeamUser[] = [
   user({ id: "u-michel", firstName: "Michel", lastName: "Fontaine", roleIds: ["role-praticien"], poste: "praticien", status: "archive", archivedAt: "2025-09-30T18:00:00", archiveReason: "Remplacement saisonnier terminé", defaultEnvironmentId: "env-fontaine", specialties: ["endodontie"], createdAt: "2025-06-02T09:00:00" }),
 ];
 
+/** Semaines types des agendas Soins (celle de Dr Perche est l'agenda de la démo Soins). */
+const slot = (id: string, day: Weekday, activityTypeId: string, start: string, end: string) => ({ id, day, activityTypeId, start, end });
+export const SEMAINES_TYPES: Record<string, PraticienProfile["weekSlots"]> = {
+  "env-martin": [
+    slot("wm-1", "lundi", "bloc", "08:00", "12:00"),
+    slot("wm-2", "lundi", "consultation", "14:00", "18:00"),
+    slot("wm-3", "mardi", "bloc", "08:00", "12:30"),
+    slot("wm-4", "mardi", "bloc", "14:00", "18:00"),
+    slot("wm-5", "mercredi", "consultation", "08:00", "12:00"),
+    slot("wm-6", "mercredi", "hors-bloc", "14:00", "18:00"),
+    slot("wm-7", "jeudi", "bloc", "08:00", "12:00"),
+    slot("wm-8", "jeudi", "bloc", "14:00", "17:00"),
+    slot("wm-9", "vendredi", "consultation", "08:00", "12:00"),
+    slot("wm-10", "vendredi", "urgences", "14:00", "17:00"),
+  ],
+  "env-perche": [
+    slot("ws-1", "lundi", "consultation", "08:00", "12:00"),
+    slot("ws-2", "lundi", "bloc", "14:00", "17:00"),
+    slot("ws-3", "lundi", "tous-motifs", "17:00", "19:00"),
+    slot("ws-4", "mardi", "urgences", "08:00", "13:00"),
+    slot("ws-5", "mardi", "tous-motifs", "14:00", "18:00"),
+    slot("ws-6", "jeudi", "tous-motifs", "08:00", "12:00"),
+    slot("ws-7", "jeudi", "tous-motifs", "13:00", "18:00"),
+    slot("ws-8", "vendredi", "hors-bloc", "08:00", "12:00"),
+    slot("ws-9", "vendredi", "tous-motifs", "12:00", "18:00"),
+  ],
+  "env-dray": [
+    slot("wd-1", "lundi", "consultation", "08:00", "12:00"),
+    slot("wd-2", "lundi", "tous-motifs", "14:00", "18:00"),
+    slot("wd-3", "mardi", "hors-bloc", "08:00", "12:00"),
+    slot("wd-4", "mardi", "tous-motifs", "14:00", "18:00"),
+    slot("wd-5", "jeudi", "urgences", "08:00", "12:00"),
+    slot("wd-6", "jeudi", "tous-motifs", "14:00", "18:00"),
+    slot("wd-7", "vendredi", "consultation", "08:00", "12:00"),
+  ],
+};
+export const BESOINS_PAR_ACTIVITE: Record<string, Record<string, number>> = {
+  "env-martin": { bloc: 2, consultation: 1, urgences: 1, "hors-bloc": 1, "tous-motifs": 1 },
+  "env-perche": { bloc: 2, consultation: 1, urgences: 1, "hors-bloc": 1, "tous-motifs": 1 },
+  "env-dray": { bloc: 1, consultation: 1, urgences: 1, "hors-bloc": 1, "tous-motifs": 1 },
+};
+
 export const PRATICIEN_PROFILES: PraticienProfile[] = [
   {
     id: "env-martin",
@@ -177,6 +219,8 @@ export const PRATICIEN_PROFILES: PraticienProfile[] = [
     label: "Dr Sophie Martin",
     rooms: ["Bloc 1", "Salle 2"],
     assistantsNeeded: 2,
+    weekSlots: SEMAINES_TYPES["env-martin"],
+    needsByActivity: BESOINS_PAR_ACTIVITE["env-martin"],
     team: [
       { userId: "u-thomas", priority: "titulaire", rank: 1, days: [] },
       { userId: "u-ines", priority: "backup", rank: 1, days: [] },
@@ -189,6 +233,8 @@ export const PRATICIEN_PROFILES: PraticienProfile[] = [
     praticienUserId: "u-flore",
     label: "Dr Flore Perche",
     rooms: ["Salle 1"],
+    weekSlots: SEMAINES_TYPES["env-perche"],
+    needsByActivity: BESOINS_PAR_ACTIVITE["env-perche"],
     team: [
       { userId: "u-lea", priority: "titulaire", rank: 1, days: ["lundi", "mardi", "jeudi"] },
       { userId: "u-ines", priority: "titulaire", rank: 2, days: ["mercredi", "vendredi"] },
@@ -201,6 +247,8 @@ export const PRATICIEN_PROFILES: PraticienProfile[] = [
     praticienUserId: "u-dray",
     label: "Dr Paul Dray",
     rooms: ["Salle 3"],
+    weekSlots: SEMAINES_TYPES["env-dray"],
+    needsByActivity: BESOINS_PAR_ACTIVITE["env-dray"],
     team: [
       { userId: "u-camille", priority: "titulaire", rank: 1, days: [] },
       { userId: "u-lea", priority: "backup", rank: 1, days: [] },
@@ -267,7 +315,7 @@ const NOTIFICATIONS: TeamNotification[] = [
     kind: "absence_last_minute",
     title: "Absence de dernier moment : Thomas Dupont",
     body: "Arrêt maladie aujourd'hui et demain. Des RDV de Dr Martin sont à réaffecter.",
-    href: "/team/remplacements?absence=abs-t1",
+    href: "/team/planning?tab=remplacer&absence=abs-t1",
     read: false,
   },
   {

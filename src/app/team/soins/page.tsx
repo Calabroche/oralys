@@ -53,6 +53,7 @@ import { fromISODate, toISODate, toWeekday } from "@/utils/date";
 import { cn } from "@/lib/utils";
 import { useVersion } from "@/components/team/Version";
 import { rangeLong, rangeShort } from "@/lib/demoClock";
+import { needsAnyAssistant } from "@/lib/semaine";
 
 export default function SoinsPreviewPage() {
   const { has, version } = useVersion();
@@ -218,7 +219,7 @@ function PriseRdv() {
                 : `${displayName(praticien)} ne consulte pas ce jour-là.`}
             </AlertDescription>
           </Alert>
-        ) : (profile.assistantsNeeded ?? 1) === 0 ? (
+        ) : !needsAnyAssistant(profile) ? (
           <Card>
             <CardContent className="flex items-center gap-4">
               <div className="flex-1">

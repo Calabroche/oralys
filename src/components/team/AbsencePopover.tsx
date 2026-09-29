@@ -146,7 +146,7 @@ export function AbsencePopover({ absence, date, children }: { absence: TeamAbsen
           )}
 
           <Link
-            href={`/team/remplacements?absence=${absence.id}`}
+            href={`/team/planning?tab=remplacer&absence=${absence.id}`}
             className="flex items-center gap-1 text-xs text-pink-700 hover:underline"
             onClick={() => setOpen(false)}
           >

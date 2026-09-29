@@ -60,15 +60,9 @@ const TABS: {
   feature?: Feature;
   access?: AccessKey;
 }[] = [
-  { label: "Tableau de bord", href: "/team", exact: true },
+  // Remplacements vit dans le Planning (onglet « À remplacer ») ; la fiche praticien, dans le profil.
+  { label: "Tableau de bord", href: "/team", exact: true, access: "tableau" },
   { label: "Planning", href: "/team/planning" },
-  {
-    label: "Remplacements",
-    href: "/team/remplacements",
-    feature: "remplacements",
-    access: "remplacements",
-  },
-  { label: "Praticiens & équipes", href: "/team/equipes", feature: "equipes", access: "equipes" },
   { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
   { label: "Administration", href: "/team/reglages", access: "administration" },

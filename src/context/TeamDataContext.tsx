@@ -16,7 +16,9 @@ import {
   TeamNotification,
   TeamUser,
 } from "@/types/team";
-import { PRATICIEN_PROFILES, ROLES, buildTeamSeed } from "@/data/teamMockData";
+import { BESOINS_PAR_ACTIVITE, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
+import { scheduleFromSlots } from "@/lib/semaine";
+import { fromISODate, toWeekday } from "@/utils/date";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
 import { PRATICIEN_NAME } from "@/data/mockData";
@@ -94,12 +96,29 @@ function loadData(): PersistedTeamData {
           return { ...r, permissions: [...r.permissions, "team.planning" as const] };
         return r;
       });
+      // Besoin par type d'activité (retour produit du 29/09) : chaque fiche reçoit la semaine type de son agenda Soins
+      // et les besoins de la démo, sans toucher à l'équipe rattachée déjà réglée.
+      const semaine = !done.includes("semaine-type");
+      const profiles = stored.profiles?.map((p) =>
+        semaine && !p.weekSlots && SEMAINES_TYPES[p.id] ? { ...p, weekSlots: SEMAINES_TYPES[p.id], needsByActivity: BESOINS_PAR_ACTIVITE[p.id] } : p
+      );
+      // Les RDV posés un jour où le praticien ne consulte plus (d'après sa semaine type) disparaissent.
+      const rdvs =
+        semaine && stored.rdvs
+          ? stored.rdvs.filter((r) => {
+              const p = profiles?.find((x) => x.praticienUserId === r.praticienUserId);
+              const day = toWeekday(fromISODate(r.date));
+              return !p?.weekSlots?.length || (day !== null && p.weekSlots.some((w) => w.day === day));
+            })
+          : stored.rdvs;
       return {
         ...seed,
         ...stored,
         ...(users ? { users } : {}),
         ...(roles ? { roles } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees"])],
+        ...(profiles ? { profiles } : {}),
+        ...(rdvs ? { rdvs } : {}),
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees", "semaine-type"])],
       };
     }
   } catch {
@@ -185,6 +204,9 @@ function isoNow(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+/** Profil praticien dont l'agenda est celui de la démo Soins. */
+export const SOINS_DEMO_PROFILE_ID = "env-perche";
+
 export function TeamDataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersistedTeamData>(loadData);
   const hydrated = true;
@@ -203,10 +225,24 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     }
   }, [data]);
 
-  const sessionUser = data.users.find((u) => u.id === data.sessionUserId);
+  // La fiche de Dr Perche lit la semaine type de l'agenda Soins de la démo : ce qu'on y change se voit dans Team.
+  // Les jours de travail d'un praticien découlent de sa semaine type (on les règle dans Soins, pas dans Team).
+  const profiles = useMemo(
+    () => data.profiles.map((p) => (p.id === SOINS_DEMO_PROFILE_ID ? { ...p, weekSlots: agenda.weekSlots } : p)),
+    [data.profiles, agenda.weekSlots]
+  );
+  const users = useMemo(
+    () =>
+      data.users.map((u) => {
+        const p = profiles.find((x) => x.praticienUserId === u.id);
+        return p?.weekSlots?.length ? { ...u, ...scheduleFromSlots(p.weekSlots) } : u;
+      }),
+    [data.users, profiles]
+  );
+  const sessionUser = users.find((u) => u.id === data.sessionUserId);
   const perms = useMemo(() => permissionsOf(sessionUser, data.roles), [sessionUser, data.roles]);
 
-  const findUser = useCallback((id: string | null | undefined) => data.users.find((u) => u.id === id), [data.users]);
+  const findUser = useCallback((id: string | null | undefined) => users.find((u) => u.id === id), [users]);
 
   const auditEntry = useCallback(
     (d: PersistedTeamData, action: AuditAction, summary: string, extra?: Partial<AuditEntry>): AuditEntry => {
@@ -265,6 +301,8 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
 
   const value: TeamDataContextValue = {
     ...data,
+    users,
+    profiles,
     hydrated,
     sessionUser,
     can: (perm) => perms.has(perm),
@@ -446,7 +484,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
           kind: "absence_last_minute",
           title: `Absence de dernier moment : ${label}`,
           body: `${ABSENCE_TYPE_LABELS[input.type]} du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}. Alerte envoyée au planning Soins.`,
-          href: `/team/remplacements?absence=${absence.id}`,
+          href: `/team/planning?tab=remplacer&absence=${absence.id}`,
           read: false,
         });
       } else if (!autoValidate) {
@@ -473,7 +511,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
           kind: "rdv_risk",
           title: `${affected.length} RDV à risque dans Soins`,
           body: `Suite à l'absence de ${label}. Le gestionnaire du planning a été notifié avant ouverture de l'agenda.`,
-          href: `/team/remplacements?absence=${absence.id}`,
+          href: `/team/planning?tab=remplacer&absence=${absence.id}`,
           read: false,
         });
       }

@@ -175,7 +175,7 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
 
       {showLink && has("remplacements") && day.missing > 0 && (
         <Link
-          href={`/team/remplacements?date=${date}&praticien=${praticien.id}`}
+          href={`/team/planning?tab=remplacer&date=${date}&praticien=${praticien.id}`}
           className="flex items-center gap-1 text-sm font-medium text-pink-700 hover:underline"
         >
           Chercher un prêt d&apos;assistant pour la journée <ArrowRight className="size-3.5" />

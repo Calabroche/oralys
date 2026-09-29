@@ -1,4 +1,4 @@
-import { Weekday } from "@/types";
+import { WeekSlot, Weekday } from "@/types";
 
 /** Oralys Team : types du domaine équipe, rôles, droits, planning. */
 
@@ -136,8 +136,12 @@ export interface PraticienProfile {
   praticienUserId: string;
   label: string;
   rooms: string[];
-  /** Nombre d'assistants nécessaires par jour travaillé (ex. 2 pour un praticien qui opère au bloc). */
+  /** Besoin par défaut (profils sans semaine type, ou activité sans réglage). */
   assistantsNeeded?: number;
+  /** Semaine type de l'agenda Soins du praticien : ses jours, demi-journées et types d'activité. */
+  weekSlots?: WeekSlot[];
+  /** Nombre d'assistants nécessaires par type d'activité (ex. bloc : 2, consultation : 1). */
+  needsByActivity?: Record<string, number>;
   team: TeamLink[];
   /** Retours qualitatifs saisis par le cabinet, par assistant (1 à 5). */
   feedback: Record<string, number>;

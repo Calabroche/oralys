@@ -1,55 +1,64 @@
 "use client";
 
-import { useAccess } from "@/components/team/Access";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, CalendarClock, CalendarPlus, Siren, UserCheck, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, CalendarClock, CalendarPlus, CheckCircle2, ListTodo, Siren, UserCheck, UserPlus, Users, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTeam } from "@/context/TeamDataContext";
-import { AbsenceBadge, UserAvatar } from "@/components/team/shared";
+import { useAccess } from "@/components/team/Access";
+import { UserAvatar } from "@/components/team/shared";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
-import { ROLE_GROUP_LABELS, ROLE_ORDER, primaryRoleId, absenceOn, datesBetween, displayName, isLastMinute, rdvsAtRisk, shortDate, tensionsFor, worksOn } from "@/lib/team";
-import { addDays, toISODate } from "@/utils/date";
+import { useToDo } from "@/components/team/planning/ToDo";
 import { useVersion } from "@/components/team/Version";
+import { ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, primaryRoleId, worksOn } from "@/lib/team";
+import { toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
+/**
+ * Tableau de bord du gestionnaire : un résumé de la journée. Le détail (et les actions) est dans le planning,
+ * pour ne pas avoir la même information à deux endroits. Les autres profils arrivent directement sur le planning.
+ */
 export default function TeamDashboard() {
-  const { users, absences, rdvs, profiles, sessionUser, now, hydrated } = useTeam();
+  const allowed = useAccess();
+  const router = useRouter();
+  const ok = allowed("tableau");
+  useEffect(() => {
+    if (!ok) router.replace("/team/planning");
+  }, [ok, router]);
+  return ok ? <Dashboard /> : null;
+}
+
+function Dashboard() {
+  const { users, absences, sessionUser, now, hydrated } = useTeam();
+  const { has } = useVersion();
   const [declareOpen, setDeclareOpen] = useState(false);
+  const todo = useToDo();
   const today = toISODate(now());
-  const in14 = toISODate(addDays(now(), 14));
   const active = users.filter((u) => u.status === "actif");
   const working = active.filter((u) => worksOn(u, today));
   const absentToday = working.filter((u) => absenceOn(u.id, today, absences));
-  const risks = rdvsAtRisk(
-    rdvs.filter((r) => r.date >= today && r.date <= in14),
-    absences,
-    profiles
-  );
-  const pending = absences.filter((a) => a.status === "demandee");
-  const lastMinute = absences.filter((a) => a.status !== "refusee" && isLastMinute(a) && a.endDate >= today);
-  const { has } = useVersion();
-  const tensions = !has("binomes") ? [] : profiles.flatMap((p) => tensionsFor(p, users, absences, datesBetween(today, in14)).map((iso) => ({ p, iso })));
-  const upcoming = absences
-    .filter((a) => a.status !== "refusee" && a.endDate >= today && a.startDate <= in14)
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const openLastMinute = todo.lastMinute.filter((x) => x.open > 0).length;
 
-  const allowed = useAccess();
-  // Assistants et aides : pas d'alertes de gestion, de demandes à valider ni de gestion des comptes.
   const kpis = [
     { label: "Présents aujourd'hui", value: `${working.length - absentToday.length}/${working.length}`, icon: UserCheck, href: "/team/planning" },
-    ...(allowed("remplacements")
-      ? [{ label: "RDV à risque (14 j)", value: risks.length, icon: AlertTriangle, href: has("remplacements") ? "/team/remplacements" : "/team/planning", alert: risks.length > 0 }]
+    { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=a-traiter", alert: todo.count > 0 },
+    { label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" },
+  ];
+
+  // Une ligne par catégorie : le compte et un lien vers l'onglet du planning qui permet d'agir.
+  const summary = [
+    { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=a-traiter", tone: "text-rose-600" },
+    { label: "Demandes à valider", value: todo.pending.length, icon: CalendarClock, href: "/team/planning?tab=a-traiter", tone: "text-pink-600" },
+    { label: "Manques d'assistant (14 j)", value: todo.gaps.length + todo.coverage.length, icon: UserX, href: "/team/planning?tab=a-traiter", tone: "text-amber-600" },
+    ...(has("remplacements")
+      ? [{ label: "RDV patients à réaffecter", value: todo.toReassign.length, icon: CalendarClock, href: "/team/planning?tab=remplacer", tone: "text-slate-700" }]
       : []),
-    ...(allowed("planning")
-      ? [{ label: "Demandes à valider", value: pending.length, icon: CalendarClock, href: "/team/planning?tab=demandes", alert: pending.length > 0 }]
-      : []),
-    ...(allowed("utilisateurs") ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
-  ] as { label: string; value: string | number; icon: typeof Users; href: string; alert?: boolean }[];
+  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
@@ -62,17 +71,15 @@ export default function TeamDashboard() {
           <Button variant="outline" onClick={() => setDeclareOpen(true)}>
             <CalendarPlus /> Déclarer une absence
           </Button>
-          {allowed("utilisateurs") && (
-            <Button asChild>
-              <Link href="/team/reglages/utilisateurs">
-                <UserPlus /> Gérer les utilisateurs
-              </Link>
-            </Button>
-          )}
+          <Button asChild>
+            <Link href="/team/reglages/utilisateurs">
+              <UserPlus /> Gérer les utilisateurs
+            </Link>
+          </Button>
         </div>
       </div>
 
-      <div className={cn("grid grid-cols-2 gap-4", kpis.length === 4 ? "lg:grid-cols-4" : kpis.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href}>
             <Card className="transition-shadow hover:shadow-md">
@@ -89,96 +96,41 @@ export default function TeamDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {allowed("remplacements") && (
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>À traiter en priorité</CardTitle>
-            <CardDescription>Alertes remontées vers le planning Soins</CardDescription>
+            <CardTitle>À traiter</CardTitle>
+            <CardDescription>Le détail et les actions sont dans le planning, onglet « À traiter ».</CardDescription>
+            <CardAction>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/team/planning?tab=a-traiter">
+                  Ouvrir <ArrowRight />
+                </Link>
+              </Button>
+            </CardAction>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {lastMinute.map((a) => {
-              const u = users.find((x) => x.id === a.userId);
-              const n = risks.filter(
-                (r) => r.rdv.date >= a.startDate && r.rdv.date <= a.endDate && (r.rdv.assistantUserId === a.userId || r.rdv.praticienUserId === a.userId)
-              ).length;
-              const who = u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?";
-              // Plus rien à réaffecter : l'absence est gérée, on l'affiche en vert au lieu d'une alerte.
-              if (n === 0) {
-                return (
-                  <div key={a.id} className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                    <CheckCircle2 className="size-5 text-emerald-600" />
-                    <div className="flex-1 text-sm">
-                      <p className="font-medium text-emerald-900">Absence de dernier moment gérée : {who}</p>
-                      <p className="text-emerald-800">
-                        {shortDate(a.startDate)} → {shortDate(a.endDate)} · tous les RDV sont couverts
-                      </p>
-                    </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/team/planning?date=${a.startDate}`}>Voir le planning</Link>
-                    </Button>
-                  </div>
-                );
-              }
-              return (
-                <div key={a.id} className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
-                  <Siren className="size-5 text-rose-600" />
-                  <div className="flex-1 text-sm">
-                    <p className="font-medium text-rose-900">Absence de dernier moment : {who}</p>
-                    <p className="text-rose-800">
-                      {shortDate(a.startDate)} → {shortDate(a.endDate)} · {n} RDV à réaffecter
-                    </p>
-                  </div>
-                  <Button size="sm" asChild>
-                    {has("remplacements") ? (
-                      <Link href={`/team/remplacements?absence=${a.id}`}>Trouver un remplaçant</Link>
-                    ) : (
-                      <Link href={`/team/planning?view=personnes&user=${a.userId}`}>Voir le planning</Link>
-                    )}
-                  </Button>
-                </div>
-              );
-            })}
-            {tensions.length > 0 && allowed("planning") && (
-              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <AlertTriangle className="size-5 text-amber-600" />
-                <div className="flex-1 text-sm text-amber-900">
-                  <p className="font-medium">Tension de planning</p>
-                  <p className="text-amber-800">
-                    {[...new Set(tensions.map((t) => t.p.label))].join(", ")} : aucun assistant rattaché disponible le{" "}
-                    {[...new Set(tensions.map((t) => shortDate(t.iso)))].join(", ")}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/team/planning">Voir</Link>
-                </Button>
-              </div>
-            )}
-            {(allowed("planning") ? pending : []).map((a) => {
-              const u = users.find((x) => x.id === a.userId);
-              return (
-                <div key={a.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  {u && <UserAvatar user={u} />}
-                  <div className="flex-1 text-sm">
-                    <p className="font-medium">Demande : {u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</p>
-                    <p className="text-slate-500">
-                      {shortDate(a.startDate)} → {shortDate(a.endDate)}
-                    </p>
-                  </div>
-                  <AbsenceBadge absence={a} compact />
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/team/planning?tab=demandes">
-                      Examiner <ArrowRight />
+          <CardContent>
+            {todo.count === 0 && todo.toReassign.length === 0 ? (
+              <p className="flex items-center gap-2 py-4 text-sm text-emerald-700">
+                <CheckCircle2 className="size-4" /> Rien à traiter sur les 14 prochains jours.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {summary.map((s) => (
+                  <li key={s.label}>
+                    <Link href={s.href} className="flex items-center gap-3 py-2.5 text-sm hover:text-pink-700">
+                      <s.icon className={cn("size-4", s.value > 0 ? s.tone : "text-slate-300")} />
+                      <span className={cn("flex-1", s.value === 0 && "text-slate-400")}>{s.label}</span>
+                      <span className={cn("font-semibold", s.value > 0 ? "text-slate-900" : "text-slate-300")}>{s.value}</span>
+                      <ArrowRight className="size-3.5 text-slate-300" />
                     </Link>
-                  </Button>
-                </div>
-              );
-            })}
-            {lastMinute.length + tensions.length + pending.length === 0 && <p className="py-6 text-center text-sm text-slate-400">Rien à signaler.</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
-        )}
-        <Card className={cn(!allowed("remplacements") && "lg:col-span-3")}>
+        <Card>
           <CardHeader>
             <CardTitle>Qui est là aujourd&apos;hui</CardTitle>
             <CardAction>
@@ -223,43 +175,6 @@ export default function TeamDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Absences des 14 prochains jours</CardTitle>
-          <CardAction>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/team/planning">
-                Calendrier complet <ArrowRight />
-              </Link>
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <ul className="divide-y">
-            {upcoming.map((a) => {
-              const u = users.find((x) => x.id === a.userId);
-              if (!u) return null;
-              return (
-                <li key={a.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <UserAvatar user={u} className="size-7" />
-                  <PersonLink userId={u.id} className="w-48 font-medium">
-                    {displayName(u)}
-                  </PersonLink>
-                  <span className="w-56 text-slate-500">
-                    {shortDate(a.startDate)} → {shortDate(a.endDate)}
-                  </span>
-                  <AbsencePopover absence={a}>
-                    <button className="rounded hover:ring-1 hover:ring-slate-300">
-                      <AbsenceBadge absence={a} />
-                    </button>
-                  </AbsencePopover>
-                </li>
-              );
-            })}
-          </ul>
-        </CardContent>
-      </Card>
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} />
     </div>
   );

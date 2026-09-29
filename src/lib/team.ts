@@ -13,6 +13,7 @@ import {
 } from "@/types/team";
 import { ACTES, COLLABORATIONS, SKILLS } from "@/data/teamMockData";
 import { fromISODate, toWeekday, WEEKDAY_LABELS } from "@/utils/date";
+import { HALVES, dayPlan, maxNeedOn, needsAnyAssistant } from "@/lib/semaine";
 
 export function fullName(u: Pick<TeamUser, "firstName" | "lastName">): string {
   return `${u.firstName} ${u.lastName}`;
@@ -113,7 +114,7 @@ export function rdvsAtRisk(rdvs: SoinsRdv[], absences: TeamAbsence[], profiles: 
   const out: { rdv: SoinsRdv; reason: "praticien" | "assistant" | "sans_assistant" }[] = [];
   for (const rdv of rdvs) {
     // Un praticien qui travaille sans assistant n'a pas de RDV à risque côté assistant.
-    const needsAssistant = (profiles.find((p) => p.praticienUserId === rdv.praticienUserId)?.assistantsNeeded ?? 1) > 0;
+    const needsAssistant = needsAnyAssistant(profiles.find((p) => p.praticienUserId === rdv.praticienUserId));
     if (absenceOn(rdv.praticienUserId, rdv.date, absences)) out.push({ rdv, reason: "praticien" });
     else if (!needsAssistant || rdv.keptWithoutAssistant) continue;
     else if (rdv.assistantUserId && absenceOn(rdv.assistantUserId, rdv.date, absences)) out.push({ rdv, reason: "assistant" });
@@ -321,19 +322,37 @@ export interface StaffingSlot {
   partial?: HalfDay;
 }
 
+/** Une demi-journée d'un praticien : ses activités, son besoin et les assistants à ses côtés. */
+export interface HalfStaffing {
+  half: HalfDay;
+  activities: string[];
+  /** Besoin de la semaine type pour cette demi-journée. */
+  baseNeed: number;
+  /** Besoin retenu (plafonné par un ajustement du jour). */
+  need: number;
+  assistants: string[];
+  missing: number;
+}
+
 export interface PraticienDay {
   profile: PraticienProfile;
   praticien: TeamUser;
   status: "travaille" | "absent" | "repos";
   /** Demi-journées où le praticien consulte ce jour-là. */
   halves: HalfDay[];
+  /** Plus grand besoin de la journée (toutes demi-journées confondues). */
   need: number;
-  /** Besoin habituel (fiche praticien), quand il est ajusté pour la journée. */
+  /** Besoin habituel (semaine type), quand il est ajusté pour la journée. */
   baseNeed: number;
   /** Ajustement du besoin pour cette journée, s'il y en a un. */
   dayNeed?: DayNeed;
+  /** Détail par demi-journée : c'est là que se calcule le besoin. */
+  byHalf: HalfStaffing[];
   slots: StaffingSlot[];
+  /** Plus grand manque d'une demi-journée. */
   missing: number;
+  /** Demi-journées où il manque quelqu'un. */
+  missingHalves: HalfDay[];
   /** Titulaires attendus ce jour-là mais absents (pour expliquer le trou). */
   absentTitulaires: string[];
   /** Titulaires présents mais déjà en binôme avec un autre praticien ce jour-là. */
@@ -343,7 +362,7 @@ export interface PraticienDay {
 export interface DayStaffing {
   date: string;
   praticiens: PraticienDay[];
-  /** assistantId → praticienId pour la journée. */
+  /** assistantId → praticienId pour la journée (le premier praticien servi si la journée est partagée). */
   assignmentOf: Record<string, string>;
   /** Assistants présents mais affectés à personne. */
   free: string[];
@@ -352,9 +371,10 @@ export interface DayStaffing {
 }
 
 /**
- * Compose l'équipe du jour : d'abord chaque titulaire avec son praticien, puis on comble les trous
- * avec les back-ups disponibles, en faisant un tour de table (1er assistant de chaque praticien
- * avant le 2e) pour ne pas qu'un praticien à gros besoin prenne tous les back-ups.
+ * Compose l'équipe du jour, demi-journée par demi-journée : le besoin vient de la semaine type
+ * (bloc, consultation…). Pour chaque demi-journée : les prêts du jour, puis chaque titulaire avec
+ * son praticien, puis on comble les trous avec les back-ups disponibles, en faisant un tour de table
+ * (1er assistant de chaque praticien avant le 2e) pour ne pas qu'un praticien à gros besoin prenne tous les back-ups.
  */
 export function dayStaffing(
   date: string,
@@ -368,82 +388,112 @@ export function dayStaffing(
   const applies = (l: PraticienProfile["team"][number]) => l.days.length === 0 || (day !== null && l.days.includes(day));
   const assistants = users.filter((u) => isChairAssistant(u) && u.status === "actif");
   const available = new Set(assistants.filter((u) => isAvailable(u, date, absences)).map((u) => u.id));
-  const used = new Set<string>();
+  const worksHalf = (id: string, half: HalfDay) => {
+    const u = users.find((x) => x.id === id);
+    return Boolean(u) && halvesOn(u!, date).includes(half);
+  };
+  const rankSort = (a: { rank: number }, b: { rank: number }) => a.rank - b.rank;
+  const addOnce = (list: string[], id: string) => !list.includes(id) && list.push(id);
 
   const praticiens: PraticienDay[] = profiles
     .map((profile) => ({ profile, praticien: users.find((u) => u.id === profile.praticienUserId) }))
     .filter((x): x is { profile: PraticienProfile; praticien: TeamUser } => Boolean(x.praticien) && x.praticien!.status === "actif")
     .map(({ profile, praticien }) => {
-      const status: PraticienDay["status"] = !worksOn(praticien, date) ? "repos" : absenceOn(praticien.id, date, absences) ? "absent" : "travaille";
-      const baseNeed = status === "travaille" ? profile.assistantsNeeded ?? 1 : 0;
+      const plans = day === null ? [] : dayPlan(profile, praticien, day);
+      const status: PraticienDay["status"] = plans.length === 0 ? "repos" : absenceOn(praticien.id, date, absences) ? "absent" : "travaille";
       const dayNeed = status === "travaille" ? needs.find((n) => n.date === date && n.praticienId === praticien.id) : undefined;
-      const need = dayNeed ? dayNeed.need : baseNeed;
-      return { profile, praticien, status, halves: halvesOn(praticien, date), need, baseNeed, dayNeed, slots: [], missing: 0, absentTitulaires: [], busyTitulaires: [] };
+      const byHalf: HalfStaffing[] =
+        status === "travaille"
+          ? plans.map((pl) => ({
+              half: pl.half,
+              activities: pl.activities,
+              baseNeed: pl.need,
+              need: dayNeed ? Math.min(dayNeed.need, pl.need) : pl.need,
+              assistants: [],
+              missing: 0,
+            }))
+          : [];
+      return {
+        profile,
+        praticien,
+        status,
+        halves: plans.map((pl) => pl.half),
+        need: Math.max(0, ...byHalf.map((h) => h.need)),
+        baseNeed: Math.max(0, ...byHalf.map((h) => h.baseNeed)),
+        dayNeed,
+        byHalf,
+        slots: [],
+        missing: 0,
+        missingHalves: [],
+        absentTitulaires: [],
+        busyTitulaires: [],
+      };
     });
 
-  // Un assistant ne peut être avec un praticien que sur les demi-journées où ils travaillent tous les deux.
-  const fit = (assistantId: string, p: PraticienDay): { partial?: HalfDay } | null => {
-    const a = users.find((u) => u.id === assistantId);
-    if (!a) return null;
-    const mine = halvesOn(a, date);
-    const common = p.halves.filter((h) => mine.includes(h));
-    if (common.length === 0) return null;
-    return common.length < p.halves.length ? { partial: common[0] } : {};
-  };
-
   const working = praticiens.filter((p) => p.status === "travaille");
+  const kindOf = new Map<string, Map<string, StaffingSlot["kind"]>>();
+  const assignmentOf: Record<string, string> = {};
+  const usedAny = new Set<string>();
 
-  // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire.
-  for (const o of overrides.filter((x) => x.date === date)) {
-    const p = working.find((w) => w.praticien.id === o.praticienId);
-    const f = p ? fit(o.assistantId, p) : null;
-    if (p && f && available.has(o.assistantId) && !used.has(o.assistantId)) {
-      p.slots.push({ assistantId: o.assistantId, kind: "pret", ...f });
-      used.add(o.assistantId);
+  for (const half of HALVES) {
+    const rows = working
+      .map((p) => ({ p, h: p.byHalf.find((x) => x.half === half) }))
+      .filter((x): x is { p: PraticienDay; h: HalfStaffing } => Boolean(x.h));
+    const used = new Set<string>();
+    const free = (id: string) => available.has(id) && !used.has(id) && worksHalf(id, half);
+    const place = (r: { p: PraticienDay; h: HalfStaffing }, id: string, kind: StaffingSlot["kind"]) => {
+      r.h.assistants.push(id);
+      used.add(id);
+      usedAny.add(id);
+      const kinds = kindOf.get(r.p.praticien.id) ?? new Map<string, StaffingSlot["kind"]>();
+      if (!kinds.has(id)) kinds.set(id, kind);
+      kindOf.set(r.p.praticien.id, kinds);
+      assignmentOf[id] ??= r.p.praticien.id;
+    };
+
+    // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire.
+    for (const o of overrides.filter((x) => x.date === date)) {
+      const r = rows.find((x) => x.p.praticien.id === o.praticienId);
+      if (r && free(o.assistantId)) place(r, o.assistantId, "pret");
     }
-  }
 
-  const rankSort = (a: { rank: number }, b: { rank: number }) => a.rank - b.rank;
+    for (const r of rows) {
+      for (const l of r.p.profile.team.filter((l) => l.priority === "titulaire" && applies(l)).sort(rankSort)) {
+        if (r.h.assistants.length >= r.h.need) break;
+        if (r.h.assistants.includes(l.userId)) continue;
+        if (free(l.userId)) place(r, l.userId, "titulaire");
+        else if (!worksHalf(l.userId, half)) continue;
+        else if (!available.has(l.userId)) addOnce(r.p.absentTitulaires, l.userId);
+        else if (used.has(l.userId)) addOnce(r.p.busyTitulaires, l.userId);
+      }
+    }
+
+    const maxNeed = Math.max(0, ...rows.map((r) => r.h.need));
+    for (let rank = 1; rank <= maxNeed; rank++) {
+      for (const r of rows) {
+        if (r.h.assistants.length >= rank || r.h.assistants.length >= r.h.need) continue;
+        const pick = r.p.profile.team.filter((l) => l.priority === "backup" && applies(l) && free(l.userId)).sort(rankSort)[0];
+        if (pick) place(r, pick.userId, "backup");
+      }
+    }
+    rows.forEach((r) => (r.h.missing = Math.max(0, r.h.need - r.h.assistants.length)));
+  }
 
   for (const p of working) {
-    for (const l of p.profile.team.filter((l) => l.priority === "titulaire" && applies(l)).sort(rankSort)) {
-      if (p.slots.length >= p.need) break;
-      const f = fit(l.userId, p);
-      if (available.has(l.userId) && !used.has(l.userId) && f) {
-        p.slots.push({ assistantId: l.userId, kind: "titulaire", ...f });
-        used.add(l.userId);
-      } else if (!f) {
-        continue;
-      } else if (!available.has(l.userId) && users.find((u) => u.id === l.userId && worksOn(u, date))) {
-        p.absentTitulaires.push(l.userId);
-      } else if (used.has(l.userId)) {
-        p.busyTitulaires.push(l.userId);
-      }
-    }
+    const ids = [...new Set(p.byHalf.flatMap((h) => h.assistants))];
+    p.slots = ids.map((id) => {
+      const halves = p.byHalf.filter((h) => h.assistants.includes(id)).map((h) => h.half);
+      return { assistantId: id, kind: kindOf.get(p.praticien.id)!.get(id)!, partial: halves.length < p.byHalf.length ? halves[0] : undefined };
+    });
+    p.missing = Math.max(0, ...p.byHalf.map((h) => h.missing));
+    p.missingHalves = p.byHalf.filter((h) => h.missing > 0).map((h) => h.half);
   }
 
-  const maxNeed = Math.max(0, ...working.map((p) => p.need));
-  for (let slot = 1; slot <= maxNeed; slot++) {
-    for (const p of working) {
-      if (p.slots.length >= slot || p.slots.length >= p.need) continue;
-      const pick = p.profile.team
-        .filter((l) => l.priority === "backup" && applies(l) && available.has(l.userId) && !used.has(l.userId) && fit(l.userId, p))
-        .sort(rankSort)[0];
-      if (pick) {
-        p.slots.push({ assistantId: pick.userId, kind: "backup", ...fit(pick.userId, p) });
-        used.add(pick.userId);
-      }
-    }
-  }
-  working.forEach((p) => (p.missing = p.need - p.slots.length));
-
-  const assignmentOf: Record<string, string> = {};
-  working.forEach((p) => p.slots.forEach((s) => (assignmentOf[s.assistantId] = p.praticien.id)));
   return {
     date,
     praticiens,
     assignmentOf,
-    free: [...available].filter((id) => !used.has(id)),
+    free: [...available].filter((id) => !usedAny.has(id)),
     absent: assistants.filter((u) => worksOn(u, date) && absenceOn(u.id, date, absences)).map((u) => u.id),
   };
 }
@@ -468,10 +518,10 @@ export const ROLE_MIN_COVERAGE: Record<string, { min: number; label: string }> =
   "role-aide": { min: 1, label: "Stérilisation sans aide dentaire" },
 };
 
-/** Vue d'accueil : tableau de bord pour gestionnaires et praticiens, planning pour les autres. */
-export function homePathFor(u: TeamUser | undefined): string {
-  if (!u) return "/team";
-  return u.roleIds.some((r) => r === "role-gestionnaire" || r === "role-praticien") ? "/team" : "/team/planning";
+/** Vue d'accueil : le tableau de bord (résumé) pour qui gère le cabinet, le planning pour tous les autres. */
+export function homePathFor(u: TeamUser | undefined, roles: Role[]): string {
+  if (!u) return "/team/planning";
+  return permissionsOf(u, roles).has("param.cabinet") ? "/team" : "/team/planning";
 }
 
 export function primaryRoleId(u: TeamUser): string {
@@ -485,11 +535,12 @@ export function isChairAssistant(u: TeamUser): boolean {
 
 // --- Ajustement de l'équipe au besoin en assistants --------------------------
 
-/** Nombre de titulaires couvrant chaque jour travaillé du praticien. */
-export function titularCoverage(profile: PraticienProfile, praticien: TeamUser): { day: Weekday; count: number }[] {
+/** Nombre de titulaires couvrant chaque jour travaillé du praticien, face au plus grand besoin du jour. */
+export function titularCoverage(profile: PraticienProfile, praticien: TeamUser): { day: Weekday; count: number; need: number }[] {
   return praticien.workDays.map((day) => ({
     day,
     count: profile.team.filter((l) => l.priority === "titulaire" && (l.days.length === 0 || l.days.includes(day))).length,
+    need: maxNeedOn(profile, praticien, day),
   }));
 }
 
@@ -504,14 +555,14 @@ function renumberTeam(team: PraticienProfile["team"]): PraticienProfile["team"] 
  * Aligne les titulaires sur le besoin : on promeut les back-ups (par ordre de priorité) tant qu'un jour
  * manque de titulaires, et on rétrograde les derniers titulaires tant que chaque jour reste couvert sans eux.
  */
-export function adjustTeamToNeed(profile: PraticienProfile, praticien: TeamUser, need: number, users: TeamUser[]) {
-  // Sans assistant : on garde l'équipe telle quelle, elle resservira si le besoin remonte.
-  if (need === 0) return { team: profile.team, changes: [] as string[], stillMissing: [] as Weekday[] };
+export function adjustTeamToNeed(profile: PraticienProfile, praticien: TeamUser, users: TeamUser[]) {
+  // Sans assistant nulle part : on garde l'équipe telle quelle, elle resservira si le besoin remonte.
+  if (titularCoverage(profile, praticien).every((c) => c.need === 0)) return { team: profile.team, changes: [] as string[], stillMissing: [] as Weekday[] };
   let team = profile.team.map((l) => ({ ...l }));
   const changes: string[] = [];
   const name = (id: string) => users.find((u) => u.id === id)?.firstName ?? "?";
   const lacks = (t: typeof team) =>
-    titularCoverage({ ...profile, team: t }, praticien).filter((c) => c.count < need).map((c) => c.day);
+    titularCoverage({ ...profile, team: t }, praticien).filter((c) => c.count < c.need).map((c) => c.day);
 
   // Promotion
   for (;;) {
@@ -532,7 +583,7 @@ export function adjustTeamToNeed(profile: PraticienProfile, praticien: TeamUser,
     const titulaires = team.filter((l) => l.priority === "titulaire").sort((a, b) => b.rank - a.rank);
     const removable = titulaires.find((l) => {
       const without = team.map((x) => (x === l ? { ...x, priority: "backup" as const } : x));
-      return titularCoverage({ ...profile, team: without }, praticien).every((c) => c.count >= need);
+      return titularCoverage({ ...profile, team: without }, praticien).every((c) => c.count >= c.need);
     });
     if (!removable) break;
     removable.priority = "backup";
@@ -573,7 +624,7 @@ export function findRebookSlots(
 ): RebookSlot[] {
   const praticien = data.users.find((u) => u.id === rdv.praticienUserId);
   if (!praticien) return [];
-  const need = data.profiles.find((p) => p.praticienUserId === praticien.id)?.assistantsNeeded ?? 1;
+  const need = needsAnyAssistant(data.profiles.find((p) => p.praticienUserId === praticien.id)) ? 1 : 0;
   const out: RebookSlot[] = [];
   const start = fromISODate(fromIso > rdv.date ? fromIso : rdv.date);
   for (let i = 0; i < 30 && out.length < max; i++) {

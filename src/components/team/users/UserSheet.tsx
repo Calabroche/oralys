@@ -3,7 +3,7 @@
 import { useAccess } from "@/components/team/Access";
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarDays, CalendarPlus, Check, History, Lock, Minus, Pencil, Stethoscope, UserRoundSearch } from "lucide-react";
+import { CalendarDays, CalendarPlus, Check, History, Lock, Minus, Pencil, Stethoscope, UserRound, UserRoundSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
@@ -22,7 +22,7 @@ import { WorkScheduleSummary } from "@/components/team/WorkSchedule";
 import { cn } from "@/lib/utils";
 
 export function UserSheet({ userId, onClose }: { userId: string | null; onClose: () => void }) {
-  const { findUser, roles, audit, profiles, absences, can, now } = useTeam();
+  const { findUser, roles, audit, profiles, absences, can, now, sessionUserId } = useTeam();
   const [declareOpen, setDeclareOpen] = useState(false);
   const user = findUser(userId);
   const perms = user ? permissionsOf({ ...user, status: "actif" }, roles) : new Set();
@@ -53,6 +53,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                 profileId={profiles.find((x) => x.praticienUserId === user.id)?.id}
                 canAudit={can("team.audit")}
                 canEdit={can("param.cabinet")}
+                canOpenProfile={user.id === sessionUserId || can("team.planning")}
                 active={user.status === "actif"}
               />
               {(() => {
@@ -129,7 +130,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                       return (
                         <li key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2">
                           {canSeeTeams ? (
-                            <Link href={`/team/equipes?praticien=${p.id}`} onClick={onClose} className="hover:text-pink-700 hover:underline">
+                            <Link href={`/team/profil/${p.praticienUserId}`} onClick={onClose} className="hover:text-pink-700 hover:underline">
                               {p.label}
                             </Link>
                           ) : (
@@ -185,6 +186,7 @@ function QuickLinks({
   onDeclare,
   canAudit,
   canEdit,
+  canOpenProfile,
   active,
 }: {
   userId: string;
@@ -193,6 +195,7 @@ function QuickLinks({
   onDeclare: () => void;
   canAudit: boolean;
   canEdit: boolean;
+  canOpenProfile: boolean;
   active: boolean;
 }) {
   const allowed = useAccess();
@@ -210,9 +213,9 @@ function QuickLinks({
           <CalendarPlus /> Déclarer une absence
         </Button>
       )}
+      {(canOpenProfile || allowed("utilisateurs")) && link(`/team/profil/${userId}`, profileId ? <Stethoscope /> : <UserRound />, profileId ? "Profil et équipe" : "Profil")}
       {link(`/team/planning?view=personnes&user=${userId}`, <CalendarDays />, "Planning")}
-      {profileId && allowed("equipes") && link(`/team/equipes?praticien=${profileId}`, <Stethoscope />, "Fiche praticien")}
-      {allowed("remplacements") && link(`/team/remplacements?user=${userId}`, <UserRoundSearch />, "Remplacements")}
+      {allowed("remplacements") && link(`/team/planning?tab=remplacer&user=${userId}`, <UserRoundSearch />, "Remplacements")}
       {canAudit && link(`/team/reglages/journal?user=${userId}`, <History />, "Journal")}
       {canEdit && link(`/team/reglages/utilisateurs?edit=${userId}`, <Pencil />, "Modifier")}
     </div>

@@ -4,6 +4,7 @@ import { RefreshCw, UserX } from "lucide-react";
 import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
 import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, teamMembersOn } from "@/lib/team";
+import { activityName, needSummary } from "@/lib/semaine";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink, usePersonSheet } from "@/components/team/PersonSheet";
@@ -77,9 +78,7 @@ export function BinomesCalendar({
                         {displayName(praticien)}
                       </PersonLink>
                       <div className="text-xs text-slate-500">
-                        {(profile.assistantsNeeded ?? 1) === 0
-                          ? "Travaille sans assistant"
-                          : `Besoin : ${profile.assistantsNeeded ?? 1} assistant${(profile.assistantsNeeded ?? 1) > 1 ? "s" : ""} / jour`}
+                        {needSummary(profile)}
                       </div>
                     </div>
                   </div>
@@ -179,14 +178,23 @@ export function BinomesCalendar({
                               >
                                 <UserX className="size-3 shrink-0" />
                                 {compact ? `−${day.missing}` : `Manque ${day.missing}`}
+                                {!compact && day.missingHalves.length === 1 && day.halves.length === 2 && (
+                                  <span className="font-normal">{day.missingHalves[0] === "matin" ? " · matin" : " · aprèm"}</span>
+                                )}
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-96 p-4" align="start">
                               <p className="mb-3 text-sm font-medium text-slate-900">
                                 Il manque {day.missing} assistant{day.missing > 1 ? "s" : ""} à {displayName(praticien)} le{" "}
                                 {fromISODate(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-                                <span className="block text-xs font-normal text-slate-500">
-                                  Besoin {day.need}, {day.slots.length} présent{day.slots.length > 1 ? "s" : ""}.
+                                <span className="mt-1 block space-y-0.5 text-xs font-normal text-slate-500">
+                                  {day.byHalf.map((h) => (
+                                    <span key={h.half} className={cn("block", h.missing > 0 && "font-medium text-rose-700")}>
+                                      {h.half === "matin" ? "Matin" : "Après-midi"}
+                                      {h.activities.length > 0 && ` (${h.activities.map(activityName).join(", ").toLowerCase()})`} : besoin {h.need}, {h.assistants.length} présent
+                                      {h.assistants.length > 1 ? "s" : ""}
+                                    </span>
+                                  ))}
                                 </span>
                               </p>
                               <GapActions day={day} staffing={staffing.get(iso)!} showLink />

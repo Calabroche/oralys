@@ -52,7 +52,7 @@ export function QuickSwitchDialog({ open, onOpenChange }: { open: boolean; onOpe
       description: station === "none" ? undefined : `Poste partagé : ${station}`,
     });
     close(false);
-    router.push(homePathFor(selected));
+    router.push(homePathFor(selected, roles));
   }
 
   return (
