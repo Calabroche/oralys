@@ -15,7 +15,7 @@ import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { useToDo } from "@/components/team/planning/ToDo";
 import { useVersion } from "@/components/team/Version";
-import { ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, primaryRoleId, worksOn } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, primaryRoleId, worksOn } from "@/lib/team";
 import { toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
@@ -42,10 +42,12 @@ function Dashboard() {
   const active = users.filter((u) => u.status === "actif");
   const working = active.filter((u) => worksOn(u, today));
   const absentToday = working.filter((u) => absenceOn(u.id, today, absences));
+  // Présents sur l'ensemble des collaborateurs actifs : ceux au repos ou absents comptent dans le total.
+  const presentCount = working.length - absentToday.length;
   const openLastMinute = todo.lastMinute.filter((x) => x.open > 0).length;
 
   const kpis = [
-    { label: "Présents aujourd'hui", value: `${working.length - absentToday.length}/${working.length}`, icon: UserCheck, href: "/team/planning" },
+    { label: "Présents aujourd'hui", value: `${presentCount}/${active.length}`, icon: UserCheck, href: "/team/planning" },
     { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=a-traiter", alert: todo.count > 0 },
     { label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" },
   ];
@@ -134,12 +136,17 @@ function Dashboard() {
           <CardHeader>
             <CardTitle>Qui est là aujourd&apos;hui</CardTitle>
             <CardAction>
-              <Badge variant="secondary">{working.length - absentToday.length} présents</Badge>
+              <Badge variant="secondary">
+                {presentCount}/{active.length} présents
+              </Badge>
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-4">
             {ROLE_ORDER.map((p) => {
-              const list = working.filter((u) => primaryRoleId(u) === p);
+              // Tout le monde, présents d'abord ; les personnes au repos ou absentes restent visibles, barrées, avec la raison.
+              const list = active
+                .filter((u) => primaryRoleId(u) === p)
+                .sort((a, b) => Number(!worksOn(a, today) || Boolean(absenceOn(a.id, today, absences))) - Number(!worksOn(b, today) || Boolean(absenceOn(b.id, today, absences))));
               if (!list.length) return null;
               return (
                 <div key={p}>
@@ -147,15 +154,18 @@ function Dashboard() {
                   <div className="flex flex-wrap gap-1.5">
                     {list.map((u) => {
                       const abs = absenceOn(u.id, today, absences);
+                      const off = !abs && !worksOn(u, today);
                       const chip = (
                         <span
                           className={cn(
                             "flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-0.5 text-xs",
-                            abs ? "cursor-pointer border-rose-200 bg-rose-50 text-rose-700 line-through hover:bg-rose-100" : "bg-white"
+                            abs ? "cursor-pointer border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" : off ? "border-slate-200 bg-slate-50 text-slate-400" : "bg-white"
                           )}
                         >
-                          <UserAvatar user={u} className="size-5 text-[0.55rem]" />
-                          {u.firstName}
+                          <UserAvatar user={u} className={cn("size-5 text-[0.55rem]", off && "opacity-50")} />
+                          <span className={cn((abs || off) && "line-through")}>{u.firstName}</span>
+                          {abs && <span className="text-[0.65rem] font-medium">{ABSENCE_TYPE_LABELS[abs.type].toLowerCase()}</span>}
+                          {off && <span className="text-[0.65rem]">repos</span>}
                         </span>
                       );
                       return abs ? (
