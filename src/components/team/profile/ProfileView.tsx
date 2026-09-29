@@ -62,7 +62,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
         description={
           profile
             ? "Jours de travail, besoin en assistants et équipe rattachée : tout ce qui concerne le praticien au même endroit."
-            : "Les jours de travail alimentent le planning et le calcul des binômes."
+            : "Les jours de travail alimentent le planning et le calcul des équipes."
         }
         actions={
           <>
@@ -221,7 +221,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  Préférences de binôme{" "}
+                  Préférences d&apos;équipe{" "}
                   <Badge variant="outline">
                     <EyeOff /> Confidentiel
                   </Badge>

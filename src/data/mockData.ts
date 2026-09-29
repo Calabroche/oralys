@@ -18,6 +18,7 @@ export const activityTypes: ActivityType[] = [
     description: "Accepte tout motif de rendez-vous",
     color: "gray",
     durationMinutes: 240,
+    assistantsNeeded: 1,
     locked: true,
   },
   {
@@ -26,6 +27,7 @@ export const activityTypes: ActivityType[] = [
     description: "Consultation",
     color: "green",
     durationMinutes: 30,
+    assistantsNeeded: 1,
     locked: true,
   },
   {
@@ -34,6 +36,7 @@ export const activityTypes: ActivityType[] = [
     description: "Urgences",
     color: "red",
     durationMinutes: 15,
+    assistantsNeeded: 1,
     locked: true,
   },
   {
@@ -42,6 +45,7 @@ export const activityTypes: ActivityType[] = [
     description: "Prothèse, Endodontie, Parodontologie, Chirurgie orale, implantologie",
     color: "blue",
     durationMinutes: 60,
+    assistantsNeeded: 2,
     locked: true,
   },
   {
@@ -50,6 +54,7 @@ export const activityTypes: ActivityType[] = [
     description: "Soins, Comblés",
     color: "purple",
     durationMinutes: 45,
+    assistantsNeeded: 1,
     locked: true,
   },
 ];
@@ -59,6 +64,37 @@ export function getActivityType(id: string): ActivityType {
   if (!found) throw new Error(`Unknown activity type: ${id}`);
   return found;
 }
+
+/** Agendas Soins de la démo : l'agenda « courant » (sans praticienId) est celui de Dr Perche. */
+export const SOINS_PRATICIENS: { id: string; name: string }[] = [
+  { id: "env-perche", name: "Dr Flore Perche" },
+  { id: "env-martin", name: "Dr Sophie Martin" },
+  { id: "env-dray", name: "Dr Paul Dray" },
+];
+export const DEFAULT_SOINS_PRATICIEN = "env-perche";
+
+const slot = (id: string, praticienId: string, day: WeekSlot["day"], activityTypeId: string, start: string, end: string): WeekSlot => ({ id, praticienId, day, activityTypeId, start, end });
+/** Semaines types des autres praticiens de la démo. */
+export const OTHER_WEEK_SLOTS: WeekSlot[] = [
+  slot("wm-1", "env-martin", "lundi", "bloc", "08:00", "12:00"),
+  slot("wm-2", "env-martin", "lundi", "consultation", "14:00", "18:00"),
+  slot("wm-3", "env-martin", "mardi", "bloc", "08:00", "12:30"),
+  slot("wm-4", "env-martin", "mardi", "consultation", "14:00", "16:00"),
+  slot("wm-4b", "env-martin", "mardi", "tous-motifs", "16:00", "18:00"),
+  slot("wm-5", "env-martin", "mercredi", "consultation", "08:00", "12:00"),
+  slot("wm-6", "env-martin", "mercredi", "hors-bloc", "14:00", "18:00"),
+  slot("wm-7", "env-martin", "jeudi", "bloc", "08:00", "12:00"),
+  slot("wm-8", "env-martin", "jeudi", "bloc", "14:00", "17:00"),
+  slot("wm-9", "env-martin", "vendredi", "consultation", "08:00", "12:00"),
+  slot("wm-10", "env-martin", "vendredi", "urgences", "14:00", "17:00"),
+  slot("wd-1", "env-dray", "lundi", "consultation", "08:00", "12:00"),
+  slot("wd-2", "env-dray", "lundi", "tous-motifs", "14:00", "18:00"),
+  slot("wd-3", "env-dray", "mardi", "hors-bloc", "08:00", "12:00"),
+  slot("wd-4", "env-dray", "mardi", "tous-motifs", "14:00", "18:00"),
+  slot("wd-5", "env-dray", "jeudi", "urgences", "08:00", "12:00"),
+  slot("wd-6", "env-dray", "jeudi", "tous-motifs", "14:00", "18:00"),
+  slot("wd-7", "env-dray", "vendredi", "consultation", "08:00", "12:00"),
+];
 
 export const weekSlots: WeekSlot[] = [
   { id: "ws-1", day: "lundi", activityTypeId: "consultation", start: "08:00", end: "12:00" },

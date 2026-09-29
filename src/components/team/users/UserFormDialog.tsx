@@ -93,13 +93,16 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
   const selectedRoles = roles.filter((r) => roleIds.includes(r.id));
   const isHealthPro = selectedRoles.some((r) => r.healthProfessional);
   const activeProfiles = profiles.filter((p) => findUser(p.praticienUserId)?.status !== "archive");
+  // Assistants et aides dentaires : un praticien de rattachement est obligatoire (modifiable ensuite).
+  const needsPraticien = !isHealthPro && roleIds.some((r) => r === "role-assistant" || r === "role-aide");
+  const missingPraticien = needsPraticien && env === "none";
 
   const toggleRole = (id: string) => setRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   function submit() {
     setSubmitted(true);
     setError(null);
-    if (!firstName.trim() || !lastName.trim() || !normalized || emailInvalid || duplicate || roleIds.length === 0) return;
+    if (!firstName.trim() || !lastName.trim() || !normalized || emailInvalid || duplicate || roleIds.length === 0 || missingPraticien) return;
     const envId = env === "none" ? null : env;
     if (editing) {
       const res = updateUser({ ...editing, firstName: firstName.trim(), lastName: lastName.trim(), email: normalized, poste, roleIds, defaultEnvironmentId: envId });
@@ -179,13 +182,16 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Environnement Soins par défaut">
+          <Field
+            label={needsPraticien ? "Praticien de rattachement *" : "Environnement Soins par défaut"}
+            error={submitted && missingPraticien ? "Obligatoire pour un assistant ou une aide dentaire" : null}
+          >
             <Select value={env} onValueChange={setEnv} disabled={isHealthPro && !editing}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={isHealthPro && !editing ? "Créé automatiquement" : undefined} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Aucun</SelectItem>
+                <SelectItem value="none">{needsPraticien ? "Choisir un praticien" : "Aucun"}</SelectItem>
                 {activeProfiles.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.label}

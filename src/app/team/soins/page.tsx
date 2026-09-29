@@ -257,7 +257,7 @@ function PriseRdv() {
                   <UserAvatar user={best.user} className="size-11" />
                   <div className="flex-1">
                     <p className="flex items-center gap-1.5 text-sm text-pink-700">
-                      <Sparkles className="size-4" /> Meilleur binôme disponible pour {acteLabel(acte).toLowerCase()}
+                      <Sparkles className="size-4" /> Meilleur assistant disponible pour {acteLabel(acte).toLowerCase()}
                     </p>
                     <p className="font-medium">
                       {fullName(best.user)} <span className="text-sm font-normal text-slate-500">· {best.tierLabel} · affinité {best.score}/100</span>

@@ -51,7 +51,7 @@ export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; prat
       const free = !staffing.assignmentOf[u.id];
       const from = staffing.assignmentOf[u.id] ? findUser(staffing.assignmentOf[u.id]) : undefined;
       const impact = [
-        free ? "Sans binôme ce jour-là" : `Actuellement avec ${from ? displayName(from) : "?"}`,
+        free ? "Sans équipe ce jour-là" : `Actuellement avec ${from ? displayName(from) : "?"}`,
         worse.length ? worse.join(", ") : "aucun autre praticien pénalisé",
       ].join(" · ");
       return { user: u, free, gain, net, impact, rank: worse.length ? 1 : 0, tone: worse.length ? "text-amber-700" : "text-emerald-700" };

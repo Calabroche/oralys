@@ -178,7 +178,7 @@ function Planning() {
               {has("binomes") && (
                 <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as typeof view)}>
                   <ToggleGroupItem value="binomes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
-                    Binômes
+                    Équipes
                   </ToggleGroupItem>
                   <ToggleGroupItem value="personnes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
                     Par personne
@@ -274,7 +274,7 @@ function BinomesLegend() {
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-5 rounded bg-[repeating-linear-gradient(135deg,#e2e8f0,#e2e8f0_2px,transparent_2px,transparent_5px)]" /> Ne consulte pas
       </span>
-      <span>Le besoin en assistants se règle par activité dans le profil de chaque praticien.</span>
+      <span>Le besoin en assistants vient de Soins : semaine type du praticien et assistants par type d&apos;activité.</span>
     </div>
   );
 }

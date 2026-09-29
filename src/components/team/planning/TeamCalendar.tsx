@@ -170,7 +170,7 @@ function PresenceLabel({ user, staffing, compact }: { user: TeamUser; staffing?:
       .map((p) => ({ p, slot: p.slots.find((s) => s.assistantId === user.id) }))
       .filter((x) => x.slot)
       .sort((a, b) => (a.slot!.partial === "apres_midi" ? 1 : 0) - (b.slot!.partial === "apres_midi" ? 1 : 0));
-    if (!withWhom.length) return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans binôme</span>;
+    if (!withWhom.length) return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans équipe</span>;
     return (
       <span className="flex flex-col items-center gap-0.5">
         {withWhom.map(({ p, slot }) => (

@@ -1,6 +1,7 @@
 import { WeekSlot, Weekday } from "@/types";
 import { HalfDay, PraticienProfile, TeamUser } from "@/types/team";
-import { activityTypes } from "@/data/mockData";
+import { ActivityType } from "@/types";
+import { activityTypes as defaultActivityTypes } from "@/data/mockData";
 import { WEEKDAYS } from "@/utils/date";
 
 /**
@@ -13,6 +14,15 @@ import { WEEKDAYS } from "@/utils/date";
 export const MIDI = "13:00";
 
 export const HALVES: HalfDay[] = ["matin", "apres_midi"];
+
+/** Types d'activité de Soins (y compris ceux créés par le cabinet), tenus à jour par Team. */
+let activityTypes: ActivityType[] = defaultActivityTypes;
+export function setActivityCatalog(types: ActivityType[]) {
+  activityTypes = types;
+}
+export function activityType(id: string): ActivityType | undefined {
+  return activityTypes.find((t) => t.id === id);
+}
 
 export function halvesOfSlot(slot: Pick<WeekSlot, "start" | "end">): HalfDay[] {
   const out: HalfDay[] = [];

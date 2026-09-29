@@ -54,7 +54,7 @@ export function CandidateList({
                   <span className="font-medium text-slate-900">{fullName(c.user)}</span>
                   {i === 0 && (
                     <Badge className="bg-pink-500">
-                      <Sparkles /> {showScore ? "Meilleur binôme" : "Premier appelé"}
+                      <Sparkles /> {showScore ? "Meilleure affinité" : "Premier appelé"}
                     </Badge>
                   )}
                   <Badge variant="outline" className={cn(c.tier === 0 && "border-emerald-200 text-emerald-700", c.tier === 1 && "border-sky-200 text-sky-700")}>

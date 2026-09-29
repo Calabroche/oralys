@@ -18,13 +18,13 @@ import {
   TeamUser,
 } from "@/types/team";
 import { BESOINS_PAR_ACTIVITE, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
-import { scheduleFromSlots } from "@/lib/semaine";
+import { scheduleFromSlots, setActivityCatalog } from "@/lib/semaine";
 import { daysFromHours } from "@/lib/horaires";
 import { fromISODate, toWeekday } from "@/utils/date";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
 import { PRATICIEN_NAME } from "@/data/mockData";
-import { useAgendaData } from "@/context/AgendaDataContext";
+import { slotOwner, useAgendaData } from "@/context/AgendaDataContext";
 import {
   ABSENCE_TYPE_LABELS,
   EMAIL_PATTERN,
@@ -36,6 +36,7 @@ import {
   permissionsOf,
   roleNames,
   shortDate,
+  titularCoverage,
 } from "@/lib/team";
 
 
@@ -230,12 +231,20 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     }
   }, [data]);
 
-  // Les jours de travail d'un praticien découlent de sa semaine type, réglée dans son profil Team
-  // (demi-journée par demi-journée : repos ou type d'activité). Pour Dr Perche, c'est la même semaine type
-  // que son agenda Soins de la démo : une seule source, modifiable des deux côtés.
+  // Soins est la source : la semaine type de chaque praticien (quand il travaille et sur quelle activité)
+  // et le nombre d'assistants par type d'activité viennent de l'agenda Soins. Team les lit, sans les modifier.
+  setActivityCatalog(agenda.activityTypes);
+  const needsByActivity = useMemo(
+    () => Object.fromEntries(agenda.activityTypes.map((t) => [t.id, t.assistantsNeeded ?? 1])),
+    [agenda.activityTypes]
+  );
   const profiles = useMemo(
-    () => data.profiles.map((p) => (p.id === SOINS_DEMO_PROFILE_ID ? { ...p, weekSlots: agenda.weekSlots } : p)),
-    [data.profiles, agenda.weekSlots]
+    () =>
+      data.profiles.map((p) => {
+        const slots = agenda.allWeekSlots.filter((s) => slotOwner(s) === p.id);
+        return { ...p, weekSlots: slots.length ? slots : undefined, needsByActivity };
+      }),
+    [data.profiles, agenda.allWeekSlots, needsByActivity]
   );
   const users = useMemo(
     () =>
@@ -353,7 +362,28 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         ? { id: newId("env"), praticienUserId: id, label: `Dr ${fullName(user)}`, rooms: [], team: [], feedback: {} }
         : null;
       if (profile) user.defaultEnvironmentId = profile.id;
-      mutate((d) => ({ ...d, users: [...d.users, user], profiles: profile ? [...d.profiles, profile] : d.profiles }), {
+      // Un assistant dentaire rejoint l'équipe de son praticien de rattachement : titulaire s'il en manque, back-up sinon.
+      const home = !profile && user.roleIds.includes("role-assistant") ? profiles.find((p) => p.id === user.defaultEnvironmentId) : undefined;
+      const homePraticien = home ? users.find((u) => u.id === home.praticienUserId) : undefined;
+      const joined = home && homePraticien
+        ? {
+            ...home,
+            team: [
+              ...home.team,
+              {
+                userId: id,
+                priority: titularCoverage(home, homePraticien, users).some((c) => c.count < c.need) ? ("titulaire" as const) : ("backup" as const),
+                rank: home.team.length + 1,
+                days: [],
+              },
+            ],
+          }
+        : undefined;
+      mutate((d) => ({
+        ...d,
+        users: [...d.users, user],
+        profiles: [...d.profiles.map((p) => (joined && p.id === joined.id ? { ...p, team: joined.team } : p)), ...(profile ? [profile] : [])],
+      }), {
         action: "user.create",
         summary: `Création de ${fullName(user)} (${roleNames(user, data.roles).join(" + ")}), invitation envoyée à ${email}`,
         extra: { targetUserId: id },
@@ -460,10 +490,6 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       const owner = data.users.find((u) => u.id === profile.praticienUserId);
       if (!owner || owner.status === "archive") {
         return { ok: false, error: "Un profil praticien doit avoir au moins un utilisateur actif rattaché." };
-      }
-      // Semaine type de Dr Perche : elle vit dans l'agenda Soins, on l'y écrit directement.
-      if (profile.id === SOINS_DEMO_PROFILE_ID && profile.weekSlots && JSON.stringify(profile.weekSlots) !== JSON.stringify(agenda.weekSlots)) {
-        agenda.replaceWeekSlots(profile.weekSlots);
       }
       mutate((d) => ({
         ...d,

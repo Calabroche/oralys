@@ -103,6 +103,7 @@ export function ActivityTypeModal({
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [color, setColor] = useState<ActivityColor>(() => existing?.color ?? firstUnusedColor(usedColors));
+  const [assistants, setAssistants] = useState(existing?.assistantsNeeded ?? 1);
 
   const [days, setDays] = useState<Weekday[]>(initialDays);
   const initialScheduleValue = initialSchedule();
@@ -145,6 +146,25 @@ export function ActivityTypeModal({
             placeholder="Ex : Pose de bagues, suivi"
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
           />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600">
+            Assistants nécessaires
+            <span className="ml-1 font-normal text-slate-400">— utilisé par Team pour repérer les manques</span>
+          </label>
+          <div className="flex gap-1">
+            {[0, 1, 2, 3, 4].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setAssistants(n)}
+                className={`rounded-md border px-3 py-1.5 text-sm ${assistants === n ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+              >
+                {n === 0 ? "Aucun" : n}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -258,6 +278,7 @@ export function ActivityTypeModal({
               color,
               durationMinutes: computedDuration,
               locked: existing?.locked,
+              assistantsNeeded: assistants,
             });
 
             if (isEditing) {

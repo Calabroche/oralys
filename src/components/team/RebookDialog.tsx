@@ -45,7 +45,7 @@ export function RebookDialog({ rdv, onClose, onDone }: { rdv: SoinsRdv | null; o
 
         {slots.length === 0 ? (
           <p className="rounded-lg border border-dashed p-4 text-center text-sm text-slate-500">
-            Aucun créneau avec binôme disponible dans les 30 prochains jours.
+            Aucun créneau avec un assistant disponible dans les 30 prochains jours.
           </p>
         ) : (
           <ul className="space-y-2">

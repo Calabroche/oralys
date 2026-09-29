@@ -2,7 +2,16 @@
 
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
-import { activityTypes as initialActivityTypes, buildAgendaSeed, weekSlots as initialWeekSlots } from "@/data/mockData";
+import {
+  DEFAULT_SOINS_PRATICIEN,
+  OTHER_WEEK_SLOTS,
+  activityTypes as initialActivityTypes,
+  buildAgendaSeed,
+  weekSlots as initialWeekSlots,
+} from "@/data/mockData";
+
+/** Propriétaire d'un créneau de semaine type (les anciens créneaux sans praticien sont ceux de Dr Perche). */
+export const slotOwner = (s: WeekSlot) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
 
 // Incrémenter ce numéro de version à chaque changement de schéma qui
 // casserait la compatibilité avec des données déjà persistées (ex. ajout
@@ -10,6 +19,7 @@ import { activityTypes as initialActivityTypes, buildAgendaSeed, weekSlots as in
 // que de faire planter le rendu, et les données de démo repartent à jour.
 // v3 : données de démo recalées sur la date du jour.
 const STORAGE_KEY = "oralys-agenda-data-v3";
+const PRATICIEN_KEY = "oralys-agenda-praticien";
 
 interface PersistedData {
   activityTypes: ActivityType[];
@@ -20,13 +30,16 @@ interface PersistedData {
 }
 
 interface AgendaDataContextValue extends PersistedData {
+  /** Semaines types de tous les praticiens (weekSlots ne contient que celle du praticien affiché). */
+  allWeekSlots: WeekSlot[];
+  /** Praticien dont on règle / consulte l'agenda dans Soins. */
+  agendaPraticienId: string;
+  setAgendaPraticienId: (id: string) => void;
   addActivityType: (type: ActivityType) => void;
   updateActivityType: (type: ActivityType) => void;
   deleteActivityType: (id: string) => void;
   upsertWeekSlot: (slot: WeekSlot) => void;
   deleteWeekSlot: (id: string) => void;
-  /** Remplace toute la semaine type (réglée depuis la fiche praticien de Team). */
-  replaceWeekSlots: (slots: WeekSlot[]) => void;
   upsertSpecialSlot: (slot: SpecialSlot) => void;
   deleteSpecialSlot: (id: string) => void;
   upsertAbsence: (absence: AbsencePeriod) => void;
@@ -42,7 +55,9 @@ function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
 
 export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(initialActivityTypes);
-  const [weekSlots, setWeekSlots] = useState<WeekSlot[]>(initialWeekSlots);
+  const [allWeekSlots, setWeekSlots] = useState<WeekSlot[]>([...initialWeekSlots, ...OTHER_WEEK_SLOTS]);
+  const [agendaPraticienId, setAgendaPraticienId] = useState(DEFAULT_SOINS_PRATICIEN);
+  const weekSlots = allWeekSlots.filter((s) => slotOwner(s) === agendaPraticienId);
   const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
   const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -64,8 +79,22 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     } catch {
       // localStorage indisponible ou données corrompues : on garde les données de démo.
     }
-    if (parsed.activityTypes) setActivityTypes(parsed.activityTypes);
-    if (parsed.weekSlots) setWeekSlots(parsed.weekSlots);
+    // Besoin en assistants par type d'activité (retour du 29/09) : complété depuis la démo s'il manque.
+    if (parsed.activityTypes)
+      setActivityTypes(
+        parsed.activityTypes.map((t) => ({ ...t, assistantsNeeded: t.assistantsNeeded ?? initialActivityTypes.find((x) => x.id === t.id)?.assistantsNeeded ?? 1 }))
+      );
+    // Une semaine type par praticien : on ajoute celles de Dr Martin et Dr Dray si l'agenda sauvegardé ne les a pas.
+    if (parsed.weekSlots) {
+      const saved = parsed.weekSlots;
+      setWeekSlots(saved.some((s) => s.praticienId && s.praticienId !== DEFAULT_SOINS_PRATICIEN) ? saved : [...saved, ...OTHER_WEEK_SLOTS]);
+    }
+    try {
+      const p = window.localStorage.getItem(PRATICIEN_KEY);
+      if (p) setAgendaPraticienId(JSON.parse(p));
+    } catch {
+      // Praticien par défaut.
+    }
     setSpecialSlots(parsed.specialSlots ?? seed.specialSlots);
     setAbsencePeriods(parsed.absencePeriods ?? seed.absencePeriods);
     setAppointments(parsed.appointments ?? seed.appointments);
@@ -78,16 +107,20 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const data: PersistedData = { activityTypes, weekSlots, specialSlots, absencePeriods, appointments };
+      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, specialSlots, absencePeriods, appointments };
+      window.localStorage.setItem(PRATICIEN_KEY, JSON.stringify(agendaPraticienId));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // quota dépassé ou stockage désactivé : on continue sans persister.
     }
-  }, [hydrated, activityTypes, weekSlots, specialSlots, absencePeriods, appointments]);
+  }, [hydrated, activityTypes, allWeekSlots, agendaPraticienId, specialSlots, absencePeriods, appointments]);
 
   const value: AgendaDataContextValue = {
     activityTypes,
     weekSlots,
+    allWeekSlots,
+    agendaPraticienId,
+    setAgendaPraticienId,
     specialSlots,
     absencePeriods,
     appointments,
@@ -99,9 +132,12 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
       setWeekSlots((prev) => prev.filter((s) => s.activityTypeId !== id));
       setSpecialSlots((prev) => prev.filter((s) => s.activityTypeId !== id));
     },
-    upsertWeekSlot: (slot) => setWeekSlots((prev) => upsertById(prev, slot)),
+    // Un créneau créé dans Soins appartient au praticien affiché.
+    upsertWeekSlot: (slot) =>
+      setWeekSlots((prev) =>
+        upsertById(prev, { ...slot, praticienId: slot.praticienId ?? (agendaPraticienId === DEFAULT_SOINS_PRATICIEN ? undefined : agendaPraticienId) })
+      ),
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
-    replaceWeekSlots: (slots) => setWeekSlots(slots),
     upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),
     deleteSpecialSlot: (id) => setSpecialSlots((prev) => prev.filter((s) => s.id !== id)),
     upsertAbsence: (absence) => setAbsencePeriods((prev) => upsertById(prev, absence)),

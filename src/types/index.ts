@@ -22,12 +22,16 @@ export interface ActivityType {
   color: ActivityColor;
   durationMinutes: number;
   locked?: boolean;
+  /** Assistants dentaires nécessaires pendant cette activité (commun au cabinet). Lu par Team pour calculer les manques. */
+  assistantsNeeded?: number;
 }
 
 export type Weekday = "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi";
 
 export interface WeekSlot {
   id: string;
+  /** Praticien (environnement Soins) à qui appartient ce créneau. Absent : l'agenda de la démo (Dr Perche). */
+  praticienId?: string;
   day: Weekday;
   activityTypeId: string;
   start: string; // "08:00"

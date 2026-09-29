@@ -48,25 +48,21 @@ export function TypesActiviteSection({
         {others.map((type) => {
           const colors = ACTIVITY_COLOR_CLASSES[type.color];
           return (
-            <button
-              key={type.id}
-              type="button"
-              disabled={type.locked}
-              onClick={() => setModalState(type)}
-              className={`rounded-lg border p-3 text-left ${colors.border} ${colors.bg} ${
-                type.locked ? "cursor-default" : "hover:brightness-95"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <p className={`text-sm font-medium ${colors.text}`}>{type.name}</p>
-                {type.locked ? (
-                  <span className="text-xs text-slate-400">🔒</span>
-                ) : (
-                  <span className="text-xs text-slate-400">✎</span>
-                )}
-              </div>
-              <p className={`mt-1 text-xs ${colors.text} opacity-80`}>{type.description}</p>
-            </button>
+            <div key={type.id} className={`flex flex-col rounded-lg border p-3 ${colors.border} ${colors.bg}`}>
+              <button
+                type="button"
+                disabled={type.locked}
+                onClick={() => setModalState(type)}
+                className={`flex-1 text-left ${type.locked ? "cursor-default" : "hover:brightness-95"}`}
+              >
+                <div className="flex items-start justify-between">
+                  <p className={`text-sm font-medium ${colors.text}`}>{type.name}</p>
+                  {type.locked ? <span className="text-xs text-slate-400">🔒</span> : <span className="text-xs text-slate-400">✎</span>}
+                </div>
+                <p className={`mt-1 text-xs ${colors.text} opacity-80`}>{type.description}</p>
+              </button>
+              <AssistantsStepper type={type} onChange={onUpdateType} />
+            </div>
           );
         })}
       </div>
@@ -80,6 +76,7 @@ export function TypesActiviteSection({
             </div>
             <p className="mt-1 text-xs text-slate-500">{tousMotifs.description}</p>
             <p className="mt-1 text-xs text-slate-400">⏱ {minutesToDurationLabel(tousMotifs.durationMinutes)}</p>
+            <AssistantsStepper type={tousMotifs} onChange={onUpdateType} />
           </div>
         )}
         <button
@@ -114,5 +111,23 @@ export function TypesActiviteSection({
         />
       )}
     </section>
+  );
+}
+
+/** Assistants nécessaires pendant l'activité : réglable même sur les types verrouillés, lu par Team. */
+function AssistantsStepper({ type, onChange }: { type: ActivityType; onChange: (t: ActivityType) => void }) {
+  const n = type.assistantsNeeded ?? 1;
+  const set = (v: number) => onChange({ ...type, assistantsNeeded: Math.max(0, Math.min(6, v)) });
+  return (
+    <div className="mt-2 flex items-center gap-1.5 border-t border-black/5 pt-2 text-xs text-slate-600" title="Assistants dentaires nécessaires pendant cette activité (utilisé par Team)">
+      <span aria-hidden>👥</span>
+      <button type="button" onClick={() => set(n - 1)} disabled={n === 0} className="size-5 rounded border bg-white leading-none disabled:opacity-40" aria-label={`Un assistant de moins pour ${type.name}`}>
+        −
+      </button>
+      <span className="min-w-16 text-center font-medium">{n === 0 ? "sans assistant" : `${n} assistant${n > 1 ? "s" : ""}`}</span>
+      <button type="button" onClick={() => set(n + 1)} className="size-5 rounded border bg-white leading-none" aria-label={`Un assistant de plus pour ${type.name}`}>
+        +
+      </button>
+    </div>
   );
 }
