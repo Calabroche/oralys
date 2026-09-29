@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { usePersistentState } from "@/lib/persist";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarClock, CalendarX2, CheckCircle2, Info, Siren } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, CheckCircle2, Info, Siren } from "lucide-react";
+import { DayBatch, DayReplaceDialog } from "@/components/team/remplacements/DayReplaceDialog";
 import { Button } from "@/components/ui/button";
 import { RebookDialog } from "@/components/team/RebookDialog";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,7 @@ export function RemplacementsPanel() {
   // RDV traités : on les garde visibles (avec le remplaçant choisi) au lieu de les faire disparaître, même après rechargement.
   const [handled, setHandled] = usePersistentState<string[]>("remplacements-traites", []);
   const [rebooking, setRebooking] = useState<SoinsRdv | null>(null);
+  const [dayBatch, setDayBatch] = useState<DayBatch | null>(null);
 
   const upcoming = rdvs.filter((r) => r.date >= today);
   const risks = useMemo(() => rdvsAtRisk(upcoming, absences, profiles), [upcoming, absences, profiles]);
@@ -90,8 +92,17 @@ export function RemplacementsPanel() {
   const list = [...toReassign, ...handledRdvs]
     .filter(matchesAbsence)
     .filter(inDay)
-    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    .sort((a, b) => (a.date + a.praticienUserId + a.start).localeCompare(b.date + b.praticienUserId + b.start));
   const selected = list.find((r) => r.id === selectedId) ?? list[0] ?? null;
+  // RDV encore à réaffecter, regroupés par praticien et par jour : au-delà d'un RDV, on propose de remplacer la journée d'un coup.
+  const dayKey = (r: SoinsRdv) => `${r.date}|${r.praticienUserId}`;
+  const openByDay = new Map<string, SoinsRdv[]>();
+  toReassign.filter(matchesAbsence).filter(inDay).forEach((r) => openByDay.set(dayKey(r), [...(openByDay.get(dayKey(r)) ?? []), r]));
+  const batchOf = (r: SoinsRdv): DayBatch | null => {
+    const group = openByDay.get(dayKey(r)) ?? [];
+    return group.length > 1 ? { date: r.date, praticienId: r.praticienUserId, rdvs: group } : null;
+  };
+  const selectedBatch = selected ? batchOf(selected) : null;
   const toPostpone = toPostponeAll.filter(inDay);
 
   const candidates = selected
@@ -179,12 +190,25 @@ export function RemplacementsPanel() {
                   {dayFilter ? "Aucun RDV patient posé ou à risque ce jour-là pour ce praticien." : "Tout est couvert."}
                 </li>
               )}
-              {list.map((r) => {
+              {list.map((r, i) => {
                 const p = findUser(r.praticienUserId);
+                // En-tête de journée : premier RDV d'un groupe praticien + jour qui en compte plusieurs.
+                const batch = batchOf(r);
+                const header = batch && (i === 0 || dayKey(list[i - 1]) !== dayKey(r)) ? batch : null;
                 const usual = findUser(r.assistantUserId);
                 const done = handled.includes(r.id) && usual && !absenceOn(usual.id, r.date, absences);
                 return (
                   <li key={r.id}>
+                    {header && (
+                      <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 text-xs">
+                        <span className="flex-1 font-medium text-slate-700">
+                          {shortDate(header.date)} · {p ? displayName(p) : "?"} · {header.rdvs.length} RDV
+                        </span>
+                        <Button size="xs" variant="outline" className="bg-white" onClick={() => setDayBatch(header)}>
+                          <CalendarCheck /> Remplacer la journée
+                        </Button>
+                      </div>
+                    )}
                     <button
                       onClick={() => setSelectedId(r.id)}
                       className={cn("flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50", selected?.id === r.id && "bg-pink-50/60")}
@@ -245,6 +269,18 @@ export function RemplacementsPanel() {
 
         <div className="space-y-4">
           {dayFilter && selected && <DayGapPanel date={dayFilter.date} praticienId={dayFilter.praticien} hasRdvs />}
+          {selectedBatch && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-pink-200 bg-pink-50 px-4 py-3 text-sm">
+              <CalendarCheck className="size-5 shrink-0 text-pink-600" />
+              <span className="flex-1 text-pink-900">
+                {selectedBatch.rdvs.length} RDV à réaffecter ce jour-là avec {displayName(findUser(selectedBatch.praticienId)!)}. Plus rapide : une seule personne pour toute la
+                journée.
+              </span>
+              <Button size="sm" onClick={() => setDayBatch(selectedBatch)}>
+                Remplacer la journée
+              </Button>
+            </div>
+          )}
           {selected ? (
             <Card>
               <CardHeader>
@@ -320,6 +356,15 @@ export function RemplacementsPanel() {
           )}
         </div>
       </div>
+      <DayReplaceDialog
+        batch={dayBatch}
+        mode={mode}
+        onOpenChange={(o) => !o && setDayBatch(null)}
+        onDone={(ids) => {
+          setHandled((h) => [...new Set([...h, ...ids])]);
+          setSelectedId(null);
+        }}
+      />
       <RebookDialog
         key={rebooking?.id ?? "none"}
         rdv={rebooking}
