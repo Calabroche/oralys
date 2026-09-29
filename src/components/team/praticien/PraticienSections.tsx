@@ -68,8 +68,9 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
       <CardHeader>
         <CardTitle>Jours de travail et besoin en assistants</CardTitle>
         <CardDescription>
-          La semaine type vient de l&apos;agenda Soins de {displayName(praticien)}. Le besoin se règle par type d&apos;activité : une demi-journée
-          demande le plus grand besoin de ses activités.
+          Les jours et demi-journées de travail viennent de la semaine type de l&apos;agenda Soins de {displayName(praticien)} : on les change dans Soins
+          {isSoinsDemo ? "" : " (dans la démo, seul l'agenda de Dr Flore Perche est modifiable)"}. Le besoin se règle ici, par type d&apos;activité : une
+          demi-journée demande le plus grand besoin de ses activités.
         </CardDescription>
         {isSoinsDemo && (
           <CardAction>
@@ -118,6 +119,28 @@ export function SemaineTypeCard({ profile, canEdit }: { profile: PraticienProfil
                       {WEEKDAY_LABELS[d]}
                     </th>
                   ))}
+                </tr>
+                {/* Présence du jour en clair : journée, matin, après-midi ou repos. */}
+                <tr>
+                  <th className="pr-2 pb-2 text-left text-xs font-normal text-slate-500">Travaille</th>
+                  {days.map((d) => {
+                    const halves = dayPlan(profile, praticien, d).map((p) => p.half);
+                    const label = halves.length === 2 ? "Journée" : halves[0] === "matin" ? "Matin" : halves[0] === "apres_midi" ? "Après-midi" : "Repos";
+                    return (
+                      <th key={d} className="px-1 pb-2 text-center">
+                        <span
+                          className={cn(
+                            "inline-block w-full rounded-md px-1.5 py-1 text-xs font-medium",
+                            label === "Journée" && "bg-pink-100 text-pink-900",
+                            (label === "Matin" || label === "Après-midi") && "border border-dashed border-pink-300 bg-pink-50 text-pink-900",
+                            label === "Repos" && "bg-slate-50 text-slate-400"
+                          )}
+                        >
+                          {label}
+                        </span>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
