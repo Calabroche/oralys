@@ -12,7 +12,7 @@ import { useTeam } from "@/context/TeamDataContext";
 import { AbsenceBadge, PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
-import { HoursEditor } from "@/components/team/WorkSchedule";
+import { HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
 import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
 import { AbsenceDocuments } from "@/components/team/Justificatifs";
@@ -34,6 +34,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
   const [draft, setDraft] = useState(user);
   const [declareOpen, setDeclareOpen] = useState(false);
   const self = user.id === sessionUserId;
+  // Les praticiens sont libéraux : ni horaires, ni pointage.
+  const liberal = user.roleIds.includes("role-praticien");
   const manager = can("param.cabinet") || can("team.planning");
   const canEdit = self || manager;
   const profile = profiles.find((p) => p.praticienUserId === user.id);
@@ -131,20 +133,31 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {!profile && (
         <Card>
           <CardHeader>
-            <CardTitle>Horaires de travail habituels</CardTitle>
+            <CardTitle>{liberal ? "Jours de présence" : "Horaires de travail habituels"}</CardTitle>
             <CardDescription>
-              Les plages de chaque jour (ex. 08:30 → 12:30 puis 14:00 → 17:00). Elles disent au planning qui est là le matin, l&apos;après-midi ou toute la
-              journée, et servent de référence pour les heures pointées.
-              {!user.schedule && " Horaires proposés par défaut à partir des jours de travail : ajustez-les puis enregistrez."}
+              {liberal ? (
+                "Praticien libéral : pas d'horaires ni de pointage, seulement les demi-journées où il consulte."
+              ) : (
+                <>
+                  Les plages de chaque jour (ex. 08:30 → 12:30 puis 14:00 → 17:00). Elles disent au planning qui est là le matin, l&apos;après-midi ou toute
+                  la journée, et servent de référence pour les heures pointées.
+                  {!user.schedule && " Horaires proposés par défaut à partir des jours de travail : ajustez-les puis enregistrez."}
+                </>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <HoursEditor
-              value={draft.schedule ?? effectiveHours(draft)}
-              disabled={!canEdit}
-              contractHours={has("pointage") ? user.weeklyHours : undefined}
-              onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
-            />
+            {liberal ? (
+              // Praticien libéral : pas d'horaires ni de pointage, seulement ses demi-journées de présence.
+              <WorkScheduleEditor value={draft} disabled={!canEdit} onChange={(v) => setDraft({ ...draft, ...v })} />
+            ) : (
+              <HoursEditor
+                value={draft.schedule ?? effectiveHours(draft)}
+                disabled={!canEdit}
+                contractHours={has("pointage") ? user.weeklyHours : undefined}
+                onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
+              />
+            )}
           </CardContent>
         </Card>
       )}
