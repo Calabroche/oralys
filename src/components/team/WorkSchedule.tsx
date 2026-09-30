@@ -194,3 +194,42 @@ export function HoursEditor({
     </div>
   );
 }
+
+/** Heures hebdomadaires prévues au contrat (salariés). Le total des horaires y est comparé. */
+export function ContractHoursField({
+  value,
+  onChange,
+  disabled,
+  id = "contract-hours",
+}: {
+  value?: number;
+  onChange: (v: number | undefined) => void;
+  disabled?: boolean;
+  id?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2.5">
+      <label htmlFor={id} className="text-sm font-medium text-slate-800">
+        Heures du contrat
+      </label>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        max={60}
+        step={0.5}
+        inputMode="decimal"
+        disabled={disabled}
+        value={value ?? ""}
+        placeholder="35"
+        onChange={(e) => {
+          const v = e.target.value === "" ? undefined : Math.max(0, Math.min(60, Number(e.target.value.replace(",", "."))));
+          onChange(v === undefined || Number.isNaN(v) ? undefined : v);
+        }}
+        className="w-20 rounded-md border bg-white px-2 py-1 text-right text-sm tabular-nums disabled:bg-slate-100 disabled:text-slate-500"
+      />
+      <span className="text-sm text-slate-500">h par semaine</span>
+      {disabled && <span className="text-xs text-slate-400">Renseigné par le gestionnaire.</span>}
+    </div>
+  );
+}

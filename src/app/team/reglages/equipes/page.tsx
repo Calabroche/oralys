@@ -14,7 +14,7 @@ import { AccessGate } from "@/components/team/Access";
 import { PageHeader, UserAvatar } from "@/components/team/shared";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { EquipeCard } from "@/components/team/praticien/PraticienSections";
-import { HoursEditor } from "@/components/team/WorkSchedule";
+import { ContractHoursField, HoursEditor } from "@/components/team/WorkSchedule";
 import { useTeam } from "@/context/TeamDataContext";
 import { displayName, fullName, isChairAssistant, primaryRoleId, ROLE_GROUP_LABELS, ROLE_ORDER, titularCoverage } from "@/lib/team";
 import { dayPlan, needSummary } from "@/lib/semaine";
@@ -173,6 +173,7 @@ function AvailabilityOverview() {
                   </TableHead>
                 ))}
                 <TableHead className="text-right">Semaine</TableHead>
+                <TableHead className="text-right">Contrat</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -214,6 +215,13 @@ function AvailabilityOverview() {
                     <TableCell className="text-right font-medium tabular-nums">
                       {hoursLabel(weekMinutes(hours))}
                       {!u.schedule && <span className="block text-[0.65rem] font-normal text-amber-700">par défaut</span>}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {u.weeklyHours !== undefined ? (
+                        <span className={cn(weekMinutes(hours) === u.weeklyHours * 60 ? "text-emerald-700" : "text-amber-700")}>{u.weeklyHours} h</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">à saisir</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button size="sm" variant="outline" onClick={() => setEditing(u.id)}>
@@ -274,6 +282,7 @@ function AvailabilityOverview() {
 function HoursDialog({ user, onClose }: { user: TeamUser; onClose: () => void }) {
   const { updateUser } = useTeam();
   const [hours, setHours] = useState<WeekHours>(() => user.schedule ?? effectiveHours(user));
+  const [contract, setContract] = useState<number | undefined>(user.weeklyHours);
   const invalid = WEEKDAYS.some((d) => rangesError(hours[d]));
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -282,7 +291,8 @@ function HoursDialog({ user, onClose }: { user: TeamUser; onClose: () => void })
           <DialogTitle>Horaires de {fullName(user)}</DialogTitle>
           <DialogDescription>Plages de travail habituelles, jour par jour. Le planning en déduit qui est là le matin, l&apos;après-midi ou toute la journée.</DialogDescription>
         </DialogHeader>
-        <HoursEditor value={hours} onChange={setHours} />
+        <ContractHoursField id="dialog-contract-hours" value={contract} onChange={setContract} />
+        <HoursEditor value={hours} onChange={setHours} contractHours={contract} />
         <DialogFooter>
           <Badge variant="outline" className="mr-auto">
             {ROLE_GROUP_LABELS[primaryRoleId(user)]}
@@ -293,7 +303,7 @@ function HoursDialog({ user, onClose }: { user: TeamUser; onClose: () => void })
           <Button
             disabled={invalid}
             onClick={() => {
-              const res = updateUser({ ...user, schedule: hours, ...daysFromHours(hours) });
+              const res = updateUser({ ...user, schedule: hours, weeklyHours: contract, ...daysFromHours(hours) });
               if (!res.ok) return toast.error(res.error);
               toast.success(`Horaires de ${user.firstName} enregistrés`, { description: `${hoursLabel(weekMinutes(hours))} par semaine.` });
               onClose();

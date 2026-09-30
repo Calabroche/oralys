@@ -12,7 +12,7 @@ import { useTeam } from "@/context/TeamDataContext";
 import { AbsenceBadge, PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
-import { HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
+import { ContractHoursField, HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
 import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
 import { AbsenceDocuments } from "@/components/team/Justificatifs";
@@ -151,12 +151,16 @@ export function ProfileView({ user }: { user: TeamUser }) {
               // Praticien libéral : pas d'horaires ni de pointage, seulement ses demi-journées de présence.
               <WorkScheduleEditor value={draft} disabled={!canEdit} onChange={(v) => setDraft({ ...draft, ...v })} />
             ) : (
-              <HoursEditor
-                value={draft.schedule ?? effectiveHours(draft)}
-                disabled={!canEdit}
-                contractHours={has("pointage") ? user.weeklyHours : undefined}
-                onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
-              />
+              <div className="space-y-3">
+                {/* Le contrat est une donnée RH : seul le gestionnaire le modifie, chacun le voit. */}
+                <ContractHoursField value={draft.weeklyHours} disabled={!can("param.cabinet")} onChange={(weeklyHours) => setDraft({ ...draft, weeklyHours })} />
+                <HoursEditor
+                  value={draft.schedule ?? effectiveHours(draft)}
+                  disabled={!canEdit}
+                  contractHours={draft.weeklyHours}
+                  onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
