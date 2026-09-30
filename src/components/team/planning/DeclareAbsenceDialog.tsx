@@ -76,7 +76,7 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
       startDate: start,
       endDate: end,
       motif: motif.trim() || undefined,
-      documents: documents.length ? documents.map((d, i) => ({ ...d, id: `doc-${Date.now().toString(36)}-${i}`, uploadedAt, uploadedById: sessionUserId })) : undefined,
+      documents: type === "maladie" && documents.length ? documents.map((d, i) => ({ ...d, id: `doc-${Date.now().toString(36)}-${i}`, uploadedAt, uploadedById: sessionUserId })) : undefined,
     });
     toast.success(abs.status === "validee" ? "Absence enregistrée" : "Demande envoyée au gestionnaire", {
       description: isLastMinute(abs)
@@ -157,12 +157,15 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
           </Label>
           <Textarea value={motif} onChange={(e) => setMotif(e.target.value)} rows={2} placeholder="ex. Formation radioprotection" />
         </div>
-        <div className="space-y-1.5">
-          <Label>
-            {type === "maladie" ? "Arrêt de travail" : "Justificatif"} <span className="font-normal text-slate-400">(optionnel)</span>
-          </Label>
-          <JustificatifPicker value={documents} onChange={setDocuments} maladie={type === "maladie"} />
-        </div>
+        {/* Justificatif seulement pour un arrêt maladie : pour un congé ou une formation, il ne sert à rien. */}
+        {type === "maladie" && (
+          <div className="space-y-1.5">
+            <Label>
+              Arrêt de travail <span className="font-normal text-slate-400">(optionnel)</span>
+            </Label>
+            <JustificatifPicker value={documents} onChange={setDocuments} maladie />
+          </div>
+        )}
 
         {lastMinute && (
           <Alert variant="destructive">

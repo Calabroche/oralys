@@ -105,7 +105,9 @@ export function JustificatifPicker({ value, onChange, maladie }: { value: Docume
 export function AbsenceDocuments({ absence, canEdit, className }: { absence: TeamAbsence; canEdit: boolean; className?: string }) {
   const { attachDocument, removeDocument } = useTeam();
   const docs = absence.documents ?? [];
-  const missing = absence.type === "maladie" && docs.length === 0;
+  // Seul un arrêt maladie a un justificatif (congé, formation… : inutile).
+  if (absence.type !== "maladie") return null;
+  const missing = docs.length === 0;
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
       {docs.map((d) => (
