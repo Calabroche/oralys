@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { ActivityType, Appointment, Patient, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
-import { PRATICIEN_NAME } from "@/data/mockData";
+import { SOINS_PRATICIENS } from "@/data/mockData";
+import { useAgendaData } from "@/context/AgendaDataContext";
+import { expandRecurrence } from "@/utils/recurrence";
 import {
   WEEKDAY_LABELS,
   WEEKDAYS,
@@ -12,6 +14,7 @@ import {
   minutesToDurationLabel,
   timeToMinutes,
   toISODate,
+  fromISODate,
   toWeekday,
 } from "@/utils/date";
 import { getAvailableStarts } from "@/utils/slots";
@@ -40,6 +43,9 @@ export function NouveauRendezVousModal({
   onClose,
   onSave,
 }: Props) {
+  // RDV pris dans l'agenda du praticien affiché ; ses absences (dont celles venues de Team) ferment les créneaux.
+  const { agendaPraticienId, absencePeriods } = useAgendaData();
+  const praticienName = SOINS_PRATICIENS.find((p) => p.id === agendaPraticienId)?.name ?? "";
   const [patientQuery, setPatientQuery] = useState("");
   const [patientId, setPatientId] = useState<string | null>(null);
   const [activityTypeId, setActivityTypeId] = useState(activityTypes.find((t) => t.id === "consultation")?.id ?? activityTypes[0]?.id);
@@ -71,10 +77,15 @@ export function NouveauRendezVousModal({
   const availableStartsByDate = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const date of occurrenceDates) {
-      map.set(date, getAvailableStarts(weekday, date, activityTypeId ?? "", duration, weekSlots, specialSlots, appointments));
+      const day = fromISODate(date);
+      const closed = absencePeriods.flatMap((a) =>
+        expandRecurrence(a, day, day).map((o) => ({ from: o.startDate === date ? a.startTime : "00:00", to: o.endDate === date ? a.endTime : "23:59" }))
+      );
+      const starts = getAvailableStarts(weekday, date, activityTypeId ?? "", duration, weekSlots, specialSlots, appointments);
+      map.set(date, starts.filter((s) => !closed.some((c) => s >= c.from && s < c.to)));
     }
     return map;
-  }, [occurrenceDates, weekday, activityTypeId, duration, weekSlots, specialSlots, appointments]);
+  }, [occurrenceDates, weekday, activityTypeId, duration, weekSlots, specialSlots, appointments, absencePeriods]);
 
   const canSave = patientId && activityTypeId && selectedDate && selectedStart;
 
@@ -144,7 +155,7 @@ export function NouveauRendezVousModal({
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Praticien</label>
                 <span className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                  {PRATICIEN_NAME}
+                  {praticienName}
                   <span className="text-xs text-slate-400">▾</span>
                 </span>
               </div>
@@ -268,7 +279,7 @@ export function NouveauRendezVousModal({
         <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
           <p className="text-sm text-slate-500">
             {selectedPatient && selectedDate && selectedStart && end
-              ? `Le ${formatLongDate(selectedDate)} avec ${PRATICIEN_NAME} de ${selectedStart} à ${end} (${minutesToDurationLabel(duration)})`
+              ? `Le ${formatLongDate(selectedDate)} avec ${praticienName} de ${selectedStart} à ${end} (${minutesToDurationLabel(duration)})`
               : "Complétez le patient, le motif et le créneau"}
           </p>
           <button

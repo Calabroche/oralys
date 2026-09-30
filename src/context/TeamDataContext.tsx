@@ -24,7 +24,7 @@ import { addDays, fromISODate, toISODate, toWeekday } from "@/utils/date";
 import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
-import { PRATICIEN_NAME } from "@/data/mockData";
+import { teamAbsencePeriods } from "@/lib/soinsSync";
 import { slotOwner, useAgendaData } from "@/context/AgendaDataContext";
 import {
   ABSENCE_TYPE_LABELS,
@@ -337,25 +337,12 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     [data.users]
   );
 
-  /** Répercute une absence validée d'un praticien dans l'agenda Soins (fermeture des créneaux). */
-  const syncToSoins = useCallback(
-    (absence: TeamAbsence, users: TeamUser[]) => {
-      const u = users.find((x) => x.id === absence.userId);
-      if (!u || fullName(u) !== PRATICIEN_NAME) return;
-      agenda.upsertAbsence({
-        id: `team-${absence.id}`,
-        praticienId: data.profiles.find((p) => p.praticienUserId === absence.userId)?.id,
-        motif: `${ABSENCE_TYPE_LABELS[absence.type]} (Oralys Team)`,
-        color: absence.type === "maladie" ? "red" : absence.type === "formation" ? "indigo" : "orange",
-        startDate: absence.startDate,
-        startTime: "00:00",
-        endDate: absence.endDate,
-        endTime: "23:59",
-        recurrence: { frequency: "none" },
-      });
-    },
-    [agenda, data.profiles]
-  );
+  // Les absences validées de chaque praticien ferment son agenda Soins : Team recalcule les périodes « team-… »
+  // à chaque changement (validation, annulation, jour retiré…), sans rien toucher aux fermetures posées dans Soins.
+  const { syncTeamPeriods } = agenda;
+  useEffect(() => {
+    syncTeamPeriods(teamAbsencePeriods(data.absences, data.profiles));
+  }, [data.absences, data.profiles, syncTeamPeriods]);
 
   const value: TeamDataContextValue = {
     ...data,
@@ -600,7 +587,6 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         summary: `${ABSENCE_TYPE_LABELS[input.type]} déclaré(e) pour ${target ? fullName(target) : "?"} du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}${lastMinute ? " (dernier moment)" : ""}${input.documents?.length ? `, justificatif joint (${input.documents.map((d) => d.name).join(", ")})` : ""}`,
         extra: { targetUserId: input.userId },
       });
-      if (absence.status === "validee") syncToSoins(absence, data.users);
       return absence;
     },
 
@@ -613,7 +599,6 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         summary: `${ABSENCE_TYPE_LABELS[abs.type]} de ${u ? fullName(u) : "?"} validé(e) (${shortDate(abs.startDate)} → ${shortDate(abs.endDate)})`,
         extra: { targetUserId: abs.userId },
       });
-      syncToSoins({ ...abs, status: "validee" }, data.users);
     },
 
     refuseAbsence: (id) => {
@@ -669,7 +654,6 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
           extra: { targetUserId: abs.userId },
         }
       );
-      agenda.deleteAbsence(`team-${id}`);
       return abs;
     },
 
@@ -692,20 +676,16 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         summary: `${u ? fullName(u) : "?"} réintégré(e) le ${shortDate(iso)} (retour anticipé)`,
         extra: { targetUserId: abs.userId },
       });
-      agenda.deleteAbsence(`team-${id}`);
-      pieces.filter((p) => p.status === "validee").forEach((p) => syncToSoins(p, data.users));
       return pieces;
     },
 
     restoreAbsence: (absence, replaceIds = []) => {
       const u = latest.current.users.find((x) => x.id === absence.userId);
-      replaceIds.forEach((pid) => agenda.deleteAbsence(`team-${pid}`));
       mutate((d) => ({ ...d, absences: [...d.absences.filter((a) => a.id !== absence.id && !replaceIds.includes(a.id)), absence] }), {
         action: "absence.restore",
         summary: `Absence de ${u ? fullName(u) : "?"} rétablie (${shortDate(absence.startDate)} → ${shortDate(absence.endDate)})`,
         extra: { targetUserId: absence.userId },
       });
-      if (absence.status === "validee") syncToSoins(absence, data.users);
     },
 
     assignRdv: (rdvId, assistantId) => {

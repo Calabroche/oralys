@@ -2,6 +2,7 @@
 
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
+import { teamAbsencePeriods } from "@/lib/soinsSync";
 import {
   ASSISTANT_NEEDS,
   DEFAULT_SOINS_PRATICIEN,
@@ -12,7 +13,10 @@ import {
 } from "@/data/mockData";
 
 /** Propriétaire d'un créneau de semaine type (les anciens créneaux sans praticien sont ceux de Dr Perche). */
-export const slotOwner = (s: WeekSlot | AbsencePeriod) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
+export const slotOwner = (s: { praticienId?: string }) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
+/** Les données sans praticien sont celles de Dr Perche : on n'écrit l'identifiant que pour les autres agendas. */
+const ownerTag = (id: string) => (id === DEFAULT_SOINS_PRATICIEN ? undefined : id);
+const TEAM_STORAGE_KEY = "oralys-team-data-v5";
 
 // Incrémenter ce numéro de version à chaque changement de schéma qui
 // casserait la compatibilité avec des données déjà persistées (ex. ajout
@@ -40,6 +44,8 @@ interface AgendaDataContextValue extends PersistedData {
   allWeekSlots: WeekSlot[];
   /** Périodes d'absence de tous les agendas (absencePeriods ne contient que celles du praticien affiché). */
   allAbsencePeriods: AbsencePeriod[];
+  /** Absences Team (congé, maladie, formation…) validées des praticiens, reportées dans leur agenda Soins. */
+  syncTeamPeriods: (periods: AbsencePeriod[]) => void;
   /** Praticien dont on règle / consulte l'agenda dans Soins. */
   agendaPraticienId: string;
   setAgendaPraticienId: (id: string) => void;
@@ -70,10 +76,12 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [agendaPraticienId, setAgendaPraticienId] = useState(DEFAULT_SOINS_PRATICIEN);
   const [assistantNeeds, setAssistantNeeds] = useState<AssistantNeeds>(ASSISTANT_NEEDS);
   const weekSlots = allWeekSlots.filter((s) => slotOwner(s) === agendaPraticienId);
-  const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
+  const [allSpecialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
+  const specialSlots = allSpecialSlots.filter((s) => slotOwner(s) === agendaPraticienId);
   const [allAbsencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
   const absencePeriods = allAbsencePeriods.filter((a) => slotOwner(a) === agendaPraticienId);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [allAppointments, setAppointments] = useState<Appointment[]>([]);
+  const appointments = allAppointments.filter((a) => slotOwner(a) === agendaPraticienId);
   const [hydrated, setHydrated] = useState(false);
 
   // Recharge ce qui a été sauvegardé localement, une fois monté côté client.
@@ -111,7 +119,16 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
       // Praticien par défaut.
     }
     setSpecialSlots(parsed.specialSlots ?? seed.specialSlots);
-    setAbsencePeriods(parsed.absencePeriods ?? seed.absencePeriods);
+    // Absences déjà validées dans Team : reportées dès l'ouverture de Soins, même sans passer par Team.
+    let teamPeriods: AbsencePeriod[] = [];
+    try {
+      const team = JSON.parse(window.localStorage.getItem(TEAM_STORAGE_KEY) ?? "null");
+      if (team?.absences && team?.profiles) teamPeriods = teamAbsencePeriods(team.absences, team.profiles);
+    } catch {
+      // Pas de données Team : rien à reporter.
+    }
+    const periods = parsed.absencePeriods ?? seed.absencePeriods;
+    setAbsencePeriods(teamPeriods.length ? [...periods.filter((a) => !a.id.startsWith("team-")), ...teamPeriods] : periods);
     setAppointments(parsed.appointments ?? seed.appointments);
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -122,13 +139,13 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeedsV2: assistantNeeds, specialSlots, absencePeriods: allAbsencePeriods, appointments };
+      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeedsV2: assistantNeeds, specialSlots: allSpecialSlots, absencePeriods: allAbsencePeriods, appointments: allAppointments };
       window.localStorage.setItem(PRATICIEN_KEY, JSON.stringify(agendaPraticienId));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // quota dépassé ou stockage désactivé : on continue sans persister.
     }
-  }, [hydrated, activityTypes, allWeekSlots, assistantNeeds, agendaPraticienId, specialSlots, allAbsencePeriods, appointments]);
+  }, [hydrated, activityTypes, allWeekSlots, assistantNeeds, agendaPraticienId, allSpecialSlots, allAbsencePeriods, allAppointments]);
 
   const value: AgendaDataContextValue = {
     activityTypes,
@@ -143,6 +160,12 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     specialSlots,
     absencePeriods,
     allAbsencePeriods,
+    syncTeamPeriods: (periods) =>
+      setAbsencePeriods((prev) => {
+        const current = prev.filter((a) => a.id.startsWith("team-"));
+        if (JSON.stringify(current) === JSON.stringify(periods)) return prev;
+        return [...prev.filter((a) => !a.id.startsWith("team-")), ...periods];
+      }),
     appointments,
     addActivityType: (type) => setActivityTypes((prev) => [...prev, type]),
     updateActivityType: (type) => setActivityTypes((prev) => upsertById(prev, type)),
@@ -158,7 +181,8 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
         upsertById(prev, { ...slot, praticienId: slot.praticienId ?? (agendaPraticienId === DEFAULT_SOINS_PRATICIEN ? undefined : agendaPraticienId) })
       ),
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
-    upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),
+    upsertSpecialSlot: (slot) =>
+      setSpecialSlots((prev) => upsertById(prev, { ...slot, praticienId: slot.praticienId ?? prev.find((x) => x.id === slot.id)?.praticienId ?? ownerTag(agendaPraticienId) })),
     deleteSpecialSlot: (id) => setSpecialSlots((prev) => prev.filter((s) => s.id !== id)),
     // Une absence posée dans Soins appartient au praticien affiché (celles de Team portent déjà le leur).
     upsertAbsence: (absence) =>
@@ -167,7 +191,8 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
         return upsertById(prev, { ...absence, praticienId: owner === DEFAULT_SOINS_PRATICIEN ? undefined : owner });
       }),
     deleteAbsence: (id) => setAbsencePeriods((prev) => prev.filter((a) => a.id !== id)),
-    addAppointment: (appointment) => setAppointments((prev) => [...prev, appointment]),
+    // Un RDV pris dans Soins l'est dans l'agenda du praticien affiché.
+    addAppointment: (appointment) => setAppointments((prev) => [...prev, { ...appointment, praticienId: appointment.praticienId ?? ownerTag(agendaPraticienId) }]),
   };
 
   // Rien n'est rendu avant la lecture des données sauvegardées : les pages s'affichent directement

@@ -1,5 +1,8 @@
 "use client";
 
+import { useAgendaData } from "@/context/AgendaDataContext";
+import { SOINS_PRATICIENS } from "@/data/mockData";
+
 export type AgendaViewMode = "jour" | "semaine" | "mois";
 
 const VIEW_LABELS: Record<AgendaViewMode, string> = {
@@ -18,6 +21,8 @@ interface Props {
 }
 
 export function AgendaToolbar({ label, viewMode, onViewModeChange, onToday, onPrev, onNext }: Props) {
+  // Un agenda par praticien : on bascule de l'un à l'autre (créneaux, RDV et absences Team suivent).
+  const { agendaPraticienId, setAgendaPraticienId } = useAgendaData();
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-slate-200 px-4 py-3">
       <div className="flex items-center gap-2">
@@ -56,10 +61,18 @@ export function AgendaToolbar({ label, viewMode, onViewModeChange, onToday, onPr
       <span className="justify-self-center whitespace-nowrap text-base font-semibold text-slate-800">{label}</span>
 
       <div className="flex items-center justify-end gap-3 text-sm text-slate-600">
-        <span className="flex items-center gap-1">
-          Flore Perche
-          <span className="text-xs text-slate-400">▾</span>
-        </span>
+        <select
+          value={agendaPraticienId}
+          onChange={(e) => setAgendaPraticienId(e.target.value)}
+          aria-label="Agenda du praticien"
+          className="rounded-md border border-transparent bg-transparent py-1 pr-1 text-sm font-medium text-slate-700 hover:border-slate-200 hover:bg-slate-50"
+        >
+          {SOINS_PRATICIENS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
         <span className="text-slate-400" aria-hidden>
           👁
         </span>

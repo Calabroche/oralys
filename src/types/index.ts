@@ -50,6 +50,8 @@ export interface Recurrence {
 
 export interface SpecialSlot {
   id: string;
+  /** Agenda du praticien concerné (absent = Dr Perche). */
+  praticienId?: string;
   activityTypeId: string;
   label: string; // ex: "Indisponible", ou nom du type d'activité
   color: ActivityColor;
@@ -82,6 +84,8 @@ export interface Patient {
 
 export interface Appointment {
   id: string;
+  /** Agenda du praticien concerné (absent = Dr Perche). */
+  praticienId?: string;
   patientId: string;
   activityTypeId: string;
   date: string; // ISO date
