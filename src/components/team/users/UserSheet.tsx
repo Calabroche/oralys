@@ -32,7 +32,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
 
   return (
     <Sheet open={Boolean(user)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
         {user && (
           <>
             <SheetHeader className="border-b">
