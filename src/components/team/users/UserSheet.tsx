@@ -9,7 +9,7 @@ import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceD
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { AbsenceBadge } from "@/components/team/shared";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
-import { shortDate } from "@/lib/team";
+import { collapseRecurring, shortDate } from "@/lib/team";
 import { toISODate } from "@/utils/date";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -87,7 +87,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
               <TabsList variant="line" className="mb-3">
                 <TabsTrigger value="droits">Rôles & droits</TabsTrigger>
                 <TabsTrigger value="profil">Dispos & compétences</TabsTrigger>
-                <TabsTrigger value="absences">Absences ({absences.filter((a) => a.userId === user.id && a.status !== "refusee").length})</TabsTrigger>
+                <TabsTrigger value="absences">Absences ({collapseRecurring(absences.filter((a) => a.userId === user.id && a.status !== "refusee"), toISODate(now())).length})</TabsTrigger>
                 <TabsTrigger value="historique">Historique ({entries.length})</TabsTrigger>
               </TabsList>
 

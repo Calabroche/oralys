@@ -63,6 +63,8 @@ export interface SpecialSlot {
 
 export interface AbsencePeriod {
   id: string;
+  /** Agenda du praticien concerné (absent = Dr Perche, comme pour les créneaux de semaine type). */
+  praticienId?: string;
   motif: string; // libre : quelques motifs usuels sont suggérés, mais on peut en saisir un autre
   color: ActivityColor;
   startDate: string;

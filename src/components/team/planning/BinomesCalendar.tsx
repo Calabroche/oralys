@@ -112,7 +112,7 @@ export function BinomesCalendar({
                       <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
                         <AbsencePopover absence={abs} date={iso}>
                           <button className={cn("flex min-h-12 w-full items-center justify-center rounded-md border text-xs font-medium", absenceTone(abs.type))}>
-                            {compact ? "—" : `${ABSENCE_TYPE_LABELS[abs.type]} · agenda fermé`}
+                            {compact ? "—" : abs.source === "soins" ? `${abs.motif?.replace(" (agenda Soins)", "")} · agenda Soins` : `${ABSENCE_TYPE_LABELS[abs.type]} · agenda fermé`}
                           </button>
                         </AbsencePopover>
                       </td>

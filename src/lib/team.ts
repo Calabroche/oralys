@@ -59,6 +59,25 @@ export const ABSENCE_TYPE_LABELS: Record<TeamAbsence["type"], string> = {
   autre: "Autre",
 };
 
+/**
+ * Pour les listes : une fermeture Soins récurrente (ex. chaque lundi) n'apparaît qu'une fois,
+ * par sa prochaine occurrence (ou la dernière si elle est terminée). Le planning, lui, les voit toutes.
+ */
+export function collapseRecurring(absences: TeamAbsence[], today: string): TeamAbsence[] {
+  const keep = new Map<string, TeamAbsence>();
+  const out: TeamAbsence[] = [];
+  for (const a of absences) {
+    if (!a.recurrence || !a.soinsPeriodId) {
+      out.push(a);
+      continue;
+    }
+    const cur = keep.get(a.soinsPeriodId);
+    const better = !cur || (a.endDate >= today ? cur.endDate < today || a.startDate < cur.startDate : cur.endDate < today && a.startDate > cur.startDate);
+    if (better) keep.set(a.soinsPeriodId, a);
+  }
+  return [...out, ...keep.values()];
+}
+
 /** Une absence est "de dernier moment" si elle commence moins de 48h après sa déclaration. */
 export function isLastMinute(absence: TeamAbsence): boolean {
   const declared = new Date(absence.declaredAt).getTime();

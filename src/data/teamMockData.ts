@@ -290,6 +290,20 @@ const ABSENCES: TeamAbsence[] = [
   { id: "abs-t7", userId: "u-manon", type: "formation", startDate: "2026-09-16", endDate: "2026-09-17", motif: "Hygiène et asepsie", status: "validee", declaredAt: "2026-07-01T09:00:00", declaredById: "u-manon" },
   { id: "abs-t8", userId: "u-karima", type: "conge", startDate: "2026-09-08", endDate: "2026-09-10", status: "validee", declaredAt: "2026-07-20T09:00:00", declaredById: "u-karima" },
   { id: "abs-t6", userId: "u-lea", type: "conge", startDate: "2026-09-14", endDate: "2026-09-15", status: "demandee", declaredAt: "2026-08-28T16:45:00", declaredById: "u-lea" },
+  // Historique : absences passées, pour que chaque profil ait de quoi montrer.
+  { id: "abs-p1", userId: "u-lea", type: "conge", startDate: "2026-08-03", endDate: "2026-08-14", motif: "Vacances d'été", status: "validee", declaredAt: "2026-05-12T10:00:00", declaredById: "u-lea" },
+  { id: "abs-p2", userId: "u-lea", type: "maladie", startDate: "2026-06-11", endDate: "2026-06-12", motif: "Arrêt maladie", status: "validee", declaredAt: "2026-06-11T07:30:00", declaredById: "u-lea" },
+  { id: "abs-p3", userId: "u-ines", type: "conge", startDate: "2026-07-20", endDate: "2026-07-31", motif: "Vacances d'été", status: "validee", declaredAt: "2026-04-02T09:00:00", declaredById: "u-ines" },
+  { id: "abs-p4", userId: "u-thomas", type: "conge", startDate: "2026-08-17", endDate: "2026-08-21", status: "validee", declaredAt: "2026-05-20T14:00:00", declaredById: "u-thomas" },
+  { id: "abs-p5", userId: "u-camille", type: "maladie", startDate: "2026-06-22", endDate: "2026-06-22", motif: "Arrêt maladie", status: "validee", declaredAt: "2026-06-22T07:15:00", declaredById: "u-camille" },
+  { id: "abs-p6", userId: "u-flore", type: "conge", startDate: "2026-08-10", endDate: "2026-08-21", motif: "Vacances", status: "validee", declaredAt: "2026-03-10T18:00:00", declaredById: "u-flore" },
+  { id: "abs-p7", userId: "u-sophie", type: "formation", startDate: "2026-06-05", endDate: "2026-06-05", motif: "Congrès implantologie", status: "validee", declaredAt: "2026-04-18T12:00:00", declaredById: "u-sophie" },
+  { id: "abs-p8", userId: "u-dray", type: "conge", startDate: "2026-07-27", endDate: "2026-08-07", motif: "Vacances", status: "validee", declaredAt: "2026-03-02T09:00:00", declaredById: "u-dray" },
+  { id: "abs-p9", userId: "u-delphine", type: "conge", startDate: "2026-07-27", endDate: "2026-08-07", status: "validee", declaredAt: "2026-04-15T09:00:00", declaredById: "u-delphine" },
+  { id: "abs-p10", userId: "u-manon", type: "maladie", startDate: "2026-07-06", endDate: "2026-07-07", motif: "Arrêt maladie", status: "validee", declaredAt: "2026-07-06T07:50:00", declaredById: "u-manon" },
+  { id: "abs-p11", userId: "u-nathalie", type: "conge", startDate: "2026-07-13", endDate: "2026-07-24", status: "validee", declaredAt: "2026-04-28T11:00:00", declaredById: "u-nathalie" },
+  { id: "abs-p12", userId: "u-karima", type: "conge", startDate: "2026-08-03", endDate: "2026-08-07", status: "validee", declaredAt: "2026-05-05T09:00:00", declaredById: "u-karima" },
+  { id: "abs-p13", userId: "u-julie", type: "formation", startDate: "2026-08-26", endDate: "2026-08-26", motif: "Logiciel de prise de RDV", status: "validee", declaredAt: "2026-08-20T15:00:00", declaredById: "u-delphine" },
 ];
 
 const AUDIT_LOG: AuditEntry[] = [

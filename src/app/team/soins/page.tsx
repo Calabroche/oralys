@@ -505,8 +505,8 @@ function Sterilisation() {
 function AgendaFerme() {
   const { absences, findUser } = useTeam();
   const demoRange = useDemoRange();
-  const { absencePeriods } = useAgendaData();
-  const synced = absencePeriods.filter((a) => a.id.startsWith("team-"));
+  const { allAbsencePeriods } = useAgendaData();
+  const synced = allAbsencePeriods.filter((a) => a.id.startsWith("team-"));
   const praticienAbsences = absences.filter((a) => findUser(a.userId)?.poste === "praticien" && a.status !== "refusee");
 
   return (

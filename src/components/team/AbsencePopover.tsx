@@ -47,13 +47,15 @@ export function useAbsenceActions() {
 
 /** Clic sur une absence (planning, binômes) : détails + retour arrière total ou pour un jour. */
 export function AbsencePopover({ absence, date, children }: { absence: TeamAbsence; date?: string; children: ReactNode }) {
-  const { findUser, can, sessionUserId, validateAbsence, refuseAbsence } = useTeam();
+  const { findUser, can, sessionUserId, validateAbsence, refuseAbsence, profiles } = useTeam();
   const { open: openPerson } = usePersonSheet();
   const { cancelWithUndo, removeDayWithUndo } = useAbsenceActions();
   const [open, setOpen] = useState(false);
   const u = findUser(absence.userId);
   const by = findUser(absence.declaredById);
-  const canEdit = can("team.planning") || absence.userId === sessionUserId;
+  const fromSoins = absence.source === "soins";
+  const profileId = profiles.find((p) => p.praticienUserId === absence.userId)?.id;
+  const canEdit = !fromSoins && (can("team.planning") || absence.userId === sessionUserId);
   const multiDay = absence.startDate !== absence.endDate;
 
   return (
@@ -72,8 +74,12 @@ export function AbsencePopover({ absence, date, children }: { absence: TeamAbsen
               {ABSENCE_TYPE_LABELS[absence.type]} du {shortDate(absence.startDate)} au {shortDate(absence.endDate)}
               {absence.motif ? ` · ${absence.motif}` : ""}
               <br />
-              Déclarée par {by?.firstName ?? "?"} le {new Date(absence.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-              {isLastMinute(absence) && (
+              {fromSoins ? (
+                "Posée dans l'agenda Soins du praticien."
+              ) : (
+                <>Déclarée par {by?.firstName ?? "?"} le {new Date(absence.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</>
+              )}
+              {!fromSoins && isLastMinute(absence) && (
                 <span className="ml-1 inline-flex items-center gap-0.5 text-rose-600">
                   <Siren className="size-3" /> dernier moment
                 </span>
@@ -107,6 +113,14 @@ export function AbsencePopover({ absence, date, children }: { absence: TeamAbsen
                 Refuser
               </Button>
             </div>
+          )}
+
+          {fromSoins && (
+            <Button size="sm" variant="outline" className="w-full justify-start" asChild>
+              <Link href={`/reglages/agenda?praticien=${profileId ?? ""}${u ? `&nom=${encodeURIComponent(displayName(u))}` : ""}`}>
+                <ExternalLink /> Modifier dans Soins
+              </Link>
+            </Button>
           )}
 
           {canEdit && (

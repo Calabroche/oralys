@@ -191,6 +191,11 @@ export interface TeamAbsence {
   declaredById: string;
   /** Justificatifs joints (certificat d'arrêt maladie, justificatif médical…), visibles par la personne et le gestionnaire. */
   documents?: AbsenceDocument[];
+  /** « soins » : période d'absence posée dans l'agenda Soins du praticien, lue par Team (non modifiable ici). */
+  source?: "soins";
+  /** Période Soins d'origine et sa répétition (ex. « Toutes les semaines »), pour les fermetures récurrentes. */
+  soinsPeriodId?: string;
+  recurrence?: string;
 }
 
 /** Pièce jointe d'une absence. Dans la démo, le fichier est gardé dans le navigateur s'il est assez léger. */

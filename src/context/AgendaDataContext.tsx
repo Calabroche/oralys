@@ -12,7 +12,7 @@ import {
 } from "@/data/mockData";
 
 /** Propriétaire d'un créneau de semaine type (les anciens créneaux sans praticien sont ceux de Dr Perche). */
-export const slotOwner = (s: WeekSlot) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
+export const slotOwner = (s: WeekSlot | AbsencePeriod) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
 
 // Incrémenter ce numéro de version à chaque changement de schéma qui
 // casserait la compatibilité avec des données déjà persistées (ex. ajout
@@ -38,6 +38,8 @@ interface PersistedData {
 interface AgendaDataContextValue extends PersistedData {
   /** Semaines types de tous les praticiens (weekSlots ne contient que celle du praticien affiché). */
   allWeekSlots: WeekSlot[];
+  /** Périodes d'absence de tous les agendas (absencePeriods ne contient que celles du praticien affiché). */
+  allAbsencePeriods: AbsencePeriod[];
   /** Praticien dont on règle / consulte l'agenda dans Soins. */
   agendaPraticienId: string;
   setAgendaPraticienId: (id: string) => void;
@@ -69,7 +71,8 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   const [assistantNeeds, setAssistantNeeds] = useState<AssistantNeeds>(ASSISTANT_NEEDS);
   const weekSlots = allWeekSlots.filter((s) => slotOwner(s) === agendaPraticienId);
   const [specialSlots, setSpecialSlots] = useState<SpecialSlot[]>([]);
-  const [absencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
+  const [allAbsencePeriods, setAbsencePeriods] = useState<AbsencePeriod[]>([]);
+  const absencePeriods = allAbsencePeriods.filter((a) => slotOwner(a) === agendaPraticienId);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -119,13 +122,13 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeedsV2: assistantNeeds, specialSlots, absencePeriods, appointments };
+      const data: PersistedData = { activityTypes, weekSlots: allWeekSlots, assistantNeedsV2: assistantNeeds, specialSlots, absencePeriods: allAbsencePeriods, appointments };
       window.localStorage.setItem(PRATICIEN_KEY, JSON.stringify(agendaPraticienId));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // quota dépassé ou stockage désactivé : on continue sans persister.
     }
-  }, [hydrated, activityTypes, allWeekSlots, assistantNeeds, agendaPraticienId, specialSlots, absencePeriods, appointments]);
+  }, [hydrated, activityTypes, allWeekSlots, assistantNeeds, agendaPraticienId, specialSlots, allAbsencePeriods, appointments]);
 
   const value: AgendaDataContextValue = {
     activityTypes,
@@ -139,6 +142,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
       setAssistantNeeds((prev) => ({ ...prev, [praticienId]: { ...prev[praticienId], [typeId]: Math.max(0, Math.min(6, need)) } })),
     specialSlots,
     absencePeriods,
+    allAbsencePeriods,
     appointments,
     addActivityType: (type) => setActivityTypes((prev) => [...prev, type]),
     updateActivityType: (type) => setActivityTypes((prev) => upsertById(prev, type)),
@@ -156,7 +160,12 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     deleteWeekSlot: (id) => setWeekSlots((prev) => prev.filter((s) => s.id !== id)),
     upsertSpecialSlot: (slot) => setSpecialSlots((prev) => upsertById(prev, slot)),
     deleteSpecialSlot: (id) => setSpecialSlots((prev) => prev.filter((s) => s.id !== id)),
-    upsertAbsence: (absence) => setAbsencePeriods((prev) => upsertById(prev, absence)),
+    // Une absence posée dans Soins appartient au praticien affiché (celles de Team portent déjà le leur).
+    upsertAbsence: (absence) =>
+      setAbsencePeriods((prev) => {
+        const owner = absence.praticienId ?? prev.find((a) => a.id === absence.id)?.praticienId ?? agendaPraticienId;
+        return upsertById(prev, { ...absence, praticienId: owner === DEFAULT_SOINS_PRATICIEN ? undefined : owner });
+      }),
     deleteAbsence: (id) => setAbsencePeriods((prev) => prev.filter((a) => a.id !== id)),
     addAppointment: (appointment) => setAppointments((prev) => [...prev, appointment]),
   };

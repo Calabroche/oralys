@@ -19,7 +19,7 @@ import { TeamCalendar } from "@/components/team/planning/TeamCalendar";
 import { DeclareAbsenceDialog, DeclarePrefill } from "@/components/team/planning/DeclareAbsenceDialog";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { AbsencePopover, useAbsenceActions } from "@/components/team/AbsencePopover";
-import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
+import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, collapseRecurring, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
 import { BinomesCalendar } from "@/components/team/planning/BinomesCalendar";
 import { DocumentBadge } from "@/components/team/Justificatifs";
 import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
@@ -311,9 +311,9 @@ function Legend() {
 }
 
 function AllAbsences() {
-  const { absences, findUser, can, sessionUserId } = useTeam();
+  const { absences, findUser, can, sessionUserId, now } = useTeam();
   const { cancelWithUndo } = useAbsenceActions();
-  const sorted = [...absences].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const sorted = collapseRecurring(absences, toISODate(now())).sort((a, b) => b.startDate.localeCompare(a.startDate));
   return (
     <Table>
       <TableHeader>
@@ -335,6 +335,7 @@ function AllAbsences() {
               <TableCell className="font-medium">{u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</TableCell>
               <TableCell>
                 {shortDate(a.startDate)} → {shortDate(a.endDate)}
+                {a.recurrence && <span className="ml-1.5 text-xs text-slate-500">{a.recurrence.toLowerCase()}</span>}
               </TableCell>
               <TableCell>
                 <span className="flex items-center gap-1.5">
@@ -348,11 +349,17 @@ function AllAbsences() {
               </TableCell>
               <TableCell className="text-sm">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "À valider" : "Refusée"}</TableCell>
               <TableCell className="text-xs text-slate-500">
-                {new Date(a.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                {by ? ` par ${by.firstName}` : ""}
+                {a.source === "soins" ? (
+                  "Agenda Soins"
+                ) : (
+                  <>
+                    {new Date(a.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                    {by ? ` par ${by.firstName}` : ""}
+                  </>
+                )}
               </TableCell>
               <TableCell>
-                {(can("team.planning") || a.userId === sessionUserId) && (
+                {a.source !== "soins" && (can("team.planning") || a.userId === sessionUserId) && (
                   <Button
                     variant="ghost"
                     size="icon-sm"

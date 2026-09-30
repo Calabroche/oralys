@@ -20,7 +20,8 @@ import {
 import { BESOINS_PAR_ACTIVITE, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
 import { scheduleFromSlots, setActivityCatalog } from "@/lib/semaine";
 import { daysFromHours } from "@/lib/horaires";
-import { fromISODate, toWeekday } from "@/utils/date";
+import { addDays, fromISODate, toISODate, toWeekday } from "@/utils/date";
+import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
 import { PRATICIEN_NAME } from "@/data/mockData";
@@ -121,7 +122,11 @@ function loadData(): PersistedTeamData {
         ...(roles ? { roles } : {}),
         ...(profiles ? { profiles } : {}),
         ...(rdvs ? { rdvs } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees", "semaine-type"])],
+        // Historique d'absences passées (retour du 30/09), ajouté une seule fois aux démos existantes.
+        ...(!done.includes("absences-passees") && stored.absences
+          ? { absences: [...stored.absences, ...seed.absences.filter((a) => a.id.startsWith("abs-p") && !stored.absences!.some((x) => x.id === a.id))] }
+          : {}),
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees", "semaine-type", "absences-passees"])],
       };
     }
   } catch {
@@ -255,6 +260,42 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       }),
     [data.users, profiles]
   );
+  // Les fermetures posées dans l'agenda Soins d'un praticien (congé, fermeture cabinet, même hebdomadaires)
+  // deviennent des absences validées dans Team : le praticien ne consulte pas, on ne cherche pas d'assistant.
+  // Celles que Team a lui-même envoyées à Soins (« team-… ») existent déjà côté Team.
+  const soinsAbsences = useMemo(() => {
+    const today = new Date();
+    const from = addDays(today, -365);
+    const to = addDays(today, 365);
+    const out: TeamAbsence[] = [];
+    for (const period of agenda.allAbsencePeriods) {
+      if (period.id.startsWith("team-")) continue;
+      const praticienUserId = data.profiles.find((p) => p.id === slotOwner(period))?.praticienUserId;
+      if (!praticienUserId) continue;
+      for (const occ of expandRecurrence(period, from, to)) {
+        // Une fermeture qui ne couvre qu'une partie du premier ou du dernier jour ne ferme pas ce jour-là.
+        const start = period.startTime <= "09:00" ? occ.startDate : toISODate(addDays(fromISODate(occ.startDate), 1));
+        const end = period.endTime >= "17:00" ? occ.endDate : toISODate(addDays(fromISODate(occ.endDate), -1));
+        if (start > end) continue;
+        out.push({
+          id: `soins-${period.id}-${occ.startDate}`,
+          userId: praticienUserId,
+          type: /cong|vacance/i.test(period.motif) ? "conge" : /formation|congr/i.test(period.motif) ? "formation" : /malad/i.test(period.motif) ? "maladie" : "autre",
+          startDate: start,
+          endDate: end,
+          motif: `${period.motif} (agenda Soins)`,
+          status: "validee",
+          declaredAt: `${toISODate(addDays(fromISODate(start), -30))}T09:00:00`,
+          declaredById: praticienUserId,
+          source: "soins",
+          soinsPeriodId: period.id,
+          recurrence: describeRecurrence(period.recurrence) ?? undefined,
+        });
+      }
+    }
+    return out;
+  }, [agenda.allAbsencePeriods, data.profiles]);
+  const absences = useMemo(() => [...data.absences, ...soinsAbsences], [data.absences, soinsAbsences]);
   const sessionUser = users.find((u) => u.id === data.sessionUserId);
   const perms = useMemo(() => permissionsOf(sessionUser, data.roles), [sessionUser, data.roles]);
 
@@ -303,6 +344,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       if (!u || fullName(u) !== PRATICIEN_NAME) return;
       agenda.upsertAbsence({
         id: `team-${absence.id}`,
+        praticienId: data.profiles.find((p) => p.praticienUserId === absence.userId)?.id,
         motif: `${ABSENCE_TYPE_LABELS[absence.type]} (Oralys Team)`,
         color: absence.type === "maladie" ? "red" : absence.type === "formation" ? "indigo" : "orange",
         startDate: absence.startDate,
@@ -312,11 +354,12 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         recurrence: { frequency: "none" },
       });
     },
-    [agenda]
+    [agenda, data.profiles]
   );
 
   const value: TeamDataContextValue = {
     ...data,
+    absences,
     users,
     profiles,
     hydrated,
