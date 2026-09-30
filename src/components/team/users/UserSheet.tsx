@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { AbsenceBadge } from "@/components/team/shared";
+import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { shortDate } from "@/lib/team";
 import { toISODate } from "@/utils/date";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -86,6 +87,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
               <TabsList variant="line" className="mb-3">
                 <TabsTrigger value="droits">Rôles & droits</TabsTrigger>
                 <TabsTrigger value="profil">Dispos & compétences</TabsTrigger>
+                <TabsTrigger value="absences">Absences ({absences.filter((a) => a.userId === user.id && a.status !== "refusee").length})</TabsTrigger>
                 <TabsTrigger value="historique">Historique ({entries.length})</TabsTrigger>
               </TabsList>
 
@@ -142,6 +144,10 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                     })}
                   </ul>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="absences">
+                <PersonAbsences userId={user.id} />
               </TabsContent>
 
               <TabsContent value="historique">

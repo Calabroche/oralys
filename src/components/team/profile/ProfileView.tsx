@@ -9,17 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTeam } from "@/context/TeamDataContext";
-import { AbsenceBadge, PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
+import { PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
 import { ContractHoursField, HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
 import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
-import { AbsenceDocuments } from "@/components/team/Justificatifs";
+import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
 import { useVersion } from "@/components/team/Version";
 import { ACTES, SKILLS } from "@/data/teamMockData";
-import { displayName, fullName, isHealthProfessional, shortDate } from "@/lib/team";
+import { displayName, fullName, isHealthProfessional } from "@/lib/team";
 import { ActeCategory, SkillId, TeamUser } from "@/types/team";
 import { toISODate } from "@/utils/date";
 
@@ -29,7 +29,7 @@ import { toISODate } from "@/utils/date";
  * Chacun règle son propre profil ; gestionnaire et planning règlent ceux des autres.
  */
 export function ProfileView({ user }: { user: TeamUser }) {
-  const { updateUser, users, absences, profiles, roles, can, sessionUserId, upsertProfile, now } = useTeam();
+  const { updateUser, users, profiles, roles, can, sessionUserId, upsertProfile, now } = useTeam();
   const { has } = useVersion();
   const [draft, setDraft] = useState(user);
   const [declareOpen, setDeclareOpen] = useState(false);
@@ -43,12 +43,6 @@ export function ProfileView({ user }: { user: TeamUser }) {
   const dirty = JSON.stringify(draft) !== JSON.stringify(user);
   const colleagues = users.filter((u) => u.status === "actif" && u.id !== user.id && u.poste !== user.poste && (u.poste === "praticien" || u.poste === "assistant"));
   const today = toISODate(now());
-  // Pour un praticien, on montre aussi les absences à venir de son équipe (utile pour anticiper).
-  const teamIds = new Set([user.id, ...(profile?.team.map((l) => l.userId) ?? [])]);
-  const upcoming = absences
-    .filter((a) => teamIds.has(a.userId) && a.status !== "refusee" && (a.userId === user.id || a.endDate >= today))
-    .sort((a, b) => b.startDate.localeCompare(a.startDate));
-
   function createPraticienProfile() {
     const res = upsertProfile({ id: `env-${Date.now().toString(36)}`, praticienUserId: user.id, label: displayName(user), rooms: [], team: [], feedback: {} });
     if (res.ok) toast.success("Fiche praticien créée", { description: "Environnement disponible dans Soins." });
@@ -273,37 +267,15 @@ export function ProfileView({ user }: { user: TeamUser }) {
         </>
       )}
 
-      {/* Pas de liste d'absences sur un profil praticien : elles se suivent dans le planning. */}
-      {!profile && (
       <Card>
         <CardHeader>
           <CardTitle>{self ? "Mes absences" : "Absences"}</CardTitle>
+          <CardDescription>Passées et à venir. Cliquer une absence pour la voir en détail, la modifier ou l&apos;annuler.</CardDescription>
         </CardHeader>
         <CardContent>
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucune absence déclarée.</p>
-          ) : (
-            <ul className="divide-y">
-              {upcoming.map((a) => (
-                <li key={a.id} className="flex flex-wrap items-center justify-between gap-y-1.5 py-2 text-sm">
-                  <span>
-                    {shortDate(a.startDate)} → {shortDate(a.endDate)}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <AbsenceBadge absence={a} />
-                    <span className="text-xs text-slate-500">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "En attente" : "Refusée"}</span>
-                  </span>
-                  {/* Justificatifs (donnée de santé) : seulement pour la personne concernée et le gestionnaire. */}
-                  {(a.userId === sessionUserId || manager) && (
-                    <AbsenceDocuments absence={a} canEdit={a.userId === sessionUserId || manager} className="basis-full" />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <PersonAbsences userId={user.id} />
         </CardContent>
       </Card>
-      )}
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={self ? undefined : { userId: user.id, date: today }} />
     </div>
   );
