@@ -111,17 +111,16 @@ function Planning() {
       <PageHeader
         title="Planning d'équipe"
         description="Présences et absences de tout le cabinet, en une vue. Distinct de l'agenda des RDV patients (Soins)."
+        // Tout le monde déclare ses absences depuis le planning (pour soi ; pour un tiers avec le droit planning).
         actions={
-          readOnly ? undefined : (
-            <Button
-              onClick={() => {
-                setPrefill(undefined);
-                setDeclareOpen(true);
-              }}
-            >
-              <CalendarPlus /> Déclarer une absence
-            </Button>
-          )
+          <Button
+            onClick={() => {
+              setPrefill(undefined);
+              setDeclareOpen(true);
+            }}
+          >
+            <CalendarPlus /> Déclarer une absence
+          </Button>
         }
       />
 
