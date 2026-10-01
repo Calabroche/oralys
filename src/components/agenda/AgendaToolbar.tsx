@@ -2,10 +2,12 @@
 
 import { useAgendaData } from "@/context/AgendaDataContext";
 import { SOINS_PRATICIENS } from "@/data/mockData";
+import { DayCountPicker } from "@/components/shared/DayCountPicker";
+import { cn } from "@/lib/utils";
 
-export type AgendaViewMode = "jour" | "semaine" | "mois";
+export type AgendaViewMode = "jour" | "semaine" | "jours" | "mois";
 
-const VIEW_LABELS: Record<AgendaViewMode, string> = {
+const VIEW_LABELS: Record<Exclude<AgendaViewMode, "jours">, string> = {
   jour: "Jour",
   semaine: "Semaine",
   mois: "Mois",
@@ -15,12 +17,14 @@ interface Props {
   label: string;
   viewMode: AgendaViewMode;
   onViewModeChange: (mode: AgendaViewMode) => void;
+  customDays: number;
+  onCustomDaysChange: (days: number) => void;
   onToday: () => void;
   onPrev: () => void;
   onNext: () => void;
 }
 
-export function AgendaToolbar({ label, viewMode, onViewModeChange, onToday, onPrev, onNext }: Props) {
+export function AgendaToolbar({ label, viewMode, onViewModeChange, customDays, onCustomDaysChange, onToday, onPrev, onNext }: Props) {
   // Un agenda par praticien : on bascule de l'un à l'autre (créneaux, RDV et absences Team suivent).
   const { agendaPraticienId, setAgendaPraticienId } = useAgendaData();
   return (
@@ -35,18 +39,31 @@ export function AgendaToolbar({ label, viewMode, onViewModeChange, onToday, onPr
         <span className="hidden h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 sm:flex" aria-hidden>
           📅
         </span>
-        <div className="flex items-center rounded-full bg-slate-100 p-0.5 text-xs font-medium">
-          {(Object.keys(VIEW_LABELS) as AgendaViewMode[]).map((mode) => (
+        <div className="flex items-center gap-0.5 rounded-full bg-slate-100 p-0.5 text-xs font-medium">
+          {(["jour", "semaine"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => onViewModeChange(mode)}
-              className={`rounded-full px-2.5 py-1 ${
-                mode === viewMode ? "bg-lime-300 text-slate-900" : "text-slate-500 hover:text-slate-700"
-              }`}
+              className={cn("rounded-full px-2.5 py-1", mode === viewMode ? "bg-lime-300 text-slate-900" : "text-slate-500 hover:text-slate-700")}
             >
               {VIEW_LABELS[mode]}
             </button>
           ))}
+          <DayCountPicker
+            value={customDays}
+            active={viewMode === "jours"}
+            onChange={(days) => {
+              onCustomDaysChange(days);
+              onViewModeChange("jours");
+            }}
+            activeClassName="bg-lime-300 text-slate-900"
+          />
+          <button
+            onClick={() => onViewModeChange("mois")}
+            className={cn("rounded-full px-2.5 py-1", viewMode === "mois" ? "bg-lime-300 text-slate-900" : "text-slate-500 hover:text-slate-700")}
+          >
+            {VIEW_LABELS.mois}
+          </button>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onPrev} className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" aria-label="Précédent">

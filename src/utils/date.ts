@@ -108,13 +108,15 @@ export function formatShortDate(iso: string): string {
   return `${date.getDate()} ${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+/** Plage de dates générique ("12 - 16 octobre 2026"), utilisée par la semaine comme par un nombre de jours au choix. */
+export function formatDateRange(start: Date, end: Date): string {
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startLabel = sameMonth ? `${start.getDate()}` : `${start.getDate()} ${MONTH_LABELS[start.getMonth()]}`;
+  return `${startLabel} - ${end.getDate()} ${MONTH_LABELS[end.getMonth()]} ${end.getFullYear()}`;
+}
+
 export function formatWeekRange(weekStart: Date): string {
-  const weekEnd = addDays(weekStart, 4);
-  const sameMonth = weekStart.getMonth() === weekEnd.getMonth();
-  const startLabel = sameMonth
-    ? `${weekStart.getDate()}`
-    : `${weekStart.getDate()} ${MONTH_LABELS[weekStart.getMonth()]}`;
-  return `${startLabel} - ${weekEnd.getDate()} ${MONTH_LABELS[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
+  return formatDateRange(weekStart, addDays(weekStart, 4));
 }
 
 export function diffInDays(startIso: string, endIso: string): number {

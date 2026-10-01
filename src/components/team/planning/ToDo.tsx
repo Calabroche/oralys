@@ -64,27 +64,48 @@ function halvesLabel(day: PraticienDay) {
   return ` · ${HALF_DAY_LABELS[h.half]}${h.activities.length ? ` (${h.activities.map(activityName).join(", ").toLowerCase()})` : ""}`;
 }
 
-/** Onglet « À traiter » du planning : une seule liste pour tout ce qui attend une décision. */
-export function ToDoPanel({ onShowDay, onReplace }: { onShowDay: (iso: string) => void; onReplace: (absenceId?: string) => void }) {
+/**
+ * Ce qui attend une décision, groupé façon Hub Patient : « Demandes à valider » (dont les absences
+ * de dernier moment) et « Manques d'assistant à couvrir » sont deux vues distinctes, pas une liste
+ * unique — chacune a sa propre pastille de compteur dans la barre du planning.
+ */
+export function ToDoPanel({
+  only,
+  onShowDay,
+  onReplace,
+}: {
+  /** Ne montre que cette section (sinon tout, pour la carte du tableau de bord). */
+  only?: "demandes" | "manques";
+  onShowDay: (iso: string) => void;
+  onReplace: (absenceId?: string) => void;
+}) {
   const { findUser } = useTeam();
   const { has } = useVersion();
   const todo = useToDo();
   const openLastMinute = todo.lastMinute.filter((x) => x.open > 0);
   const handledLastMinute = todo.lastMinute.filter((x) => x.open === 0);
+  const showDemandes = only !== "manques";
+  const showManques = only !== "demandes";
 
-  if (todo.count === 0 && todo.toReassign.length === 0) {
+  const demandesCount = todo.pending.length + openLastMinute.length;
+  const manquesCount = todo.gaps.length + todo.coverage.length;
+  const empty = only === "demandes" ? demandesCount === 0 : only === "manques" ? manquesCount === 0 : todo.count === 0 && todo.toReassign.length === 0;
+
+  if (empty) {
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center">
         <CheckCircle2 className="size-8 text-emerald-500" />
-        <p className="font-medium text-slate-900">Rien à traiter</p>
-        <p className="text-sm text-slate-500">Pas de demande en attente ni de manque sur les {HORIZON} prochains jours.</p>
+        <p className="font-medium text-slate-900">{only === "manques" ? "Aucun manque" : "Rien à traiter"}</p>
+        <p className="text-sm text-slate-500">
+          {only === "manques" ? `Pas de manque sur les ${HORIZON} prochains jours.` : `Pas de demande en attente ni de manque sur les ${HORIZON} prochains jours.`}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {(openLastMinute.length > 0 || handledLastMinute.length > 0) && (
+      {showDemandes && (openLastMinute.length > 0 || handledLastMinute.length > 0) && (
         <Section title="Absences de dernier moment" count={openLastMinute.length}>
           {openLastMinute.map(({ absence: a, open }) => {
             const u = findUser(a.userId);
@@ -114,13 +135,13 @@ export function ToDoPanel({ onShowDay, onReplace }: { onShowDay: (iso: string) =
         </Section>
       )}
 
-      {todo.pending.length > 0 && (
+      {showDemandes && todo.pending.length > 0 && (
         <Section title="Demandes à valider" count={todo.pending.length}>
           <PendingRequests pending={todo.pending} />
         </Section>
       )}
 
-      {todo.gaps.length > 0 && (
+      {showManques && todo.gaps.length > 0 && (
         <Section title="Manques d'assistant à couvrir" count={todo.gaps.length} hint={`Sur les ${HORIZON} prochains jours. Ouvrez la journée pour affecter quelqu'un, récupérer un prêt ou confirmer un assistant de moins.`}>
           {todo.gaps.map(({ iso, day }) => (
             <Row key={iso + day.praticien.id} tone="amber" icon={<UserX className="size-5 text-amber-600" />}>
@@ -137,7 +158,7 @@ export function ToDoPanel({ onShowDay, onReplace }: { onShowDay: (iso: string) =
         </Section>
       )}
 
-      {todo.coverage.length > 0 && (
+      {showManques && todo.coverage.length > 0 && (
         <Section title="Postes non couverts" count={todo.coverage.length}>
           {todo.coverage.map((c) => (
             <Row key={c.label + c.iso} tone="amber" icon={<AlertTriangle className="size-5 text-amber-600" />}>
@@ -151,7 +172,7 @@ export function ToDoPanel({ onShowDay, onReplace }: { onShowDay: (iso: string) =
         </Section>
       )}
 
-      {has("remplacements") && todo.toReassign.length > 0 && (
+      {!only && has("remplacements") && todo.toReassign.length > 0 && (
         <Row tone="slate" icon={<CalendarClock className="size-5 text-slate-500" />}>
           <p className="font-medium text-slate-900">{todo.toReassign.length} RDV patients à réaffecter</p>
           <p className="text-slate-500">Leur assistant est absent.</p>

@@ -10,6 +10,7 @@ import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useVersion } from "@/components/team/Version";
 import { fromISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,8 @@ export function DayStaffingView({
   readOnly?: boolean;
 }) {
   const { findUser, absences } = useTeam();
+  const { has } = useVersion();
+  const showRooms = has("multiSalles");
 
   return (
     <div className="space-y-3">
@@ -88,11 +91,17 @@ export function DayStaffingView({
                           </span>
                         ))}
                       </p>
-                      <div className={cn("grid gap-2", h.rooms.length > 1 ? "sm:grid-cols-2" : "grid-cols-1")}>
-                        {h.rooms.map((room) => (
-                          <RoomCard key={room.room ?? "sans-salle"} room={room} day={day} staffing={staffing} half={h.half} date={date} />
-                        ))}
-                      </div>
+                      {(() => {
+                        // Le détail par salle arrive en V4 : avant, une seule carte fusionnée comme la grille Équipes.
+                        const rooms = showRooms ? h.rooms : [{ room: undefined, need: h.need, assistants: h.assistants, missing: h.missing }];
+                        return (
+                          <div className={cn("grid gap-2", rooms.length > 1 ? "sm:grid-cols-2" : "grid-cols-1")}>
+                            {rooms.map((room) => (
+                              <RoomCard key={room.room ?? "sans-salle"} room={room} day={day} staffing={staffing} half={h.half} date={date} />
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

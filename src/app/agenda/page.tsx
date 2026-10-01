@@ -10,17 +10,20 @@ import { getPatient, patients } from "@/data/mockData";
 import {
   addDays,
   addMonths,
+  formatDateRange,
   formatDayHeader,
   formatMonthLabel,
   formatWeekRange,
   startOfMonth,
   startOfWeek,
 } from "@/utils/date";
+import { usePersistentState } from "@/lib/persist";
 
 export default function AgendaPage() {
   const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment, agendaPraticienId, roomsFor } = useAgendaData();
   const rooms = roomsFor(agendaPraticienId);
   const [viewMode, setViewMode] = useState<AgendaViewMode>("semaine");
+  const [customDays, setCustomDays] = usePersistentState("agenda-custom-days", 5);
   // Toujours la date réelle du jour.
   const [today] = useState(() => new Date());
   const [anchorDate, setAnchorDate] = useState(today);
@@ -33,6 +36,18 @@ export default function AgendaPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Le cabinet ne travaille pas le week-end (toujours "Repos" dans la semaine type) : une fenêtre de
+  // N jours saute samedi et dimanche plutôt que de les compter pour rien.
+  function workingDaysFrom(start: Date, count: number, dir: 1 | -1 = 1): Date[] {
+    const out: Date[] = [];
+    let d = start;
+    while (out.length < count) {
+      if (![0, 6].includes(d.getDay())) out.push(d);
+      d = addDays(d, dir);
+    }
+    return dir === 1 ? out : out.reverse();
+  }
+
   function handleToday() {
     setAnchorDate(new Date());
   }
@@ -40,23 +55,32 @@ export default function AgendaPage() {
   function handlePrev() {
     if (viewMode === "jour") setAnchorDate((d) => addDays(d, -1));
     else if (viewMode === "semaine") setAnchorDate((d) => addDays(d, -7));
+    else if (viewMode === "jours") setAnchorDate((d) => workingDaysFrom(addDays(d, -1), customDays, -1)[0]);
     else setAnchorDate((d) => addMonths(d, -1));
   }
 
   function handleNext() {
     if (viewMode === "jour") setAnchorDate((d) => addDays(d, 1));
     else if (viewMode === "semaine") setAnchorDate((d) => addDays(d, 7));
+    else if (viewMode === "jours") setAnchorDate((d) => addDays(workingDaysFrom(d, customDays)[customDays - 1], 1));
     else setAnchorDate((d) => addMonths(d, 1));
   }
 
   const weekStart = startOfWeek(anchorDate);
-  const days = viewMode === "jour" ? [anchorDate] : Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
+  const days =
+    viewMode === "jour"
+      ? [anchorDate]
+      : viewMode === "jours"
+        ? workingDaysFrom(anchorDate, customDays)
+        : Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
   const label =
     viewMode === "jour"
       ? formatDayHeader(anchorDate)
       : viewMode === "semaine"
         ? formatWeekRange(weekStart)
-        : formatMonthLabel(startOfMonth(anchorDate));
+        : viewMode === "jours"
+          ? formatDateRange(days[0], days[days.length - 1])
+          : formatMonthLabel(startOfMonth(anchorDate));
 
   return (
     <div className="relative mx-auto max-w-5xl px-6 py-6">
@@ -73,6 +97,8 @@ export default function AgendaPage() {
           label={label}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          customDays={customDays}
+          onCustomDaysChange={setCustomDays}
           onToday={handleToday}
           onPrev={handlePrev}
           onNext={handleNext}

@@ -50,15 +50,15 @@ function Dashboard() {
 
   const kpis = [
     { label: "Présents aujourd'hui", value: `${presentCount}/${active.length}`, icon: UserCheck, href: "/team/planning" },
-    { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=a-traiter", alert: todo.count > 0 },
+    { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=demandes", alert: todo.count > 0 },
     ...(isManager ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
   ];
 
   // Une ligne par catégorie : le compte et un lien vers l'onglet du planning qui permet d'agir.
   const summary = [
-    { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=a-traiter", tone: "text-rose-600" },
-    { label: "Demandes à valider", value: todo.pending.length, icon: CalendarClock, href: "/team/planning?tab=a-traiter", tone: "text-pink-600" },
-    { label: "Manques d'assistant (14 j)", value: todo.gaps.length + todo.coverage.length, icon: UserX, href: "/team/planning?tab=a-traiter", tone: "text-amber-600" },
+    { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=demandes", tone: "text-rose-600" },
+    { label: "Demandes à valider", value: todo.pending.length, icon: CalendarClock, href: "/team/planning?tab=demandes", tone: "text-pink-600" },
+    { label: "Manques d'assistant (14 j)", value: todo.gaps.length + todo.coverage.length, icon: UserX, href: "/team/planning?tab=manques", tone: "text-amber-600" },
     ...(has("remplacements")
       ? [{ label: "RDV patients à réaffecter", value: todo.toReassign.length, icon: CalendarClock, href: "/team/planning?tab=remplacer", tone: "text-slate-700" }]
       : []),
@@ -105,10 +105,10 @@ function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>À traiter</CardTitle>
-            <CardDescription>Le détail et les actions sont dans le planning, onglet « À traiter ».</CardDescription>
+            <CardDescription>Le détail et les actions sont dans le planning, onglets « Demandes à valider » et « Manques à couvrir ».</CardDescription>
             <CardAction>
               <Button size="sm" variant="outline" asChild>
-                <Link href="/team/planning?tab=a-traiter">
+                <Link href="/team/planning?tab=demandes">
                   Ouvrir <ArrowRight />
                 </Link>
               </Button>

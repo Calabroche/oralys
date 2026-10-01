@@ -22,6 +22,7 @@ import { AbsencePopover, useAbsenceActions } from "@/components/team/AbsencePopo
 import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, collapseRecurring, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
 import { BinomesCalendar } from "@/components/team/planning/BinomesCalendar";
 import { DayStaffingView } from "@/components/team/planning/DayStaffingView";
+import { DayCountPicker } from "@/components/shared/DayCountPicker";
 import { DocumentBadge } from "@/components/team/Justificatifs";
 import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 
@@ -42,16 +43,15 @@ function Planning() {
   const readOnly = !allowed("planning");
   const router = useRouter();
   const canReplace = allowed("remplacements") && has("remplacements");
-  // Onglets : À traiter (demandes, dernier moment, manques), Calendrier, À remplacer (RDV), Toutes les absences.
-  const [storedTab, setTab] = useState(() => {
-    const t = params.get("tab");
-    return t === "demandes" ? "a-traiter" : t ?? "calendrier";
-  });
-  const tab = (readOnly && storedTab === "a-traiter") || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
+  // Onglets, façon Hub Patient : des pastilles groupées avec compteur plutôt qu'un seul "À traiter".
+  // Demandes à valider (dont dernier moment), Manques à couvrir, Calendrier, À remplacer (RDV), Toutes les absences.
+  const [storedTab, setTab] = useState(() => params.get("tab") ?? "calendrier");
+  const tab = (readOnly && (storedTab === "demandes" || storedTab === "manques")) || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
   const todo = useToDo();
-  const [storedMode, setMode] = usePersistentState<"jour" | "semaine" | "mois">("planning-mode", "semaine");
-  // La vue Jour (détail par salle) arrive en V4 : avant, on retombe sur la semaine comme aujourd'hui.
-  const mode = storedMode === "jour" && !has("multiSalles") ? "semaine" : storedMode;
+  const demandesCount = todo.pending.length + todo.lastMinute.filter((x) => x.open > 0).length;
+  const manquesCount = todo.gaps.length + todo.coverage.length;
+  const [mode, setMode] = usePersistentState<"jour" | "semaine" | "jours" | "mois">("planning-mode", "semaine");
+  const [customDays, setCustomDays] = usePersistentState("planning-custom-days", 5);
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
   const highlightUserId = params.get("user");
   const [roleFilter, setRoleFilter] = usePersistentState<string>("planning-roles", "tous");
@@ -65,17 +65,32 @@ function Planning() {
   const [declareOpen, setDeclareOpen] = useState(false);
   const [prefill, setPrefill] = useState<DeclarePrefill | undefined>();
 
+  // Le cabinet ne travaille pas le week-end (toujours "Repos" dans la semaine type) : une fenêtre de
+  // N jours saute samedi et dimanche plutôt que de les compter pour rien.
+  function workingDaysFrom(start: Date, count: number, dir: 1 | -1 = 1): Date[] {
+    const out: Date[] = [];
+    let d = start;
+    while (out.length < count) {
+      if (![0, 6].includes(d.getDay())) out.push(d);
+      d = addDays(d, dir);
+    }
+    return dir === 1 ? out : out.reverse();
+  }
+
   const dates = useMemo(() => {
     const a = fromISODate(anchor);
     if (mode === "jour") return [anchor];
+    // Le cabinet ne travaille pas le samedi (toujours "Repos" dans la semaine type) : l'enlever
+    // laisse plus de place aux jours vraiment travaillés dans la grille.
     if (mode === "semaine") {
       const s = startOfWeek(a);
-      return datesBetween(toISODate(s), toISODate(addDays(s, 5)));
+      return datesBetween(toISODate(s), toISODate(addDays(s, 4)));
     }
+    if (mode === "jours") return workingDaysFrom(a, customDays).map(toISODate);
     const first = new Date(a.getFullYear(), a.getMonth(), 1);
     const last = new Date(a.getFullYear(), a.getMonth() + 1, 0);
-    return datesBetween(toISODate(first), toISODate(last)).filter((iso) => fromISODate(iso).getDay() !== 0);
-  }, [anchor, mode]);
+    return datesBetween(toISODate(first), toISODate(last)).filter((iso) => ![0, 6].includes(fromISODate(iso).getDay()));
+  }, [anchor, mode, customDays]);
 
   const active = users.filter((u) => u.status === "actif");
   const people = active.filter((u) => roleFilter === "tous" || u.roleIds.includes(roleFilter));
@@ -103,6 +118,11 @@ function Planning() {
 
   const shift = (dir: number) => {
     const a = fromISODate(anchor);
+    if (mode === "jours") {
+      const next = dir > 0 ? addDays(workingDaysFrom(a, customDays)[customDays - 1], 1) : workingDaysFrom(addDays(a, -1), customDays, -1)[0];
+      setAnchor(toISODate(next));
+      return;
+    }
     setAnchor(
       toISODate(
         mode === "jour" ? addDays(a, dir) : mode === "semaine" ? addDays(a, 7 * dir) : new Date(a.getFullYear(), a.getMonth() + dir, 1)
@@ -112,7 +132,7 @@ function Planning() {
   const rangeLabel =
     mode === "jour"
       ? fromISODate(anchor).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-      : mode === "semaine"
+      : mode === "semaine" || mode === "jours"
         ? `${shortDate(dates[0])} → ${shortDate(dates[dates.length - 1])}`
         : fromISODate(anchor).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
@@ -135,26 +155,59 @@ function Planning() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList variant="line">
+        <div className="flex flex-wrap items-center gap-2">
+          <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
+            <TabsTrigger value="calendrier" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+              Calendrier
+            </TabsTrigger>
+            <TabsTrigger value="liste" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+              Toutes les absences
+            </TabsTrigger>
+          </TabsList>
           {!readOnly && (
-            <TabsTrigger value="a-traiter">
-              À traiter
-              {todo.count > 0 && <Badge className="ml-1 h-4 bg-pink-500 px-1.5 text-[0.65rem]">{todo.count}</Badge>}
-            </TabsTrigger>
+            <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
+              <TabsTrigger value="demandes" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+                Demandes à valider
+                {demandesCount > 0 && <Badge className="ml-1 h-4 bg-pink-500 px-1.5 text-[0.65rem]">{demandesCount}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="manques" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+                Manques à couvrir
+                {manquesCount > 0 && <Badge className="ml-1 h-4 bg-amber-500 px-1.5 text-[0.65rem]">{manquesCount}</Badge>}
+              </TabsTrigger>
+            </TabsList>
           )}
-          <TabsTrigger value="calendrier">Calendrier</TabsTrigger>
           {canReplace && (
-            <TabsTrigger value="remplacer">
-              À remplacer
-              {todo.toReassign.length > 0 && <Badge className="ml-1 h-4 bg-slate-700 px-1.5 text-[0.65rem]">{todo.toReassign.length}</Badge>}
-            </TabsTrigger>
+            <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
+              <TabsTrigger value="remplacer" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+                À remplacer
+                {todo.toReassign.length > 0 && <Badge className="ml-1 h-4 bg-slate-700 px-1.5 text-[0.65rem]">{todo.toReassign.length}</Badge>}
+              </TabsTrigger>
+            </TabsList>
           )}
-          <TabsTrigger value="liste">Toutes les absences</TabsTrigger>
-        </TabsList>
+        </div>
 
         {!readOnly && (
-          <TabsContent value="a-traiter" className="mt-4">
+          <TabsContent value="demandes" className="mt-4">
             <ToDoPanel
+              only="demandes"
+              onShowDay={(iso) => {
+                setAnchor(iso);
+                setMode("semaine");
+                setView("binomes");
+                setTab("calendrier");
+              }}
+              onReplace={(absenceId) => {
+                router.replace(absenceId ? `/team/planning?tab=remplacer&absence=${absenceId}` : "/team/planning?tab=remplacer");
+                setTab("remplacer");
+              }}
+            />
+          </TabsContent>
+        )}
+
+        {!readOnly && (
+          <TabsContent value="manques" className="mt-4">
+            <ToDoPanel
+              only="manques"
               onShowDay={(iso) => {
                 setAnchor(iso);
                 setMode("semaine");
@@ -170,8 +223,8 @@ function Planning() {
         )}
 
         <TabsContent value="calendrier" className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="icon-sm" onClick={() => shift(-1)} aria-label="Précédent">
                 <ChevronLeft />
               </Button>
@@ -181,9 +234,35 @@ function Planning() {
               <Button variant="outline" size="icon-sm" onClick={() => shift(1)} aria-label="Suivant">
                 <ChevronRight />
               </Button>
-              <span className="ml-2 text-sm font-medium capitalize text-slate-800">{rangeLabel}</span>
+              <div className="ml-1 flex items-center gap-1">
+                <ToggleGroup type="single" variant="outline" size="sm" value={mode === "mois" ? undefined : mode} onValueChange={(v) => v && setMode(v as typeof mode)}>
+                  <ToggleGroupItem value="jour" className="px-3">
+                    Jour
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="semaine" className="px-3">
+                    Semaine
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <DayCountPicker
+                  value={customDays}
+                  active={mode === "jours"}
+                  onChange={(days) => {
+                    setCustomDays(days);
+                    setMode("jours");
+                  }}
+                  activeClassName="h-7 rounded-[min(var(--radius-md),12px)] border border-input bg-muted"
+                />
+                <ToggleGroup type="single" variant="outline" size="sm" value={mode === "mois" ? "mois" : undefined} onValueChange={(v) => v && setMode(v as typeof mode)}>
+                  <ToggleGroupItem value="mois" className="px-3">
+                    Mois
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            <span className="justify-self-center whitespace-nowrap text-sm font-medium capitalize text-slate-800">{rangeLabel}</span>
+
+            <div className="flex items-center justify-end gap-3">
               {has("binomes") && (
                 <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as typeof view)}>
                   <ToggleGroupItem value="binomes" className="px-3 data-[state=on]:bg-pink-100 data-[state=on]:text-pink-900">
@@ -204,19 +283,6 @@ function Planning() {
                   ]}
                 />
               )}
-              <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as typeof mode)}>
-                {has("multiSalles") && (
-                  <ToggleGroupItem value="jour" className="px-3">
-                    Jour
-                  </ToggleGroupItem>
-                )}
-                <ToggleGroupItem value="semaine" className="px-3">
-                  Semaine
-                </ToggleGroupItem>
-                <ToggleGroupItem value="mois" className="px-3">
-                  Mois
-                </ToggleGroupItem>
-              </ToggleGroup>
             </div>
           </div>
 
