@@ -42,7 +42,9 @@ import {
 
 
 // v5 : les données de démo sont recalées sur la date du jour (les anciennes, figées au 1er septembre, sont ignorées).
-const STORAGE_KEY = "oralys-team-data-v5";
+// v6 : tentative de retirer team.planning du rôle Secrétaire, annulée par l'ancienne migration "secretaire-planning"
+// qui le rajoutait encore (corrigée) — v7 reprend avec la migration "secretaire-lecture-seule" cette fois correcte.
+const STORAGE_KEY = "oralys-team-data-v7";
 
 interface PersistedTeamData {
   users: TeamUser[];
@@ -93,11 +95,12 @@ function loadData(): PersistedTeamData {
       });
       // Les assistants dentaires ne prennent pas de RDV (retour produit du 25/09) : on retire ce droit une seule fois,
       // un gestionnaire peut toujours le redonner dans la grille des droits.
-      // Idem pour la secrétaire, qui reçoit le droit « Planning d'équipe & remplacements » (retour du 25/09).
+      // La secrétaire voit le planning (droit "rdv") mais n'y agit pas (retour du 01/10, qui annule celui du
+      // 25/09) : team.planning est retiré une seule fois des démos existantes, même logique que l'assistant.
       const roles = stored.roles?.map((r) => {
         if (r.id === "role-assistant" && !done.includes("assistant-sans-rdv")) return { ...r, permissions: r.permissions.filter((x) => x !== "rdv") };
-        if (r.id === "role-secretaire" && !done.includes("secretaire-planning") && !r.permissions.includes("team.planning"))
-          return { ...r, permissions: [...r.permissions, "team.planning" as const] };
+        if (r.id === "role-secretaire" && !done.includes("secretaire-lecture-seule"))
+          return { ...r, permissions: r.permissions.filter((x) => x !== "team.planning") };
         return r;
       });
       // Besoin par type d'activité (retour produit du 29/09) : chaque fiche reçoit la semaine type de son agenda Soins
@@ -126,7 +129,7 @@ function loadData(): PersistedTeamData {
         ...(!done.includes("absences-passees") && stored.absences
           ? { absences: [...stored.absences, ...seed.absences.filter((a) => a.id.startsWith("abs-p") && !stored.absences!.some((x) => x.id === a.id))] }
           : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "demi-journees", "semaine-type", "absences-passees"])],
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees"])],
       };
     }
   } catch {
