@@ -13,6 +13,7 @@ import { Modal, ModalActions } from "@/components/ui/Modal";
 import { RecurrenceFields } from "./RecurrenceFields";
 import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
 import { buildSlotFromChoice } from "@/utils/slotRouting";
+import { useAgendaData } from "@/context/AgendaDataContext";
 
 export interface EditableSlot {
   origin?: "week" | "special";
@@ -25,6 +26,7 @@ export interface EditableSlot {
   customInterval?: number;
   customUnit?: RecurrenceUnit;
   recurrenceEndDate?: string | null;
+  room?: string;
 }
 
 export function WeekSlotModal({
@@ -46,10 +48,13 @@ export function WeekSlotModal({
   upsertSpecialSlot: (slot: SpecialSlot) => void;
   deleteSpecialSlot: (id: string) => void;
 }) {
+  const { agendaPraticienId, roomsFor } = useAgendaData();
+  const rooms = roomsFor(agendaPraticienId);
   const [day, setDay] = useState<Weekday>(initial.day);
   const [start, setStart] = useState(initial.start);
   const [end, setEnd] = useState(initial.end);
   const [activityTypeId, setActivityTypeId] = useState(initial.activityTypeId || activityTypes[0]?.id || "");
+  const [room, setRoom] = useState(initial.room ?? rooms[0]);
 
   const [frequency, setFrequency] = useState<RecurrenceFrequency>(
     initial.frequency === "none" ? "weekly" : initial.frequency
@@ -81,6 +86,7 @@ export function WeekSlotModal({
         customUnit,
         endsNever,
         recurrenceEndDate,
+        room,
       },
       referenceDate,
       initial.id
@@ -149,6 +155,26 @@ export function WeekSlotModal({
             />
           </div>
         </div>
+
+        {rooms.length > 1 && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              Salle
+              <span className="ml-1 font-normal text-slate-400">— permet de tenir 2 salles en parallèle sur le même horaire</span>
+            </label>
+            <select
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            >
+              {rooms.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <RecurrenceFields
           allowNone={false}

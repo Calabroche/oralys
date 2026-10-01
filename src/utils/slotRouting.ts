@@ -13,6 +13,8 @@ export interface RecurrenceChoice {
   customUnit?: RecurrenceUnit;
   endsNever: boolean;
   recurrenceEndDate?: string;
+  /** Salle du créneau, pour les praticiens qui en ont plusieurs. */
+  room?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export function buildSlotFromChoice(
         activityTypeId: choice.activityTypeId,
         start: choice.start,
         end: choice.end,
+        room: choice.room,
       },
     };
   }
@@ -54,6 +57,7 @@ export function buildSlotFromChoice(
       allDay: false,
       start: choice.start,
       end: choice.end,
+      room: choice.room,
       recurrence: {
         frequency: choice.frequency,
         customInterval: choice.frequency === "custom" ? choice.customInterval : undefined,

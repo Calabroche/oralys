@@ -4,6 +4,8 @@ import { useState } from "react";
 import { AbsencePeriod, ActivityColor, ActivityType, SpecialSlot, Weekday, WeekSlot } from "@/types";
 import { getColorClasses } from "@/utils/colors";
 import { WEEKDAYS, WEEKDAY_LABELS, fromISODate, minutesToDurationLabel, timeToMinutes, toWeekday } from "@/utils/date";
+import { laneOf, roomsUsedOnDay } from "@/utils/lanes";
+import { useAgendaData } from "@/context/AgendaDataContext";
 import { WeekSlotModal, EditableSlot } from "./WeekSlotModal";
 
 const START_HOUR = 7;
@@ -19,6 +21,7 @@ interface DisplayBlock {
   start: string;
   end: string;
   recurring: boolean;
+  room?: string;
 }
 
 interface OverlayBlock {
@@ -52,6 +55,8 @@ export function SemaineTypeGrid({
   deleteSpecialSlot,
 }: Props) {
   const [editing, setEditing] = useState<EditableSlot | null>(null);
+  const { agendaPraticienId, roomsFor } = useAgendaData();
+  const rooms = roomsFor(agendaPraticienId);
 
   // Créneaux spéciaux récurrents et non "toute la journée" : ils représentent une
   // activité programmée (ex. "Urgences toutes les 2 semaines"), pas une simple absence,
@@ -75,6 +80,7 @@ export function SemaineTypeGrid({
         start: s.start,
         end: s.end,
         recurring: false,
+        room: s.room,
         editable: {
           origin: "week",
           id: s.id,
@@ -84,6 +90,7 @@ export function SemaineTypeGrid({
           end: s.end,
           frequency: "weekly",
           recurrenceEndDate: null,
+          room: s.room,
         },
       }));
 
@@ -96,6 +103,7 @@ export function SemaineTypeGrid({
         start: s.start ?? "00:00",
         end: s.end ?? "00:00",
         recurring: true,
+        room: s.room,
         editable: {
           origin: "special",
           id: s.id,
@@ -107,6 +115,7 @@ export function SemaineTypeGrid({
           customInterval: s.recurrence.customInterval,
           customUnit: s.recurrence.customUnit,
           recurrenceEndDate: s.recurrence.endDate,
+          room: s.room,
         },
       }));
 
@@ -190,35 +199,45 @@ export function SemaineTypeGrid({
                 );
               })}
 
-              {blocksForDay(day).map((block) => {
-                const type = activityTypes.find((t) => t.id === block.activityTypeId);
-                if (!type) return null;
-                const colors = getColorClasses(block.color);
-                const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
-                return (
-                  <button
-                    key={block.key}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(block.editable);
-                    }}
-                    style={{ top, height }}
-                    className={`absolute inset-x-1 rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text} hover:brightness-95`}
-                  >
-                    <p className="flex items-center gap-1 font-medium">
-                      {type.name}
-                      {block.recurring && <span title="Récurrence non hebdomadaire">🔁</span>}
-                    </p>
-                    <p className="opacity-80">
-                      {block.start} - {block.end}
-                    </p>
-                    {height > 32 && (
-                      <p className="opacity-60">⏱ {minutesToDurationLabel(timeToMinutes(block.end) - timeToMinutes(block.start))}</p>
-                    )}
-                  </button>
-                );
-              })}
+              {(() => {
+                const dayBlocks = blocksForDay(day);
+                const lanes = roomsUsedOnDay(dayBlocks, rooms);
+                return dayBlocks.map((block) => {
+                  const type = activityTypes.find((t) => t.id === block.activityTypeId);
+                  if (!type) return null;
+                  const colors = getColorClasses(block.color);
+                  const top = ((timeToMinutes(block.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                  const height = ((timeToMinutes(block.end) - timeToMinutes(block.start)) / 60) * HOUR_HEIGHT;
+                  const { col, count } = laneOf(block.room, lanes);
+                  const laneStyle =
+                    count > 1
+                      ? { left: `calc(${(col / count) * 100}% + 2px)`, width: `calc(${100 / count}% - 4px)` }
+                      : { left: 4, right: 4 };
+                  return (
+                    <button
+                      key={block.key}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(block.editable);
+                      }}
+                      style={{ top, height, ...laneStyle }}
+                      className={`absolute rounded-md border ${colors.border} ${colors.bg} px-1.5 py-1 text-left text-[11px] leading-tight ${colors.text} hover:brightness-95`}
+                    >
+                      <p className="flex items-center gap-1 font-medium">
+                        {type.name}
+                        {block.recurring && <span title="Récurrence non hebdomadaire">🔁</span>}
+                      </p>
+                      {count > 1 && block.room && <p className="opacity-70">🏠 {block.room}</p>}
+                      <p className="opacity-80">
+                        {block.start} - {block.end}
+                      </p>
+                      {height > 44 && (
+                        <p className="opacity-60">⏱ {minutesToDurationLabel(timeToMinutes(block.end) - timeToMinutes(block.start))}</p>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
             </div>
           ))}
         </div>

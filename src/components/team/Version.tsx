@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * Découpage de la démo par version livrée. Le sélecteur (menu utilisateur) masque ce qui n'existe pas
  * encore dans la version choisie : on raconte la montée en puissance du module sur une seule démo.
  */
-export type Version = "mvp" | "v1" | "v2" | "v3";
+export type Version = "mvp" | "v1" | "v2" | "v3" | "v4";
 
 export interface VersionInfo {
   id: Version;
@@ -97,6 +97,21 @@ export const VERSIONS: VersionInfo[] = [
     tryHref: "/team/temps",
     screens: [49, 57, 50, 51, 52, 58],
   },
+  {
+    id: "v4",
+    label: "V4",
+    title: "Agenda multi-salles",
+    pitch: "Un praticien qui tient 2 salles en même temps (ex. anesthésie en bloc pendant un contrôle express) est enfin montré tel quel.",
+    problem: "Soins ne pensait qu'une salle par praticien : un vrai chevauchement de salles s'affichait comme une collision illisible, et Team comptait un seul assistant là où il en fallait deux en même temps.",
+    canDo: [
+      "Poser un créneau de semaine type dans une salle précise, quand le praticien en a plusieurs",
+      "Voir les salles qui se chevauchent côte à côte dans la semaine type et l'agenda, pas superposées",
+      "Choisir la salle à la prise de RDV dans Soins, avec un défaut selon l'acte",
+      "Le besoin en assistants de Team compte maintenant les salles tenues en parallèle, pas seulement la plus grosse activité du moment",
+    ],
+    tryHref: "/team/soins",
+    screens: [],
+  },
 ];
 
 /** Version à partir de laquelle chaque fonctionnalité existe. */
@@ -113,11 +128,12 @@ export const FEATURES = {
   postes: "v1",
   profil: "v2",
   pointage: "v3",
+  multiSalles: "v4",
 } as const satisfies Record<string, Version>;
 
 export type Feature = keyof typeof FEATURES;
 
-const ORDER: Version[] = ["mvp", "v1", "v2", "v3"];
+const ORDER: Version[] = ["mvp", "v1", "v2", "v3", "v4"];
 
 /**
  * Le 28/09, l'ancienne V1 a été fusionnée dans le MVP et les versions suivantes renumérotées
@@ -127,11 +143,11 @@ const RENUMBERED: Record<string, Version> = { mvp: "mvp", v1: "mvp", v2: "v1", v
 function initialVersion(): Version {
   try {
     const old = window.localStorage.getItem("oralys-ui-version");
-    if (old) return RENUMBERED[JSON.parse(old)] ?? "v3";
+    if (old) return RENUMBERED[JSON.parse(old)] ?? "v4";
   } catch {
     // Pas d'ancienne valeur lisible.
   }
-  return "v3";
+  return "v4";
 }
 export const versionOf = (id: Version) => VERSIONS.find((v) => v.id === id)!;
 

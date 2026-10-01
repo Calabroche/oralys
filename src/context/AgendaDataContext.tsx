@@ -7,6 +7,7 @@ import {
   ASSISTANT_NEEDS,
   DEFAULT_SOINS_PRATICIEN,
   OTHER_WEEK_SLOTS,
+  ROOMS,
   activityTypes as initialActivityTypes,
   buildAgendaSeed,
   weekSlots as initialWeekSlots,
@@ -23,7 +24,10 @@ const TEAM_STORAGE_KEY = "oralys-team-data-v5";
 // d'un champ requis) : les anciennes données sont alors ignorées plutôt
 // que de faire planter le rendu, et les données de démo repartent à jour.
 // v3 : données de démo recalées sur la date du jour.
-const STORAGE_KEY = "oralys-agenda-data-v3";
+// v4 : créneaux de semaine type avec salle (`room`), dont deux créneaux de démo réellement en
+// parallèle chez Dr Martin (Bloc 1 + Salle 2) pour montrer le multi-salles.
+// v5 : rendez-vous de démo avec salle, dont deux vrais RDV en parallèle chez Dr Martin aujourd'hui.
+const STORAGE_KEY = "oralys-agenda-data-v5";
 const PRATICIEN_KEY = "oralys-agenda-praticien";
 
 /** Assistants nécessaires : praticien → type d'activité → nombre. */
@@ -49,6 +53,8 @@ interface AgendaDataContextValue extends PersistedData {
   /** Praticien dont on règle / consulte l'agenda dans Soins. */
   agendaPraticienId: string;
   setAgendaPraticienId: (id: string) => void;
+  /** Salles de ce praticien (toujours au moins une). Pas de limite à 2. */
+  roomsFor: (praticienId: string) => string[];
   /** Assistants nécessaires pour ce praticien pendant ce type d'activité (défaut : celui du type, sinon 1). */
   needFor: (praticienId: string, activityTypeId: string) => number;
   setAssistantNeed: (praticienId: string, activityTypeId: string, need: number) => void;
@@ -153,6 +159,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     allWeekSlots,
     agendaPraticienId,
     setAgendaPraticienId,
+    roomsFor: (praticienId) => ROOMS[praticienId] ?? ["Salle 1"],
     needFor: (praticienId, typeId) =>
       assistantNeeds[praticienId]?.[typeId] ?? activityTypes.find((t) => t.id === typeId)?.assistantsNeeded ?? 1,
     setAssistantNeed: (praticienId, typeId, need) =>

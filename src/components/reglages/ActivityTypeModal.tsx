@@ -104,8 +104,10 @@ export function ActivityTypeModal({
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [color, setColor] = useState<ActivityColor>(() => existing?.color ?? firstUnusedColor(usedColors));
-  const { agendaPraticienId, needFor, setAssistantNeed } = useAgendaData();
+  const { agendaPraticienId, needFor, setAssistantNeed, roomsFor } = useAgendaData();
+  const rooms = roomsFor(agendaPraticienId);
   const [assistants, setAssistants] = useState(existing ? needFor(agendaPraticienId, existing.id) : 1);
+  const [room, setRoom] = useState(existingWeekSlots[0]?.room ?? existingSpecials[0]?.room ?? rooms[0]);
 
   const [days, setDays] = useState<Weekday[]>(initialDays);
   const initialScheduleValue = initialSchedule();
@@ -224,6 +226,25 @@ export function ActivityTypeModal({
               />
             </div>
           </div>
+          {rooms.length > 1 && (
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-slate-600">
+                Salle
+                <span className="ml-1 font-normal text-slate-400">— permet de tenir 2 salles en parallèle sur le même horaire</span>
+              </label>
+              <select
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              >
+                {rooms.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <RecurrenceFields
@@ -303,6 +324,7 @@ export function ActivityTypeModal({
                   customUnit,
                   endsNever,
                   recurrenceEndDate,
+                  room,
                 },
                 referenceDate,
                 `slot-${savedAt}-${day}`

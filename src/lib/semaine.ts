@@ -51,11 +51,35 @@ export interface HalfPlan {
   /** Activités prévues sur cette demi-journée. */
   activities: string[];
   need: number;
+  /** Détail du besoin par salle : une seule entrée (sans salle) si le praticien n'en a qu'une. */
+  rooms: RoomNeed[];
+}
+
+export interface RoomNeed {
+  /** Absente : le praticien n'a qu'une salle (ou le créneau n'en précise pas). */
+  room?: string;
+  need: number;
 }
 
 /**
- * Demi-journées travaillées un jour de la semaine, avec leurs activités et leur besoin.
- * Sans semaine type (profil ancien ou incomplet), on retombe sur les jours de travail et le besoin général.
+ * Besoin par salle sur un groupe de créneaux : le plus grand besoin des créneaux de CETTE salle
+ * (une salle ne peut pas se chevaucher avec elle-même, donc ses activités sont séquentielles).
+ * Le besoin de la demi-journée est la somme des salles réellement utilisées : deux salles tenues
+ * en parallèle (multi-salles) demandent chacune leur propre assistant, en plus l'une de l'autre.
+ */
+function roomNeeds(profile: PraticienProfile, slots: WeekSlot[]): RoomNeed[] {
+  const byRoom = new Map<string | undefined, WeekSlot[]>();
+  for (const s of slots) byRoom.set(s.room, [...(byRoom.get(s.room) ?? []), s]);
+  return [...byRoom.entries()].map(([room, roomSlots]) => ({
+    room,
+    need: Math.max(0, ...roomSlots.map((s) => needForActivity(profile, s.activityTypeId))),
+  }));
+}
+
+/**
+ * Demi-journées travaillées un jour de la semaine, avec leurs activités, leur besoin total et son
+ * détail par salle. Sans semaine type (profil ancien ou incomplet), on retombe sur les jours de
+ * travail et le besoin général.
  */
 export function dayPlan(profile: PraticienProfile, praticien: TeamUser, day: Weekday): HalfPlan[] {
   const slots = (profile.weekSlots ?? []).filter((s) => s.day === day);
@@ -63,12 +87,13 @@ export function dayPlan(profile: PraticienProfile, praticien: TeamUser, day: Wee
     if (!praticien.workDays.includes(day)) return [];
     const half = praticien.halfDays?.[day];
     const need = profile.assistantsNeeded ?? 1;
-    return (half ? [half] : HALVES).map((h) => ({ half: h, activities: [], need }));
+    return (half ? [half] : HALVES).map((h) => ({ half: h, activities: [], need, rooms: [{ need }] }));
   }
   return HALVES.map((half) => {
-    const acts = slots.filter((s) => halvesOfSlot(s).includes(half)).map((s) => s.activityTypeId);
-    const activities = [...new Set(acts)];
-    return { half, activities, need: Math.max(0, ...activities.map((a) => needForActivity(profile, a))) };
+    const halfSlots = slots.filter((s) => halvesOfSlot(s).includes(half));
+    const activities = [...new Set(halfSlots.map((s) => s.activityTypeId))];
+    const rooms = roomNeeds(profile, halfSlots);
+    return { half, activities, need: rooms.reduce((sum, r) => sum + r.need, 0), rooms };
   }).filter((p) => p.activities.length > 0);
 }
 

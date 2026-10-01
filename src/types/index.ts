@@ -36,6 +36,8 @@ export interface WeekSlot {
   activityTypeId: string;
   start: string; // "08:00"
   end: string; // "12:00"
+  /** Salle où se tient ce créneau (un praticien avec plusieurs salles peut en occuper deux en parallèle). */
+  room?: string;
 }
 
 export type RecurrenceFrequency = "none" | "weekly" | "biweekly" | "monthly" | "custom";
@@ -61,6 +63,8 @@ export interface SpecialSlot {
   start?: string; // heure, absente si allDay
   end?: string;
   recurrence: Recurrence;
+  /** Salle où se tient ce créneau, si le praticien en a plusieurs. */
+  room?: string;
 }
 
 export interface AbsencePeriod {
@@ -92,4 +96,6 @@ export interface Appointment {
   start: string;
   end: string;
   notes?: string;
+  /** Salle du rendez-vous, pour les praticiens qui en ont plusieurs. */
+  room?: string;
 }

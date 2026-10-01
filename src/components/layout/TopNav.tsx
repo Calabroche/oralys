@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { CABINET_NAME } from "@/data/mockData";
 
 const NAV_ITEMS = [
-  { label: "Activité", href: "/", enabled: false },
+  { label: "Activité", href: "/activite", enabled: true },
   { label: "Patients", href: "/patients", enabled: false },
   { label: "Agenda", href: "/agenda", match: ["/agenda", "/reglages"], enabled: true },
   { label: "Téléconsultation", href: "/teleconsultation", enabled: false },

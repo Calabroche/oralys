@@ -107,6 +107,7 @@ export default function SoinsPreviewPage() {
 
 function PriseRdv() {
   const { users, profiles, absences, rdvs, findUser, now, addRdv } = useTeam();
+  const { has } = useVersion();
   const demoRange = useDemoRange();
   const active = profiles.filter((p) => findUser(p.praticienUserId)?.status === "actif");
   const [profileId, setProfileId] = useState(active[0]?.id ?? "");
@@ -115,6 +116,10 @@ function PriseRdv() {
   const [acte, setActe] = useState<ActeCategory>("implantologie");
   const [patient, setPatient] = useState("Claire Bernard");
   const [showAll, setShowAll] = useState(false);
+  // Choix manuel de salle, gardé seulement tant qu'il concerne le praticien affiché (pas besoin
+  // d'effet pour le réinitialiser : on ignore juste l'ancien choix si le praticien a changé).
+  const [roomOverride, setRoomOverride] = useState<{ profileId: string; room: string } | null>(null);
+  const room = roomOverride?.profileId === profileId ? roomOverride.room : null;
 
   const profile = profiles.find((p) => p.id === profileId);
   const praticien = findUser(profile?.praticienUserId);
@@ -125,18 +130,21 @@ function PriseRdv() {
   const praticienAbs = absenceOn(praticien.id, date, absences);
   const usualAbs = usual ? absenceOn(usual.id, date, absences) : undefined;
   const praticienOff = !worksOn(praticien, date);
+  const end = `${String(Number(slot.slice(0, 2)) + 1).padStart(2, "0")}${slot.slice(2)}`;
+  // Salle par défaut selon l'acte (chirurgie → 1re salle du praticien), modifiable si plusieurs salles.
+  const defaultRoom = acte === "chirurgie_orale" || acte === "implantologie" ? profile.rooms[0] : (profile.rooms[profile.rooms.length - 1] ?? profile.rooms[0]);
+  const selectedRoom = room ?? defaultRoom ?? "Salle 1";
   const candidates = sortCandidates(
-    suggestAssistants({ praticienUserId: praticien.id, date, start: slot, acte }, { users, profiles, absences, rdvs }),
+    suggestAssistants({ praticienUserId: praticien.id, date, start: slot, end, acte }, { users, profiles, absences, rdvs }),
     "affinite"
   );
   const best = candidates.find((c) => c.eligible);
   const usualAvailable = usual && !usualAbs && worksOn(usual, date) && candidates.find((c) => c.user.id === usual.id)?.eligible;
-  const end = `${String(Number(slot.slice(0, 2)) + 1).padStart(2, "0")}${slot.slice(2)}`;
 
   function book(assistantId: string | null) {
-    addRdv({ date, start: slot, end, praticienUserId: praticien!.id, assistantUserId: assistantId, patient, acte, room: profile!.rooms[0] ?? "Salle 1" });
+    addRdv({ date, start: slot, end, praticienUserId: praticien!.id, assistantUserId: assistantId, patient, acte, room: selectedRoom });
     const a = findUser(assistantId);
-    toast.success("RDV posé dans Soins", { description: `${shortDate(date)} ${slot} · ${displayName(praticien!)}${a ? ` + ${a.firstName}` : ""}` });
+    toast.success("RDV posé dans Soins", { description: `${shortDate(date)} ${slot} · ${selectedRoom} · ${displayName(praticien!)}${a ? ` + ${a.firstName}` : ""}` });
   }
 
   return (
@@ -202,6 +210,23 @@ function PriseRdv() {
               </SelectContent>
             </Select>
           </div>
+          {profile.rooms.length > 1 && has("multiSalles") && (
+            <div className="space-y-1.5">
+              <Label>Salle</Label>
+              <Select value={selectedRoom} onValueChange={(r) => setRoomOverride({ profileId, room: r })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {profile.rooms.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <p className="text-xs text-slate-500">
             Astuce démo : Dr Martin {demoRange("abs-t1")} (Thomas en arrêt maladie), ou Dr Dray {demoRange("abs-t2")} (Camille en congé).
           </p>

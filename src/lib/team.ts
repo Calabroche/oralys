@@ -236,6 +236,8 @@ export interface SuggestionContext {
   praticienUserId: string;
   date: string;
   start?: string;
+  /** Fin du créneau, pour détecter un vrai chevauchement (pas seulement une égalité d'heure de début). */
+  end?: string;
   acte: ActeCategory;
   /** RDV à exclure du contrôle "déjà occupé" (le RDV en cours de réaffectation). */
   excludeRdvId?: string;
@@ -269,12 +271,22 @@ export function suggestAssistants(
     const missing = required.filter((s) => !u.skills.includes(s));
     if (missing.length) blockers.push(`Habilitation manquante : ${missing.map(skillLabel).join(", ")}`);
     if (ctx.start) {
+      // Chevauchement réel d'horaires, pas juste une égalité d'heure de début : un assistant au
+      // fauteuil de 9h00 à 9h45 est déjà pris pour un nouveau RDV à 9h20, pas seulement à 9h00.
+      const end = ctx.end ?? ctx.start;
       const busy = data.rdvs.find(
-        (r) => r.id !== ctx.excludeRdvId && r.assistantUserId === u.id && r.date === ctx.date && r.start === ctx.start
+        (r) =>
+          r.id !== ctx.excludeRdvId &&
+          r.assistantUserId === u.id &&
+          r.date === ctx.date &&
+          r.start < end &&
+          r.end > ctx.start!
       );
       if (busy) {
         const other = data.users.find((x) => x.id === busy.praticienUserId);
-        blockers.push(`Déjà au fauteuil avec ${other ? displayName(other) : "un autre praticien"} sur ce créneau`);
+        blockers.push(
+          `Déjà au fauteuil avec ${other ? displayName(other) : "un autre praticien"} de ${busy.start} à ${busy.end}`
+        );
       }
     }
 
@@ -357,16 +369,26 @@ export interface StaffingSlot {
   partial?: HalfDay;
 }
 
+/** Une salle sur une demi-journée : son besoin propre et qui y est affecté. */
+export interface RoomStaffing {
+  room?: string;
+  need: number;
+  assistants: string[];
+  missing: number;
+}
+
 /** Une demi-journée d'un praticien : ses activités, son besoin et les assistants à ses côtés. */
 export interface HalfStaffing {
   half: HalfDay;
   activities: string[];
   /** Besoin de la semaine type pour cette demi-journée. */
   baseNeed: number;
-  /** Besoin retenu (plafonné par un ajustement du jour). */
+  /** Besoin retenu (plafonné par un ajustement du jour), total toutes salles confondues. */
   need: number;
   assistants: string[];
   missing: number;
+  /** Qui va où : détaillé par salle quand le praticien en a plusieurs ce jour-là, sinon une seule entrée. */
+  rooms: RoomStaffing[];
 }
 
 export interface PraticienDay {
@@ -439,14 +461,16 @@ export function dayStaffing(
       const dayNeed = status === "travaille" ? needs.find((n) => n.date === date && n.praticienId === praticien.id) : undefined;
       const byHalf: HalfStaffing[] =
         status === "travaille"
-          ? plans.map((pl) => ({
-              half: pl.half,
-              activities: pl.activities,
-              baseNeed: pl.need,
-              need: dayNeed ? Math.min(dayNeed.need, pl.need) : pl.need,
-              assistants: [],
-              missing: 0,
-            }))
+          ? plans.map((pl) => {
+              const need = dayNeed ? Math.min(dayNeed.need, pl.need) : pl.need;
+              // Un ajustement manuel du jour porte sur le total : répartir un plafond ad hoc entre
+              // salles serait arbitraire, donc on retombe sur une seule case dans ce cas précis.
+              const rooms: RoomStaffing[] =
+                dayNeed || pl.rooms.length <= 1
+                  ? [{ room: pl.rooms[0]?.room, need, assistants: [], missing: 0 }]
+                  : pl.rooms.map((r) => ({ room: r.room, need: r.need, assistants: [], missing: 0 }));
+              return { half: pl.half, activities: pl.activities, baseNeed: pl.need, need, assistants: [], missing: 0, rooms };
+            })
           : [];
       return {
         profile,
@@ -471,12 +495,16 @@ export function dayStaffing(
   const usedAny = new Set<string>();
 
   for (const half of HALVES) {
-    const rows = working
-      .map((p) => ({ p, h: p.byHalf.find((x) => x.half === half) }))
-      .filter((x): x is { p: PraticienDay; h: HalfStaffing } => Boolean(x.h));
+    // Une ligne par (praticien, salle) : avec une seule salle c'est comme avant, avec plusieurs
+    // chaque salle est pourvue séparément — c'est elle qui dit qui va où, pas juste un total.
+    const rows = working.flatMap((p) => {
+      const h = p.byHalf.find((x) => x.half === half);
+      return h ? h.rooms.map((room) => ({ p, h, room })) : [];
+    });
     const used = new Set<string>();
     const free = (id: string) => available.has(id) && !used.has(id) && worksHalf(id, half);
-    const place = (r: { p: PraticienDay; h: HalfStaffing }, id: string, kind: StaffingSlot["kind"]) => {
+    const place = (r: { p: PraticienDay; h: HalfStaffing; room: RoomStaffing }, id: string, kind: StaffingSlot["kind"]) => {
+      r.room.assistants.push(id);
       r.h.assistants.push(id);
       used.add(id);
       usedAny.add(id);
@@ -486,15 +514,16 @@ export function dayStaffing(
       assignmentOf[id] ??= r.p.praticien.id;
     };
 
-    // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire.
+    // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire, visant la
+    // salle la plus demandeuse du praticien prêté (celle qui a le plus de chances d'en manquer).
     for (const o of overrides.filter((x) => x.date === date)) {
-      const r = rows.find((x) => x.p.praticien.id === o.praticienId);
+      const r = rows.filter((x) => x.p.praticien.id === o.praticienId).sort((a, b) => b.room.need - a.room.need)[0];
       if (r && free(o.assistantId)) place(r, o.assistantId, "pret");
     }
 
     for (const r of rows) {
       for (const l of r.p.profile.team.filter((l) => l.priority === "titulaire" && applies(l)).sort(rankSort)) {
-        if (r.h.assistants.length >= r.h.need) break;
+        if (r.room.assistants.length >= r.room.need) break;
         if (r.h.assistants.includes(l.userId)) continue;
         if (free(l.userId)) place(r, l.userId, "titulaire");
         else if (!worksHalf(l.userId, half)) continue;
@@ -503,15 +532,17 @@ export function dayStaffing(
       }
     }
 
-    const maxNeed = Math.max(0, ...rows.map((r) => r.h.need));
+    const maxNeed = Math.max(0, ...rows.map((r) => r.room.need));
     for (let rank = 1; rank <= maxNeed; rank++) {
       for (const r of rows) {
-        if (r.h.assistants.length >= rank || r.h.assistants.length >= r.h.need) continue;
+        if (r.room.assistants.length >= rank || r.room.assistants.length >= r.room.need) continue;
         const pick = r.p.profile.team.filter((l) => l.priority === "backup" && applies(l) && free(l.userId)).sort(rankSort)[0];
         if (pick) place(r, pick.userId, "backup");
       }
     }
-    rows.forEach((r) => (r.h.missing = Math.max(0, r.h.need - r.h.assistants.length)));
+    rows.forEach((r) => (r.room.missing = Math.max(0, r.room.need - r.room.assistants.length)));
+    const touchedHalves = new Set(rows.map((r) => r.h));
+    touchedHalves.forEach((h) => (h.missing = h.rooms.reduce((sum, room) => sum + room.missing, 0)));
   }
 
   for (const p of working) {

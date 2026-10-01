@@ -18,7 +18,8 @@ import {
 } from "@/utils/date";
 
 export default function AgendaPage() {
-  const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment } = useAgendaData();
+  const { activityTypes, weekSlots, specialSlots, absencePeriods, appointments, addAppointment, agendaPraticienId, roomsFor } = useAgendaData();
+  const rooms = roomsFor(agendaPraticienId);
   const [viewMode, setViewMode] = useState<AgendaViewMode>("semaine");
   // Toujours la date réelle du jour.
   const [today] = useState(() => new Date());
@@ -100,6 +101,7 @@ export default function AgendaPage() {
             specialSlots={specialSlots}
             absencePeriods={absencePeriods}
             getPatient={getPatient}
+            rooms={rooms}
           />
         )}
       </div>

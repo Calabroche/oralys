@@ -223,10 +223,29 @@ export function BinomesCalendar({
                                   {h.need === 0 ? "sans assistant" : `${h.assistants.length}/${h.need}`}
                                 </span>
                               </div>
-                              <div className="flex flex-col gap-0.5">
-                                {h.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${id}`))}
-                                {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
-                              </div>
+                              {h.rooms.length > 1 ? (
+                                <div className="flex flex-col gap-1.5">
+                                  {h.rooms.map((room) => (
+                                    <div key={room.room ?? "sans-salle"} className="border-l-2 border-slate-200 pl-1.5">
+                                      <div className="flex items-center gap-1 text-[0.6rem] font-medium text-slate-500">
+                                        <span>🏠 {room.room ?? "Salle"}</span>
+                                        <span className={cn("ml-auto tabular-nums", room.missing > 0 ? "text-rose-700" : "text-emerald-700")}>
+                                          {room.assistants.length}/{room.need}
+                                        </span>
+                                      </div>
+                                      <div className="mt-0.5 flex flex-col gap-0.5">
+                                        {room.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${room.room}-${id}`))}
+                                        {room.missing > 0 && renderGap(`Manque ${room.missing}`)}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-0.5">
+                                  {h.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${id}`))}
+                                  {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
+                                </div>
+                              )}
                             </div>
                           ))
                         )}

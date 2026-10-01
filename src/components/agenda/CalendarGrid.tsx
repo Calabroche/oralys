@@ -5,6 +5,7 @@ import { AbsencePeriod, ActivityType, Appointment, Patient, SpecialSlot, WeekSlo
 import { ACTIVITY_COLOR_CLASSES, getColorClasses } from "@/utils/colors";
 import { WEEKDAY_LABELS, minutesToDurationLabel, timeToMinutes, toISODate, toWeekday } from "@/utils/date";
 import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
+import { laneOf, roomsUsedOnDay } from "@/utils/lanes";
 
 const START_HOUR = 7;
 const END_HOUR = 19;
@@ -20,9 +21,11 @@ interface Props {
   specialSlots: SpecialSlot[];
   absencePeriods: AbsencePeriod[];
   getPatient: (id: string) => Patient;
+  /** Salles du praticien affiché : au-delà d'une, les créneaux qui se chevauchent s'affichent côte à côte. */
+  rooms: string[];
 }
 
-export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots, specialSlots, absencePeriods, getPatient }: Props) {
+export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots, specialSlots, absencePeriods, getPatient, rooms }: Props) {
   const [openAppointmentId, setOpenAppointmentId] = useState<string | null>(null);
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -92,14 +95,25 @@ export function CalendarGrid({ days, now, appointments, activityTypes, weekSlots
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-slate-100" />
               ))}
 
-              {dayAvailability.map((slot) => {
-                const type = activityTypes.find((t) => t.id === slot.activityTypeId);
-                if (!type) return null;
-                const colors = ACTIVITY_COLOR_CLASSES[type.color];
-                const top = ((timeToMinutes(slot.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                const height = ((timeToMinutes(slot.end) - timeToMinutes(slot.start)) / 60) * HOUR_HEIGHT;
-                return <div key={slot.id} className={`absolute inset-x-0 ${colors.bg}`} style={{ top, height }} />;
-              })}
+              {(() => {
+                const lanes = roomsUsedOnDay(dayAvailability, rooms);
+                return dayAvailability.map((slot) => {
+                  const type = activityTypes.find((t) => t.id === slot.activityTypeId);
+                  if (!type) return null;
+                  const colors = ACTIVITY_COLOR_CLASSES[type.color];
+                  const top = ((timeToMinutes(slot.start) - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                  const height = ((timeToMinutes(slot.end) - timeToMinutes(slot.start)) / 60) * HOUR_HEIGHT;
+                  const { col, count } = laneOf(slot.room, lanes);
+                  const laneStyle = count > 1 ? { left: `${(col / count) * 100}%`, width: `${100 / count}%` } : { left: 0, right: 0 };
+                  return (
+                    <div key={slot.id} className={`absolute ${colors.bg}`} style={{ top, height, ...laneStyle }}>
+                      {count > 1 && slot.room && height > 16 && (
+                        <span className="absolute left-1 top-0.5 text-[9px] font-medium text-slate-500/80">🏠 {slot.room}</span>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
 
               {blockingAbsences.map((absence) => {
                 const recurrenceLabel = describeRecurrence(absence.recurrence);
