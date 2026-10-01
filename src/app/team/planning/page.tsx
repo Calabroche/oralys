@@ -36,17 +36,20 @@ export default function PlanningPage() {
 
 function Planning() {
   const params = useSearchParams();
-  const { users, absences, profiles, now, dayOverrides, dayNeeds, sessionUserId } = useTeam();
+  const { users, absences, profiles, now, dayOverrides, dayNeeds, sessionUserId, can } = useTeam();
   const allowed = useAccess();
   const { has } = useVersion();
-  // Sans le droit « Planning d'équipe » (assistants, aides…) : on consulte le planning, sans rien modifier.
+  // Sans le droit « Planning d'équipe » (assistants, aides, secrétaires…) : on consulte le planning,
+  // sans rien modifier. Les secrétaires (droit "rdv") voient quand même la file d'attente et les
+  // remplacements, juste sans pouvoir y agir — contrairement aux assistants/aides qui ne les voient pas.
   const readOnly = !allowed("planning");
+  const canSeeToDo = allowed("planning") || can("rdv");
   const router = useRouter();
   const canReplace = allowed("remplacements") && has("remplacements");
   // Onglets, façon Hub Patient : des pastilles groupées avec compteur plutôt qu'un seul "À traiter".
   // Demandes à valider (dont dernier moment), Manques à couvrir, Calendrier, À remplacer (RDV), Toutes les absences.
   const [storedTab, setTab] = useState(() => params.get("tab") ?? "calendrier");
-  const tab = (readOnly && (storedTab === "demandes" || storedTab === "manques")) || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
+  const tab = (!canSeeToDo && (storedTab === "demandes" || storedTab === "manques")) || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
   const todo = useToDo();
   const demandesCount = todo.pending.length + todo.lastMinute.filter((x) => x.open > 0).length;
   const manquesCount = todo.gaps.length + todo.coverage.length;
@@ -164,7 +167,7 @@ function Planning() {
               Toutes les absences
             </TabsTrigger>
           </TabsList>
-          {!readOnly && (
+          {canSeeToDo && (
             <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
               <TabsTrigger value="demandes" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
                 Demandes à valider
@@ -186,39 +189,44 @@ function Planning() {
           )}
         </div>
 
-        {!readOnly && (
+        {canSeeToDo && (
           <TabsContent value="demandes" className="mt-4">
-            <ToDoPanel
-              only="demandes"
-              onShowDay={(iso) => {
-                setAnchor(iso);
-                setMode("semaine");
-                setView("binomes");
-                setTab("calendrier");
-              }}
-              onReplace={(absenceId) => {
-                router.replace(absenceId ? `/team/planning?tab=remplacer&absence=${absenceId}` : "/team/planning?tab=remplacer");
-                setTab("remplacer");
-              }}
-            />
+            {/* Secrétaire (sans team.planning) : la file est visible mais inerte, aucune action possible. */}
+            <div inert={readOnly}>
+              <ToDoPanel
+                only="demandes"
+                onShowDay={(iso) => {
+                  setAnchor(iso);
+                  setMode("semaine");
+                  setView("binomes");
+                  setTab("calendrier");
+                }}
+                onReplace={(absenceId) => {
+                  router.replace(absenceId ? `/team/planning?tab=remplacer&absence=${absenceId}` : "/team/planning?tab=remplacer");
+                  setTab("remplacer");
+                }}
+              />
+            </div>
           </TabsContent>
         )}
 
-        {!readOnly && (
+        {canSeeToDo && (
           <TabsContent value="manques" className="mt-4">
-            <ToDoPanel
-              only="manques"
-              onShowDay={(iso) => {
-                setAnchor(iso);
-                setMode("semaine");
-                setView("binomes");
-                setTab("calendrier");
-              }}
-              onReplace={(absenceId) => {
-                router.replace(absenceId ? `/team/planning?tab=remplacer&absence=${absenceId}` : "/team/planning?tab=remplacer");
-                setTab("remplacer");
-              }}
-            />
+            <div inert={readOnly}>
+              <ToDoPanel
+                only="manques"
+                onShowDay={(iso) => {
+                  setAnchor(iso);
+                  setMode("semaine");
+                  setView("binomes");
+                  setTab("calendrier");
+                }}
+                onReplace={(absenceId) => {
+                  router.replace(absenceId ? `/team/planning?tab=remplacer&absence=${absenceId}` : "/team/planning?tab=remplacer");
+                  setTab("remplacer");
+                }}
+              />
+            </div>
           </TabsContent>
         )}
 
@@ -326,7 +334,9 @@ function Planning() {
 
         {canReplace && (
           <TabsContent value="remplacer" className="mt-4">
-            <RemplacementsPanel key={params.toString()} />
+            <div inert={readOnly}>
+              <RemplacementsPanel key={params.toString()} />
+            </div>
           </TabsContent>
         )}
 

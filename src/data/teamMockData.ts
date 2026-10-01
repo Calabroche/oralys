@@ -88,7 +88,9 @@ export const ROLES: Role[] = [
     description: "Accueil, rendez-vous, carte Vitale et télétransmission.",
     predefined: true,
     healthProfessional: false,
-    permissions: ["adressage", "rdv", "facturation", "teletransmission", "team.planning"],
+    // Pas de team.planning : elle voit le planning (via "rdv") mais ne peut rien y valider, refuser
+    // ni réaffecter — lecture seule, comme les assistants et aides, mais avec un périmètre plus large.
+    permissions: ["adressage", "rdv", "facturation", "teletransmission"],
   },
   {
     id: "role-comptable",
