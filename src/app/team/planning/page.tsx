@@ -21,6 +21,7 @@ import { PersonLink } from "@/components/team/PersonSheet";
 import { AbsencePopover, useAbsenceActions } from "@/components/team/AbsencePopover";
 import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, collapseRecurring, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
 import { BinomesCalendar } from "@/components/team/planning/BinomesCalendar";
+import { DayStaffingView } from "@/components/team/planning/DayStaffingView";
 import { DocumentBadge } from "@/components/team/Justificatifs";
 import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 
@@ -48,7 +49,9 @@ function Planning() {
   });
   const tab = (readOnly && storedTab === "a-traiter") || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
   const todo = useToDo();
-  const [mode, setMode] = usePersistentState<"semaine" | "mois">("planning-mode", "semaine");
+  const [storedMode, setMode] = usePersistentState<"jour" | "semaine" | "mois">("planning-mode", "semaine");
+  // La vue Jour (détail par salle) arrive en V4 : avant, on retombe sur la semaine comme aujourd'hui.
+  const mode = storedMode === "jour" && !has("multiSalles") ? "semaine" : storedMode;
   const [anchor, setAnchor] = useState(() => params.get("date") ?? toISODate(now()));
   const highlightUserId = params.get("user");
   const [roleFilter, setRoleFilter] = usePersistentState<string>("planning-roles", "tous");
@@ -64,6 +67,7 @@ function Planning() {
 
   const dates = useMemo(() => {
     const a = fromISODate(anchor);
+    if (mode === "jour") return [anchor];
     if (mode === "semaine") {
       const s = startOfWeek(a);
       return datesBetween(toISODate(s), toISODate(addDays(s, 5)));
@@ -99,12 +103,18 @@ function Planning() {
 
   const shift = (dir: number) => {
     const a = fromISODate(anchor);
-    setAnchor(toISODate(mode === "semaine" ? addDays(a, 7 * dir) : new Date(a.getFullYear(), a.getMonth() + dir, 1)));
+    setAnchor(
+      toISODate(
+        mode === "jour" ? addDays(a, dir) : mode === "semaine" ? addDays(a, 7 * dir) : new Date(a.getFullYear(), a.getMonth() + dir, 1)
+      )
+    );
   };
   const rangeLabel =
-    mode === "semaine"
-      ? `${shortDate(dates[0])} → ${shortDate(dates[dates.length - 1])}`
-      : fromISODate(anchor).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    mode === "jour"
+      ? fromISODate(anchor).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+      : mode === "semaine"
+        ? `${shortDate(dates[0])} → ${shortDate(dates[dates.length - 1])}`
+        : fromISODate(anchor).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
@@ -195,6 +205,11 @@ function Planning() {
                 />
               )}
               <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as typeof mode)}>
+                {has("multiSalles") && (
+                  <ToggleGroupItem value="jour" className="px-3">
+                    Jour
+                  </ToggleGroupItem>
+                )}
                 <ToggleGroupItem value="semaine" className="px-3">
                   Semaine
                 </ToggleGroupItem>
@@ -207,16 +222,20 @@ function Planning() {
 
           {view === "binomes" ? (
             <>
-              <BinomesCalendar
-                dates={dates}
-                staffing={staffing}
-                readOnly={readOnly}
-                editablePraticienId={profiles.some((p) => p.praticienUserId === sessionUserId) ? sessionUserId : undefined}
-                onDeclare={(userId, date) => {
-                  setPrefill({ userId, date });
-                  setDeclareOpen(true);
-                }}
-              />
+              {mode === "jour" ? (
+                <DayStaffingView date={dates[0]} staffing={staffing.get(dates[0])!} readOnly={readOnly} />
+              ) : (
+                <BinomesCalendar
+                  dates={dates}
+                  staffing={staffing}
+                  readOnly={readOnly}
+                  editablePraticienId={profiles.some((p) => p.praticienUserId === sessionUserId) ? sessionUserId : undefined}
+                  onDeclare={(userId, date) => {
+                    setPrefill({ userId, date });
+                    setDeclareOpen(true);
+                  }}
+                />
+              )}
               <BinomesLegend />
             </>
           ) : (

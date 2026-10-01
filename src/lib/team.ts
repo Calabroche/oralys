@@ -587,7 +587,8 @@ export const ROLE_MIN_COVERAGE: Record<string, { min: number; label: string }> =
 /** Vue d'accueil : le tableau de bord (résumé) pour qui gère le cabinet, le planning pour tous les autres. */
 export function homePathFor(u: TeamUser | undefined, roles: Role[]): string {
   if (!u) return "/team/planning";
-  return permissionsOf(u, roles).has("param.cabinet") ? "/team" : "/team/planning";
+  const perms = permissionsOf(u, roles);
+  return perms.has("param.cabinet") || perms.has("param.praticien") ? "/team" : "/team/planning";
 }
 
 export function primaryRoleId(u: TeamUser): string {

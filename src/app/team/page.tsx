@@ -20,8 +20,9 @@ import { toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
 /**
- * Tableau de bord du gestionnaire : un résumé de la journée. Le détail (et les actions) est dans le planning,
- * pour ne pas avoir la même information à deux endroits. Les autres profils arrivent directement sur le planning.
+ * Tableau de bord : un résumé de la journée, pour les gestionnaires et aussi pour les praticiens (leur propre
+ * résumé). Le détail (et les actions) est dans le planning, pour ne pas avoir la même information à deux endroits.
+ * Les profils sans ce droit (assistants, aides…) arrivent directement sur le planning.
  */
 export default function TeamDashboard() {
   const allowed = useAccess();
@@ -34,7 +35,8 @@ export default function TeamDashboard() {
 }
 
 function Dashboard() {
-  const { users, absences, sessionUser, now, hydrated } = useTeam();
+  const { users, absences, sessionUser, now, hydrated, can } = useTeam();
+  const isManager = can("param.cabinet");
   const { has } = useVersion();
   const [declareOpen, setDeclareOpen] = useState(false);
   const todo = useToDo();
@@ -49,7 +51,7 @@ function Dashboard() {
   const kpis = [
     { label: "Présents aujourd'hui", value: `${presentCount}/${active.length}`, icon: UserCheck, href: "/team/planning" },
     { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=a-traiter", alert: todo.count > 0 },
-    { label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" },
+    ...(isManager ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
   ];
 
   // Une ligne par catégorie : le compte et un lien vers l'onglet du planning qui permet d'agir.
@@ -73,11 +75,13 @@ function Dashboard() {
           <Button variant="outline" onClick={() => setDeclareOpen(true)}>
             <CalendarPlus /> Déclarer une absence
           </Button>
-          <Button asChild>
-            <Link href="/team/reglages/utilisateurs">
-              <UserPlus /> Gérer les utilisateurs
-            </Link>
-          </Button>
+          {isManager && (
+            <Button asChild>
+              <Link href="/team/reglages/utilisateurs">
+                <UserPlus /> Gérer les utilisateurs
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

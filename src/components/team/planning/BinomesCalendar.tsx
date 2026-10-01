@@ -10,6 +10,7 @@ import { HalfDay } from "@/types/team";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink, usePersonSheet } from "@/components/team/PersonSheet";
+import { useVersion } from "@/components/team/Version";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarPlus, Undo2, UserRound } from "lucide-react";
@@ -43,6 +44,8 @@ export function BinomesCalendar({
 }) {
   const { findUser, users, absences, now, dayOverrides, removeLoan } = useTeam();
   const { open: openPerson } = usePersonSheet();
+  const { has } = useVersion();
+  const showRooms = has("multiSalles");
   const today = toISODate(now());
   const compact = dates.length > 10;
   const first = staffing.get(dates[0]);
@@ -77,31 +80,34 @@ export function BinomesCalendar({
             const backups = profile.team.filter((l) => l.priority === "backup" && chair(l)).sort((a, b) => a.rank - b.rank);
             return (
               <tr key={profile.id} className="border-b align-top" inert={readOnly && praticien.id !== editablePraticienId}>
-                <td className="sticky left-0 z-10 bg-white px-4 py-2.5">
+                <td className="sticky left-0 z-10 bg-white px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <UserAvatar user={praticien} className="size-7 text-[0.65rem]" />
+                    <UserAvatar user={praticien} className="size-8 text-[0.68rem]" />
                     <div className="min-w-0">
                       <PersonLink userId={praticien.id} className="block truncate font-medium text-slate-900">
                         {displayName(praticien)}
                       </PersonLink>
-                      <div className="text-xs text-slate-500">
-                        {needSummary(profile)}
-                      </div>
+                      <span className="inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.68rem] text-slate-600">{needSummary(profile)}</span>
                     </div>
                   </div>
-                  <div className="mt-1.5 text-[0.7rem] leading-snug text-slate-500">
-                    <span className="text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} : </span>
-                    {titulaires.map((l) => `${name(l.userId)}${l.days.length ? ` (${l.days.map((d) => d.slice(0, 3)).join(", ")})` : ""}`).join(", ") || "aucun"}
-                    <br />
-                    <span className="text-sky-700">Back-up : </span>
-                    {backups.map((l) => name(l.userId)).join(", ") || "aucun"}
+                  <div className="mt-2.5 space-y-1 text-[0.7rem] leading-snug">
+                    <p className="flex gap-1">
+                      <span className="shrink-0 font-medium text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} :</span>
+                      <span className="text-slate-600">
+                        {titulaires.map((l) => `${name(l.userId)}${l.days.length ? ` (${l.days.map((d) => d.slice(0, 3)).join(", ")})` : ""}`).join(", ") || "aucun"}
+                      </span>
+                    </p>
+                    <p className="flex gap-1">
+                      <span className="shrink-0 font-medium text-sky-700">Back-up :</span>
+                      <span className="text-slate-600">{backups.map((l) => name(l.userId)).join(", ") || "aucun"}</span>
+                    </p>
                   </div>
                 </td>
                 {dates.map((iso) => {
                   const day = staffing.get(iso)?.praticiens.find((p) => p.profile.id === profile.id);
                   if (!day || day.status === "repos") {
                     return (
-                      <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
+                      <td key={iso} className={cn("p-1.5", iso === today && "bg-pink-50/40")}>
                         <div className="h-full min-h-12 rounded-md bg-[repeating-linear-gradient(135deg,#f1f5f9,#f1f5f9_3px,transparent_3px,transparent_7px)]" title="Ne consulte pas" />
                       </td>
                     );
@@ -109,7 +115,7 @@ export function BinomesCalendar({
                   if (day.status === "absent") {
                     const abs = absenceOn(praticien.id, iso, absences)!;
                     return (
-                      <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
+                      <td key={iso} className={cn("p-1.5", iso === today && "bg-pink-50/40")}>
                         <AbsencePopover absence={abs} date={iso}>
                           <button className={cn("flex min-h-12 w-full items-center justify-center rounded-md border text-xs font-medium", absenceTone(abs.type))}>
                             {compact ? "—" : abs.source === "soins" ? `${abs.motif?.replace(" (agenda Soins)", "")} · agenda Soins` : `${ABSENCE_TYPE_LABELS[abs.type]} · agenda fermé`}
@@ -128,7 +134,7 @@ export function BinomesCalendar({
                                 <button
                                   title={`${fullName(u)} · ${KIND_LABEL[s.kind]}. Cliquer pour agir.`}
                                   className={cn(
-                                    "flex items-center gap-1 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium hover:ring-1 hover:ring-slate-300",
+                                    "flex items-center gap-1 truncate rounded px-1.5 py-1 text-left text-xs font-medium hover:ring-1 hover:ring-slate-300",
                                     s.kind === "titulaire"
                                       ? "bg-emerald-100 text-emerald-900"
                                       : s.kind === "pret"
@@ -176,7 +182,7 @@ export function BinomesCalendar({
                             <PopoverTrigger asChild>
                               <button
                                 title="Voir pourquoi et agir"
-                                className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-0.5 text-left text-xs font-medium text-rose-700 hover:bg-rose-100"
+                                className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-1 text-left text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
                                 <UserX className="size-3 shrink-0" />
                                 {label}
@@ -200,9 +206,16 @@ export function BinomesCalendar({
                             </PopoverContent>
                           </Popover>
                   );
+                  // Le statut du jour (manque ou complet) se lit à l'accent de bordure des cartes, pas sur
+                  // tout le fond de la cellule : moins de couleur au repos, pour que le manque ressorte.
+                  const footnotes = !compact
+                    ? teamMembersOn(day, staffing.get(iso)!, users, absences, dayOverrides).filter(
+                        (m) => m.state !== "present" && m.state !== "autre_jour" && (m.priority === "titulaire" || day.missing > 0)
+                      )
+                    : [];
                   return (
-                    <td key={iso} className={cn("p-1", iso === today && "bg-pink-50/50")}>
-                      <div className={cn("flex min-h-12 flex-col gap-1 rounded-md p-1", day.missing > 0 ? "bg-rose-50 ring-1 ring-rose-200" : "bg-emerald-50/60")}>
+                    <td key={iso} className={cn("p-1.5", iso === today && "bg-pink-50/40")}>
+                      <div className="flex min-h-12 flex-col gap-1.5 rounded-md bg-slate-50/60 p-1">
                         {compact ? (
                           <>
                             {day.need === 0 && <span className="px-1 py-0.5 text-xs text-slate-500">·</span>}
@@ -211,29 +224,41 @@ export function BinomesCalendar({
                           </>
                         ) : (
                           day.byHalf.map((h) => (
-                            <div key={h.half} className={cn("rounded border bg-white/80 p-1", h.missing > 0 ? "border-rose-200" : "border-emerald-100")}>
-                              <div className="mb-0.5 flex flex-wrap items-center gap-1 px-0.5">
-                                <span className="text-[0.62rem] font-semibold tracking-wide text-slate-500 uppercase">{h.half === "matin" ? "Matin" : "Aprèm"}</span>
+                            <div
+                              key={h.half}
+                              className={cn(
+                                "rounded-md border-l-[3px] border-y border-r border-slate-100 bg-white p-1.5",
+                                h.missing > 0 ? "border-l-rose-400" : "border-l-emerald-300"
+                              )}
+                            >
+                              <div className="mb-1 flex flex-wrap items-center gap-1">
+                                <span className="text-[0.63rem] font-semibold tracking-wide text-slate-400 uppercase">{h.half === "matin" ? "Matin" : "Aprèm"}</span>
                                 {h.activities.map((a) => (
                                   <span key={a} className={cn("rounded border px-1 text-[0.6rem] font-medium", ACTIVITY_COLOR_CLASSES[activityType(a)?.color ?? "gray"].chip)}>
                                     {activityName(a)}
                                   </span>
                                 ))}
-                                <span className={cn("ml-auto text-[0.65rem] font-semibold tabular-nums", h.missing > 0 ? "text-rose-700" : "text-emerald-700")} title="Présents / besoin">
+                                <span
+                                  className={cn(
+                                    "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[0.65rem] font-bold tabular-nums",
+                                    h.need === 0 ? "text-slate-400" : h.missing > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
+                                  )}
+                                  title="Présents / besoin"
+                                >
                                   {h.need === 0 ? "sans assistant" : `${h.assistants.length}/${h.need}`}
                                 </span>
                               </div>
-                              {h.rooms.length > 1 ? (
-                                <div className="flex flex-col gap-1.5">
+                              {showRooms && h.rooms.length > 1 ? (
+                                <div className="flex flex-col gap-1">
                                   {h.rooms.map((room) => (
-                                    <div key={room.room ?? "sans-salle"} className="border-l-2 border-slate-200 pl-1.5">
+                                    <div key={room.room ?? "sans-salle"} className="rounded bg-slate-50 p-1">
                                       <div className="flex items-center gap-1 text-[0.6rem] font-medium text-slate-500">
                                         <span>🏠 {room.room ?? "Salle"}</span>
-                                        <span className={cn("ml-auto tabular-nums", room.missing > 0 ? "text-rose-700" : "text-emerald-700")}>
+                                        <span className={cn("ml-auto font-semibold tabular-nums", room.missing > 0 ? "text-rose-700" : "text-emerald-700")}>
                                           {room.assistants.length}/{room.need}
                                         </span>
                                       </div>
-                                      <div className="mt-0.5 flex flex-col gap-0.5">
+                                      <div className="mt-0.5 flex flex-col gap-1">
                                         {room.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${room.room}-${id}`))}
                                         {room.missing > 0 && renderGap(`Manque ${room.missing}`)}
                                       </div>
@@ -241,7 +266,7 @@ export function BinomesCalendar({
                                   ))}
                                 </div>
                               ) : (
-                                <div className="flex flex-col gap-0.5">
+                                <div className="flex flex-col gap-1">
                                   {h.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${id}`))}
                                   {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
                                 </div>
@@ -249,40 +274,40 @@ export function BinomesCalendar({
                             </div>
                           ))
                         )}
-                        {day.dayNeed && !compact && (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="w-fit truncate rounded px-1 text-left text-[0.65rem] text-emerald-800 hover:bg-white" title="Besoin ajusté pour la journée. Cliquer pour rétablir.">
-                                Besoin {day.need} ce jour (au lieu de {day.baseNeed})
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 p-4" align="start">
-                              <GapActions day={day} staffing={staffing.get(iso)!} />
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {!compact &&
-                          teamMembersOn(day, staffing.get(iso)!, users, absences, dayOverrides)
-                            // Les back-ups ne sont expliqués que s'il manque quelqu'un ; les titulaires toujours.
-                            .filter((m) => m.state !== "present" && m.state !== "autre_jour" && (m.priority === "titulaire" || day.missing > 0))
-                            .map((m) =>
+                        {((day.dayNeed && !compact) || footnotes.length > 0) && (
+                          <div className="space-y-0.5 border-t border-dashed border-slate-200 pt-1">
+                            {day.dayNeed && !compact && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="block w-fit truncate rounded px-1 text-left text-[0.65rem] text-emerald-800 hover:bg-white" title="Besoin ajusté pour la journée. Cliquer pour rétablir.">
+                                    Besoin {day.need} ce jour (au lieu de {day.baseNeed})
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-96 p-4" align="start">
+                                  <GapActions day={day} staffing={staffing.get(iso)!} />
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                            {footnotes.map((m) =>
                               m.absence ? (
                                 <AbsencePopover key={m.user.id} absence={m.absence} date={iso}>
                                   <button
                                     title="Absent(e). Cliquer pour la/le remettre présent(e)."
-                                    className="w-fit truncate rounded px-1 text-left text-[0.65rem] text-slate-500 line-through hover:bg-white hover:text-slate-700"
+                                    className="block w-fit truncate rounded px-1 text-left text-[0.65rem] text-slate-500 line-through hover:bg-white hover:text-slate-700"
                                   >
                                     {m.user.firstName} absent(e)
                                   </button>
                                 </AbsencePopover>
                               ) : (
-                                <span key={m.user.id} title={m.label} className="truncate px-1 text-[0.65rem] text-slate-500">
+                                <span key={m.user.id} title={m.label} className="block truncate px-1 text-[0.65rem] text-slate-500">
                                   {m.state === "ailleurs"
                                     ? `${m.user.firstName} → Dr ${m.elsewhere?.lastName ?? "?"}${m.loan ? " (prêt)" : ""}`
                                     : `${m.user.firstName} : ${m.label.includes("ne travaille pas") ? "repos" : "libre"}`}
                                 </span>
                               )
                             )}
+                          </div>
+                        )}
                       </div>
                     </td>
                   );

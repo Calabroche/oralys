@@ -15,8 +15,8 @@ import { PermissionId } from "@/types/team";
  * Assistants et aides dentaires, sans ces droits, voient le planning en lecture seule.
  */
 export const ACCESS = {
-  /** Tableau de bord (résumé de la journée) : réservé aux gestionnaires. */
-  tableau: ["param.cabinet"],
+  /** Tableau de bord (résumé de la journée) : gestionnaires, et les praticiens pour leur propre résumé. */
+  tableau: ["param.cabinet", "param.praticien"],
   /** Modifier le planning, valider les demandes, voir les tensions. */
   planning: ["team.planning"],
   /** Onglet « À remplacer » du planning, reprogrammation de RDV et onglet « À traiter ». */

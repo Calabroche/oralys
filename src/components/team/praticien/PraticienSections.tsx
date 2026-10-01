@@ -45,6 +45,8 @@ const colorOf = (activityId: string) => ACTIVITY_COLOR_CLASSES[activityType(acti
  */
 export function SemaineTypeCard({ profile }: { profile: PraticienProfile; canEdit?: boolean }) {
   const { findUser } = useTeam();
+  const { has } = useVersion();
+  const showRooms = has("multiSalles");
   const praticien = findUser(profile.praticienUserId)!;
   const soinsHref = `/reglages/agenda?praticien=${profile.id}&nom=${encodeURIComponent(displayName(praticien))}`;
   const days = WEEKDAYS;
@@ -55,8 +57,18 @@ export function SemaineTypeCard({ profile }: { profile: PraticienProfile; canEdi
       <CardHeader>
         <CardTitle>Jours de travail et besoin en assistants</CardTitle>
         <CardDescription>
-          Repris de l&apos;agenda Soins de {displayName(praticien)} : sa semaine type (quand il consulte, sur quelle activité) et le nombre d&apos;assistants
-          de chaque type d&apos;activité. Une demi-journée demande le plus grand besoin de ses activités.
+          {showRooms ? (
+            <>
+              Repris de l&apos;agenda Soins de {displayName(praticien)} : sa semaine type (quand il consulte, sur quelle activité, dans quelle salle) et
+              le nombre d&apos;assistants de chaque type d&apos;activité. Une salle demande le plus grand besoin de ses activités ; deux salles tenues en
+              parallèle s&apos;additionnent.
+            </>
+          ) : (
+            <>
+              Repris de l&apos;agenda Soins de {displayName(praticien)} : sa semaine type (quand il consulte, sur quelle activité) et le nombre
+              d&apos;assistants de chaque type d&apos;activité. Une demi-journée demande le plus grand besoin de ses activités.
+            </>
+          )}
         </CardDescription>
         <CardAction>
           <Button size="sm" variant="outline" asChild>
@@ -121,18 +133,42 @@ export function SemaineTypeCard({ profile }: { profile: PraticienProfile; canEdi
                         return (
                           <td key={d} className="p-0.5 align-top">
                             {plan ? (
-                              <div className="min-h-14 rounded-md border bg-white p-1.5">
-                                <div className="flex flex-wrap gap-1">
-                                  {plan.activities.map((a) => (
-                                    <span key={a} className={cn("rounded border px-1 text-[0.65rem] font-medium", colorOf(a).chip)}>
-                                      {activityName(a)}
-                                    </span>
-                                  ))}
+                              showRooms && plan.rooms.length > 1 ? (
+                                <div className="flex flex-col gap-1">
+                                  {plan.rooms.map((room) => {
+                                    const roomActivities = (profile.weekSlots ?? []).filter((s) => s.day === d && s.room === room.room && plan.activities.includes(s.activityTypeId));
+                                    const acts = [...new Set(roomActivities.map((s) => s.activityTypeId))];
+                                    return (
+                                      <div key={room.room ?? "sans-salle"} className="min-h-14 rounded-md border bg-white p-1.5">
+                                        <p className="truncate text-[0.6rem] font-medium text-slate-500">🏠 {room.room ?? "Salle"}</p>
+                                        <div className="mt-0.5 flex flex-wrap gap-1">
+                                          {acts.map((a) => (
+                                            <span key={a} className={cn("rounded border px-1 text-[0.65rem] font-medium", colorOf(a).chip)}>
+                                              {activityName(a)}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        <p className={cn("mt-1 text-[0.7rem]", room.need === 0 ? "text-slate-400" : "font-medium text-slate-700")}>
+                                          {room.need === 0 ? "Sans assistant" : `${room.need} assistant${room.need > 1 ? "s" : ""}`}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                                <p className={cn("mt-1 text-[0.7rem]", plan.need === 0 ? "text-slate-400" : "font-medium text-slate-700")}>
-                                  {plan.need === 0 ? "Sans assistant" : `${plan.need} assistant${plan.need > 1 ? "s" : ""}`}
-                                </p>
-                              </div>
+                              ) : (
+                                <div className="min-h-14 rounded-md border bg-white p-1.5">
+                                  <div className="flex flex-wrap gap-1">
+                                    {plan.activities.map((a) => (
+                                      <span key={a} className={cn("rounded border px-1 text-[0.65rem] font-medium", colorOf(a).chip)}>
+                                        {activityName(a)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <p className={cn("mt-1 text-[0.7rem]", plan.need === 0 ? "text-slate-400" : "font-medium text-slate-700")}>
+                                    {plan.need === 0 ? "Sans assistant" : `${plan.need} assistant${plan.need > 1 ? "s" : ""}`}
+                                  </p>
+                                </div>
+                              )
                             ) : (
                               <div className="min-h-14 rounded-md bg-[repeating-linear-gradient(135deg,#f1f5f9,#f1f5f9_3px,transparent_3px,transparent_7px)]" title="Ne consulte pas" />
                             )}
