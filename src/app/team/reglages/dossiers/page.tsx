@@ -29,10 +29,12 @@ export default function DossiersPage() {
 
 /** Prochain rendez-vous RH de la personne (1:1, médecine du travail ou entretien professionnel). */
 function nextRendezVous(u: TeamUser): { label: string; date: string } | null {
+  // Un praticien libéral n'a ni 1:1 ni entretien professionnel : seule la médecine du travail compte.
+  const salarie = hasCongesPayes(u);
   const all = [
-    u.oneOnOne && { label: "1:1", date: u.oneOnOne.nextDate },
+    salarie && u.oneOnOne && { label: "1:1", date: u.oneOnOne.nextDate },
     u.medecineTravail && { label: "Médecine du travail", date: u.medecineTravail.nextDate },
-    u.entretienPro && { label: "Entretien professionnel", date: u.entretienPro.prochaineDate },
+    salarie && u.entretienPro && { label: "Entretien professionnel", date: u.entretienPro.prochaineDate },
   ].filter((x): x is { label: string; date: string } => !!x);
   return all.sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
 }
@@ -66,7 +68,7 @@ function Dossiers() {
               const cp = salarie ? cpSummary(u, absences, today) : null;
               const rdv = nextRendezVous(u);
               const missing = [
-                !u.missions?.length && "missions",
+                salarie && !u.missions?.length && "missions",
                 salarie && !u.contrat && "contrat",
                 salarie && !u.salary && "rémunération",
               ].filter(Boolean) as string[];

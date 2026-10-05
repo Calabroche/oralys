@@ -554,7 +554,11 @@ function RappelHistoryList({ history, canEdit, onAdd }: { history: RappelHistory
   );
 }
 
-export function RappelsCard({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
+/**
+ * `medecineOnly` : un praticien libéral n'a ni 1:1 ni entretien professionnel avec le cabinet,
+ * seule la médecine du travail le concerne.
+ */
+export function RappelsCard({ user, canEdit, medecineOnly }: { user: TeamUser; canEdit: boolean; medecineOnly?: boolean }) {
   const { updateUser, now } = useTeam();
   const today = toISODate(now());
   const oneOnOne = user.oneOnOne;
@@ -585,11 +589,12 @@ export function RappelsCard({ user, canEdit }: { user: TeamUser; canEdit: boolea
           <CalendarClock className="size-4 text-slate-400" /> Rappels
         </CardTitle>
         <CardDescription>
-          1:1, médecine du travail, entretien professionnel (obligatoire tous les 2 ans).{" "}
+          {medecineOnly ? "Médecine du travail." : "1:1, médecine du travail, entretien professionnel (obligatoire tous les 2 ans)."}{" "}
           {canEdit ? "L'historique est saisi par le gestionnaire et ne se modifie plus ensuite." : "Programmés par le gestionnaire : le prochain rendez-vous et ceux déjà effectués."}
         </CardDescription>
       </CardHeader>
       <CardContent className="divide-y">
+        {!medecineOnly && (
         <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 first:pt-0">
           <p className="text-sm font-medium text-slate-700">1:1</p>
           {canEdit ? (
@@ -615,7 +620,8 @@ export function RappelsCard({ user, canEdit }: { user: TeamUser; canEdit: boolea
           )}
           <RappelHistoryList history={oneOnOne?.history ?? []} canEdit={canEdit} onAdd={(e) => setOneOnOne({ history: [...(oneOnOne?.history ?? []), e] })} />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
           <p className="text-sm font-medium text-slate-700">Médecine du travail</p>
           {canEdit ? (
             <div className="flex items-center gap-2">
@@ -637,6 +643,7 @@ export function RappelsCard({ user, canEdit }: { user: TeamUser; canEdit: boolea
           )}
           <RappelHistoryList history={medecine?.history ?? []} canEdit={canEdit} onAdd={(e) => setMedecine({ history: [...(medecine?.history ?? []), e] })} />
         </div>
+        {!medecineOnly && (
         <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 last:pb-0">
           <p className="text-sm font-medium text-slate-700">Entretien professionnel</p>
           {canEdit ? (
@@ -654,6 +661,7 @@ export function RappelsCard({ user, canEdit }: { user: TeamUser; canEdit: boolea
             onAdd={(e) => setEntretien({ history: [...(entretien?.history ?? []), e] })}
           />
         </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -736,8 +744,13 @@ export function ContratCard({ user, canEdit }: { user: TeamUser; canEdit: boolea
 
 // --- Documents RH -----------------------------------------------------------------
 
-export function DocumentsCard({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
-  const { updateUser, now } = useTeam();
+/**
+ * Chacun peut ajouter ses propres documents (diplôme, attestation…) ; le gestionnaire en ajoute pour tout le monde.
+ * On ne retire que ce qu'on a ajouté soi-même, sauf le gestionnaire qui peut tout retirer.
+ */
+export function DocumentsCard({ user, canAdd, canManage }: { user: TeamUser; canAdd: boolean; canManage: boolean }) {
+  const { updateUser, now, sessionUserId, findUser } = useTeam();
+  const canRemove = (d: RHDocument) => canManage || (!!d.addedById && d.addedById === sessionUserId);
   const documents = user.documents ?? [];
   const [adding, setAdding] = useState(false);
   const [nom, setNom] = useState("");
@@ -754,6 +767,7 @@ export function DocumentsCard({ user, canEdit }: { user: TeamUser; canEdit: bool
       mime: file?.mime,
       size: file?.size,
       dataUrl: file?.dataUrl,
+      addedById: sessionUserId ?? undefined,
     };
     const res = updateUser({ ...user, documents: [...documents, doc] });
     if (res.ok) {
@@ -774,10 +788,10 @@ export function DocumentsCard({ user, canEdit }: { user: TeamUser; canEdit: bool
         <CardTitle className="flex items-center gap-2">
           <FileText className="size-4 text-slate-400" /> Documents
         </CardTitle>
-        <CardDescription>Contrat, avenants, diplômes, habilitations — la pièce jointe est facultative.</CardDescription>
+        <CardDescription>Contrat, avenants, diplômes, habilitations, attestations. Chacun peut ajouter les siens ; la pièce jointe est facultative.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {documents.length === 0 && !canEdit && <p className="text-sm text-slate-400">Aucun document pour l&apos;instant.</p>}
+        {documents.length === 0 && !canAdd && <p className="text-sm text-slate-400">Aucun document pour l&apos;instant.</p>}
         {documents.length > 0 && (
           <ul className="divide-y rounded-md border">
             {documents.map((d) => (
@@ -790,8 +804,11 @@ export function DocumentsCard({ user, canEdit }: { user: TeamUser; canEdit: bool
                 <Badge variant="outline" className="shrink-0">
                   {DOCUMENT_TYPE_LABELS[d.type]}
                 </Badge>
-                <span className="shrink-0 text-xs text-slate-400">{formatShortDate(d.dateAjout)}</span>
-                {canEdit && (
+                <span className="shrink-0 text-xs text-slate-400">
+                  {formatShortDate(d.dateAjout)}
+                  {d.addedById && ` · par ${d.addedById === sessionUserId ? "vous" : (findUser(d.addedById)?.firstName ?? "?")}`}
+                </span>
+                {canRemove(d) && (
                   <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => remove(d.id)}>
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -800,7 +817,7 @@ export function DocumentsCard({ user, canEdit }: { user: TeamUser; canEdit: bool
             ))}
           </ul>
         )}
-        {canEdit &&
+        {canAdd &&
           (adding ? (
             <div className="space-y-2">
               <div className="flex flex-wrap items-end gap-2">

@@ -204,11 +204,8 @@ const RH_INFO: Record<string, Partial<TeamUser>> = {
     congesPayes: { prisHorsAppli: 3 },
   },
   "u-sophie": {
-    missions: ["Chirurgie orale et implantologie", "Référente implantologie du cabinet", "Supervision du protocole de stérilisation"],
-    oneOnOne: { frequency: "mensuel", nextDate: "2026-09-12", history: [{ date: "2026-08-15" }] },
     medecineTravail: { nextDate: "2026-09-10", periodiciteMois: 24, history: [{ date: "2024-09-10" }] },
     documents: [{ id: "doc-sophie-1", nom: "Diplôme d'État de docteur en chirurgie dentaire", type: "diplome", dateAjout: "2023-02-01" }],
-    entretienPro: { prochaineDate: "2026-09-25", history: [{ date: "2024-09-25" }] },
     dpc: { heuresRequises: 30, heuresRealisees: 18, periodeFin: "2027-12-31" },
   },
   "u-thomas": {
@@ -244,7 +241,6 @@ function jdate(seed: string, minDays: number, maxDays: number): string {
 }
 
 const DEFAULT_MISSIONS: Partial<Record<TeamUser["poste"], string[]>> = {
-  praticien: ["Soins et suivi des patients"],
   assistant: ["Assistanat opératoire", "Stérilisation du matériel"],
   secretariat: ["Accueil et prise de rendez-vous", "Gestion du courrier et des appels"],
   gestion: ["Gestion administrative et comptable"],
@@ -258,13 +254,14 @@ const DEFAULT_MISSIONS: Partial<Record<TeamUser["poste"], string[]>> = {
 function defaultRH(u: TeamUser): Partial<TeamUser> {
   const liberal = u.roleIds.includes("role-praticien");
   const embauche = u.createdAt.slice(0, 10);
+  // Praticien libéral : ni missions, ni 1:1, ni entretien professionnel, seulement la médecine du travail.
   const out: Partial<TeamUser> = {
-    missions: DEFAULT_MISSIONS[u.poste],
-    oneOnOne: { frequency: "mensuel", nextDate: jdate(`${u.id}-11`, 5, 40) },
     medecineTravail: { nextDate: jdate(`${u.id}-med`, 30, 300), periodiciteMois: 24 },
-    entretienPro: { prochaineDate: jdate(`${u.id}-entr`, 60, 400) },
   };
   if (!liberal) {
+    out.missions = DEFAULT_MISSIONS[u.poste];
+    out.oneOnOne = { frequency: "mensuel", nextDate: jdate(`${u.id}-11`, 5, 40) };
+    out.entretienPro = { prochaineDate: jdate(`${u.id}-entr`, 60, 400) };
     // Ratios alignés sur STATUT_RATIOS (src/components/team/profile/RHSections.tsx) : gestion = cadre, le reste non-cadre.
     const statut = u.poste === "gestion" ? "cadre" : "non_cadre";
     const [netRatio, coutRatio] = statut === "cadre" ? [0.75, 1.48] : [0.78, 1.42];

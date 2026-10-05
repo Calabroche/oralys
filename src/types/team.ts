@@ -193,6 +193,8 @@ export interface RHDocument {
   mime?: string;
   size?: number;
   dataUrl?: string;
+  /** Qui l'a ajouté : la personne elle-même ou le gestionnaire. Seul l'auteur (ou le gestionnaire) peut le retirer. */
+  addedById?: string;
 }
 
 export interface EntretienPro {

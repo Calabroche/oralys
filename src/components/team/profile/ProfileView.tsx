@@ -127,7 +127,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
         </CardContent>
       </Card>
 
-      <MissionsCard user={user} canEdit={canEditRH} />
+      {/* Missions : seulement pour les salariés, un praticien libéral n'a pas de fiche de poste. */}
+      {!liberal && <MissionsCard user={user} canEdit={canEditRH} />}
 
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
 
@@ -171,11 +172,11 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
 
       <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />
-      <RappelsCard user={user} canEdit={canEditRH} />
+      <RappelsCard user={user} canEdit={canEditRH} medecineOnly={liberal} />
       {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
       {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
       {profile && <DpcCard user={user} canEdit={canEditRH} />}
-      <DocumentsCard user={user} canEdit={canEditRH} />
+      <DocumentsCard user={user} canAdd={self || canEditRH} canManage={canEditRH} />
 
       {full && (
         <>
