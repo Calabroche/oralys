@@ -30,6 +30,8 @@ import { slotOwner, useAgendaData } from "@/context/AgendaDataContext";
 import {
   ABSENCE_TYPE_LABELS,
   EMAIL_PATTERN,
+  AM_PATTERN,
+  RPPS_PATTERN,
   displayName,
   fullName,
   absenceOn,
@@ -98,6 +100,8 @@ function loadData(): PersistedTeamData {
         return {
           ...u,
           weeklyHours: u.weeklyHours ?? s?.weeklyHours,
+          rpps: u.rpps ?? s?.rpps,
+          numeroAM: u.numeroAM ?? s?.numeroAM,
           ...(!done.includes("demi-journees") && !u.halfDays && s?.halfDays ? { halfDays: s.halfDays } : {}),
         };
       });
@@ -111,6 +115,9 @@ function loadData(): PersistedTeamData {
           return { ...r, permissions: r.permissions.filter((x) => x !== "team.planning") };
         return r;
       });
+      // Rôle Infirmier(e) (retour produit du 05/10) : ajouté aux démos existantes.
+      const infirmier = ROLES.find((r) => r.id === "role-infirmier");
+      if (roles && infirmier && !roles.some((r) => r.id === infirmier.id)) roles.push(infirmier);
       // Besoin par type d'activité (retour produit du 29/09) : chaque fiche reçoit la semaine type de son agenda Soins
       // et les besoins de la démo, sans toucher à l'équipe rattachée déjà réglée.
       const semaine = !done.includes("semaine-type");
@@ -146,7 +153,7 @@ function loadData(): PersistedTeamData {
   return seed;
 }
 
-export type NewUserInput = Pick<TeamUser, "firstName" | "lastName" | "email" | "roleIds" | "poste" | "defaultEnvironmentId">;
+export type NewUserInput = Pick<TeamUser, "firstName" | "lastName" | "email" | "roleIds" | "poste" | "defaultEnvironmentId" | "rpps" | "numeroAM">;
 export type NewAbsenceInput = Pick<TeamAbsence, "userId" | "type" | "startDate" | "endDate" | "motif" | "documents">;
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
@@ -388,6 +395,8 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         invitedAt: at,
         lastInviteSentAt: at,
         defaultEnvironmentId: input.defaultEnvironmentId,
+        rpps: input.rpps,
+        numeroAM: input.numeroAM,
         pin: "1234",
         workDays: ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
         skills: [],
@@ -398,6 +407,8 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       };
       // Un praticien obtient d'office son environnement Soins : jamais de profil orphelin.
       const isPraticien = input.roleIds.some((r) => data.roles.find((x) => x.id === r)?.healthProfessional);
+      if (isPraticien && (!RPPS_PATTERN.test(input.rpps ?? "") || !AM_PATTERN.test(input.numeroAM ?? "")))
+        return { ok: false, error: "Numéro RPPS (11 chiffres) et numéro Assurance Maladie (9 chiffres) obligatoires pour un praticien." };
       const profile: PraticienProfile | null = isPraticien
         ? { id: newId("env"), praticienUserId: id, label: `Dr ${fullName(user)}`, rooms: [], team: [], feedback: {} }
         : null;

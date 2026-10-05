@@ -106,6 +106,10 @@ export interface TeamUser {
   specialties: ActeCategory[];
   /** Heures hebdomadaires du contrat (salariés). Absent = ne pointe pas (ex. praticien libéral). */
   weeklyHours?: number;
+  /** Praticien : numéro RPPS (11 chiffres), obligatoire à la création. */
+  rpps?: string;
+  /** Praticien : numéro Assurance Maladie (9 chiffres), obligatoire à la création. */
+  numeroAM?: string;
 
   // --- Gestion RH : missions, rémunération, contrat, rappels, documents -----
   /** Missions liées au poste : liste de points, réglée par le gestionnaire. */

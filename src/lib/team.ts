@@ -32,6 +32,12 @@ export function normalizeEmail(email: string): string {
 }
 
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Numéro RPPS d'un praticien : 11 chiffres. */
+export const RPPS_PATTERN = /^\d{11}$/;
+/** Numéro Assurance Maladie d'un praticien : 9 chiffres. */
+export const AM_PATTERN = /^\d{9}$/;
+/** Rôles au fauteuil : ils doivent être rattachés à un praticien (environnement Soins par défaut). */
+export const CHAIR_ROLE_IDS = ["role-assistant", "role-aide", "role-infirmier"];
 
 export function permissionsOf(user: TeamUser | undefined, roles: Role[]): Set<PermissionId> {
   const set = new Set<PermissionId>();

@@ -102,6 +102,13 @@ export function ProfileView({ user }: { user: TeamUser }) {
               </Link>
             </p>
             <p className="text-sm text-slate-500">{user.email}</p>
+            {(user.rpps || user.numeroAM) && (
+              <p className="text-xs text-slate-500 tabular-nums">
+                {user.rpps && `RPPS ${user.rpps}`}
+                {user.rpps && user.numeroAM && " · "}
+                {user.numeroAM && `N° Assurance Maladie ${user.numeroAM}`}
+              </p>
+            )}
             <div className="mt-1.5">
               <RoleBadges user={user} />
             </div>

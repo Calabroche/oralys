@@ -83,6 +83,14 @@ export const ROLES: Role[] = [
     permissions: ["sterilisation"],
   },
   {
+    id: "role-infirmier",
+    name: "Infirmier(e)",
+    description: "Infirmier(e) diplômé(e) d'État : aide opératoire au bloc, soins.",
+    predefined: true,
+    healthProfessional: false,
+    permissions: ["clinique.assistance", "sterilisation"],
+  },
+  {
     id: "role-secretaire",
     name: "Secrétaire",
     description: "Accueil, rendez-vous, carte Vitale et télétransmission.",
@@ -154,6 +162,14 @@ function user(partial: Partial<TeamUser> & Pick<TeamUser, "id" | "firstName" | "
     ...partial,
   };
 }
+
+/** Identifiants professionnels des praticiens (fictifs) : RPPS sur 11 chiffres, n° Assurance Maladie sur 9. */
+export const IDENTIFIANTS_PRATICIENS: Record<string, Pick<TeamUser, "rpps" | "numeroAM">> = {
+  "u-sophie": { rpps: "10101234567", numeroAM: "691234567" },
+  "u-flore": { rpps: "10107654321", numeroAM: "691765432" },
+  "u-dray": { rpps: "10109876543", numeroAM: "691987654" },
+  "u-michel": { rpps: "10104567890", numeroAM: "691456789" },
+};
 
 export const USERS: TeamUser[] = [
   user({ id: "u-delphine", firstName: "Delphine", lastName: "Girard", roleIds: ["role-gestionnaire"], poste: "gestion", skills: ["cotation"], createdAt: "2023-02-01T09:00:00" }),
@@ -534,6 +550,7 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
   const users = USERS.map((u) => ({
     ...shiftDeep(u, shift.week),
     weeklyHours: WEEKLY_HOURS[u.id],
+    ...IDENTIFIANTS_PRATICIENS[u.id],
     ...shiftDeep(RH_INFO[u.id] ?? (u.status === "actif" ? defaultRH(u) : {}), shift.week),
   }));
   return {

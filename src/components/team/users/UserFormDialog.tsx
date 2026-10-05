@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
-import { EMAIL_PATTERN, fullName, normalizeEmail } from "@/lib/team";
+import { AM_PATTERN, CHAIR_ROLE_IDS, EMAIL_PATTERN, RPPS_PATTERN, fullName, normalizeEmail } from "@/lib/team";
 import { Poste, TeamUser } from "@/types/team";
 import { cn } from "@/lib/utils";
 import { InvitationEmail } from "@/components/team/users/InvitationEmail";
@@ -59,6 +59,8 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
   const [poste, setPoste] = useState<Poste>(editing?.poste ?? "assistant");
   const [roleIds, setRoleIds] = useState<string[]>(editing?.roleIds ?? []);
   const [env, setEnv] = useState<string>(editing?.defaultEnvironmentId ?? "none");
+  const [rpps, setRpps] = useState(editing?.rpps ?? "");
+  const [numeroAM, setNumeroAM] = useState(editing?.numeroAM ?? "");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -93,26 +95,34 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
   const selectedRoles = roles.filter((r) => roleIds.includes(r.id));
   const isHealthPro = selectedRoles.some((r) => r.healthProfessional);
   const activeProfiles = profiles.filter((p) => findUser(p.praticienUserId)?.status !== "archive");
-  // Assistants et aides dentaires : un praticien de rattachement est obligatoire (modifiable ensuite).
-  const needsPraticien = !isHealthPro && roleIds.some((r) => r === "role-assistant" || r === "role-aide");
+  // Au fauteuil (assistant, aide dentaire, infirmier) : un praticien de rattachement est obligatoire (modifiable ensuite).
+  // Secrétaire, comptable, gestionnaire : pas d'environnement Soins à choisir, le champ n'apparaît pas.
+  const needsPraticien = !isHealthPro && roleIds.some((r) => CHAIR_ROLE_IDS.includes(r));
   const missingPraticien = needsPraticien && env === "none";
+  // Praticien : RPPS et n° Assurance Maladie obligatoires.
+  const rppsClean = rpps.replace(/\s/g, "");
+  const amClean = numeroAM.replace(/\s/g, "");
+  const rppsError = isHealthPro && !RPPS_PATTERN.test(rppsClean) ? (rppsClean ? "11 chiffres attendus" : "Obligatoire pour un praticien") : null;
+  const amError = isHealthPro && !AM_PATTERN.test(amClean) ? (amClean ? "9 chiffres attendus" : "Obligatoire pour un praticien") : null;
 
   const toggleRole = (id: string) => setRoleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   function submit() {
     setSubmitted(true);
     setError(null);
-    if (!firstName.trim() || !lastName.trim() || !normalized || emailInvalid || duplicate || roleIds.length === 0 || missingPraticien) return;
-    const envId = env === "none" ? null : env;
+    if (!firstName.trim() || !lastName.trim() || !normalized || emailInvalid || duplicate || roleIds.length === 0 || missingPraticien || rppsError || amError) return;
+    // Sans rôle au fauteuil ni de praticien, pas d'environnement Soins par défaut.
+    const envId = env === "none" || (!needsPraticien && !isHealthPro) ? null : env;
+    const ids = isHealthPro ? { rpps: rppsClean, numeroAM: amClean } : { rpps: undefined, numeroAM: undefined };
     if (editing) {
-      const res = updateUser({ ...editing, firstName: firstName.trim(), lastName: lastName.trim(), email: normalized, poste, roleIds, defaultEnvironmentId: envId });
+      const res = updateUser({ ...editing, firstName: firstName.trim(), lastName: lastName.trim(), email: normalized, poste, roleIds, defaultEnvironmentId: envId, ...ids });
       if (!res.ok) return setError(res.error);
       toast.success("Utilisateur mis à jour", {
         description: "Les droits s'appliquent immédiatement dans Soins, sans reconnexion.",
       });
       onDone();
     } else {
-      const res = createUser({ firstName, lastName, email: normalized, poste, roleIds, defaultEnvironmentId: envId });
+      const res = createUser({ firstName, lastName, email: normalized, poste, roleIds, defaultEnvironmentId: envId, ...ids });
       if (!res.ok) return setError(res.error);
       setCreatedId(res.id ?? null);
     }
@@ -182,9 +192,10 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
               </SelectContent>
             </Select>
           </Field>
+          {(needsPraticien || isHealthPro) && (
           <Field
             label={needsPraticien ? "Praticien de rattachement *" : "Environnement Soins par défaut"}
-            error={submitted && missingPraticien ? "Obligatoire pour un assistant ou une aide dentaire" : null}
+            error={submitted && missingPraticien ? "Obligatoire pour un assistant, une aide dentaire ou un infirmier" : null}
           >
             <Select value={env} onValueChange={setEnv} disabled={isHealthPro && !editing}>
               <SelectTrigger className="w-full">
@@ -200,7 +211,19 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
               </SelectContent>
             </Select>
           </Field>
+          )}
         </div>
+
+        {isHealthPro && (
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Numéro RPPS *" error={submitted ? rppsError : null}>
+              <Input value={rpps} onChange={(e) => setRpps(e.target.value)} inputMode="numeric" placeholder="11 chiffres" aria-invalid={Boolean(submitted && rppsError)} />
+            </Field>
+            <Field label="Numéro Assurance Maladie *" error={submitted ? amError : null}>
+              <Input value={numeroAM} onChange={(e) => setNumeroAM(e.target.value)} inputMode="numeric" placeholder="9 chiffres" aria-invalid={Boolean(submitted && amError)} />
+            </Field>
+          </div>
+        )}
 
         {/* Même logique que la modale « Rôles de … » de la prod : on coche des rôles, les permissions couvertes s'affichent en direct. */}
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
