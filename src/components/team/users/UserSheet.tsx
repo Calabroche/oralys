@@ -219,7 +219,7 @@ function QuickLinks({
           <CalendarPlus /> Déclarer une absence
         </Button>
       )}
-      {(canOpenProfile || allowed("utilisateurs")) && link(`/team/profil/${userId}`, profileId ? <Stethoscope /> : <UserRound />, profileId ? "Profil et équipe" : "Profil")}
+      {(canOpenProfile || allowed("utilisateurs")) && link(`/team/profil/${userId}`, profileId ? <Stethoscope /> : <UserRound />, canEdit ? "Profil et dossier RH" : profileId ? "Profil et équipe" : "Profil")}
       {link(`/team/planning?view=personnes&user=${userId}`, <CalendarDays />, "Planning")}
       {allowed("remplacements") && link(`/team/planning?tab=remplacer&user=${userId}`, <UserRoundSearch />, "Remplacements")}
       {canAudit && link(`/team/reglages/journal?user=${userId}`, <History />, "Journal")}

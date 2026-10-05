@@ -17,6 +17,7 @@ import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
+import { CongesPayesCard, ContratCard, DocumentsCard, DpcCard, MissionsCard, RappelsCard, SalaryCard } from "@/components/team/profile/RHSections";
 import { useVersion } from "@/components/team/Version";
 import { ACTES, SKILLS } from "@/data/teamMockData";
 import { displayName, fullName, isHealthProfessional } from "@/lib/team";
@@ -38,6 +39,10 @@ export function ProfileView({ user }: { user: TeamUser }) {
   const liberal = user.roleIds.includes("role-praticien");
   const manager = can("param.cabinet") || can("team.planning");
   const canEdit = self || manager;
+  // RH : réglée par le gestionnaire (pas le planning seul) ; rémunération aussi par le comptable.
+  const canEditRH = can("param.cabinet");
+  const canSeeSalary = self || can("param.cabinet") || can("compta");
+  const canEditSalary = can("param.cabinet") || can("compta");
   const profile = profiles.find((p) => p.praticienUserId === user.id);
   const full = has("profil") && self;
   const dirty = JSON.stringify(draft) !== JSON.stringify(user);
@@ -122,6 +127,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
         </CardContent>
       </Card>
 
+      <MissionsCard user={user} canEdit={canEditRH} />
+
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
 
       {!profile && (
@@ -162,6 +169,13 @@ export function ProfileView({ user }: { user: TeamUser }) {
 
       {profile && <EquipeCard profile={profile} canEdit={canEdit} />}
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
+
+      <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />
+      <RappelsCard user={user} canEdit={canEditRH} />
+      {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
+      {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
+      {profile && <DpcCard user={user} canEdit={canEditRH} />}
+      <DocumentsCard user={user} canEdit={canEditRH} />
 
       {full && (
         <>
@@ -270,10 +284,13 @@ export function ProfileView({ user }: { user: TeamUser }) {
       <Card>
         <CardHeader>
           <CardTitle>{self ? "Mes absences" : "Absences"}</CardTitle>
-          <CardDescription>Passées et à venir. Cliquer une absence pour la voir en détail, la modifier ou l&apos;annuler.</CardDescription>
+          <CardDescription>
+            Maladie, formation et autres absences — hors congés et RTT, à retrouver dans la carte Congés payés. Cliquer une absence pour la voir en détail, la
+            modifier ou l&apos;annuler.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <PersonAbsences userId={user.id} />
+          <PersonAbsences userId={user.id} types={["maladie", "formation", "autre"]} />
         </CardContent>
       </Card>
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={self ? undefined : { userId: user.id, date: today }} />

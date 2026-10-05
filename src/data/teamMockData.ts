@@ -172,6 +172,115 @@ export const USERS: TeamUser[] = [
   user({ id: "u-michel", firstName: "Michel", lastName: "Fontaine", roleIds: ["role-praticien"], poste: "praticien", status: "archive", archivedAt: "2025-09-30T18:00:00", archiveReason: "Remplacement saisonnier terminé", defaultEnvironmentId: "env-fontaine", specialties: ["endodontie"], createdAt: "2025-06-02T09:00:00" }),
 ];
 
+/**
+ * Gestion RH (missions, rémunération, contrat, rappels, documents) : seulement sur quelques profils
+ * pour montrer à la fois le rempli (gestionnaire, assistant salarié) et le vide (à compléter par le
+ * gestionnaire). Dates écrites autour du 1er septembre 2026 (voir `demoClock`), recalées au chargement.
+ */
+const RH_INFO: Record<string, Partial<TeamUser>> = {
+  "u-delphine": {
+    missions: [
+      "Plannings et organisation du cabinet",
+      "Recrutement et suivi des dossiers du personnel",
+      "Relation avec les praticiens associés",
+      "Facturation et relances",
+    ],
+    salary: {
+      statut: "cadre",
+      brut: 3800,
+      net: 2964,
+      coutEntreprise: 5396,
+      history: [
+        { date: "2023-02-01", brut: 3400, net: 2652, coutEntreprise: 4828, motif: "Embauche" },
+        { date: "2024-09-01", brut: 3600, net: 2808, coutEntreprise: 5112, motif: "Révision annuelle" },
+        { date: "2025-09-01", brut: 3800, net: 2964, coutEntreprise: 5396, motif: "Révision annuelle" },
+      ],
+    },
+    oneOnOne: { frequency: "mensuel", nextDate: "2026-09-08", history: [{ date: "2026-08-11" }, { date: "2026-07-07", note: "Point charge de travail rentrée" }] },
+    medecineTravail: { nextDate: "2026-11-20", periodiciteMois: 24, history: [{ date: "2024-11-20" }] },
+    contrat: { type: "cdi", tempsPartiel: false, dateEmbauche: "2023-02-01" },
+    documents: [{ id: "doc-delphine-1", nom: "Contrat de travail", type: "contrat", dateAjout: "2023-02-01" }],
+    entretienPro: { prochaineDate: "2027-02-01", history: [{ date: "2025-02-01" }, { date: "2023-02-01", note: "Entretien d'embauche" }] },
+    congesPayes: { prisHorsAppli: 3 },
+  },
+  "u-sophie": {
+    missions: ["Chirurgie orale et implantologie", "Référente implantologie du cabinet", "Supervision du protocole de stérilisation"],
+    oneOnOne: { frequency: "mensuel", nextDate: "2026-09-12", history: [{ date: "2026-08-15" }] },
+    medecineTravail: { nextDate: "2026-09-10", periodiciteMois: 24, history: [{ date: "2024-09-10" }] },
+    documents: [{ id: "doc-sophie-1", nom: "Diplôme d'État de docteur en chirurgie dentaire", type: "diplome", dateAjout: "2023-02-01" }],
+    entretienPro: { prochaineDate: "2026-09-25", history: [{ date: "2024-09-25" }] },
+    dpc: { heuresRequises: 30, heuresRealisees: 18, periodeFin: "2027-12-31" },
+  },
+  "u-thomas": {
+    missions: ["Assistanat opératoire en implantologie et chirurgie orale", "Radioprotection", "Stérilisation du bloc"],
+    salary: {
+      statut: "non_cadre",
+      brut: 2100,
+      net: 1638,
+      coutEntreprise: 2982,
+      history: [
+        { date: "2024-01-08", brut: 1900, net: 1482, coutEntreprise: 2698, motif: "Embauche" },
+        { date: "2025-09-01", brut: 2100, net: 1638, coutEntreprise: 2982, motif: "Révision annuelle" },
+      ],
+    },
+    oneOnOne: { frequency: "hebdo", nextDate: "2026-09-04", history: [{ date: "2026-08-28" }, { date: "2026-08-21" }] },
+    medecineTravail: { nextDate: "2027-01-15", periodiciteMois: 24, history: [{ date: "2025-01-15" }] },
+    contrat: { type: "cdi", tempsPartiel: false, dateEmbauche: "2024-01-08" },
+    documents: [{ id: "doc-thomas-1", nom: "Certificat radioprotection", type: "habilitation", dateAjout: "2024-02-01" }],
+    entretienPro: { prochaineDate: "2026-01-08", history: [{ date: "2024-01-08", note: "Entretien d'embauche" }] },
+    congesPayes: { prisHorsAppli: 0 },
+  },
+};
+
+/** « jsalt » : un entier déterministe dans [min, max] à partir d'une graine (même démo à chaque rechargement). */
+function jrange(seed: string, min: number, max: number): number {
+  const span = Math.max(1, max - min);
+  return min + (Math.abs(jitter(seed, span)) % (span + 1));
+}
+
+/** Date ISO déterministe entre `minDays` et `maxDays` après l'ancre de la démo (voir `demoClock`). */
+function jdate(seed: string, minDays: number, maxDays: number): string {
+  return toISODate(addDays(new Date(2026, 8, 1), jrange(seed, minDays, maxDays)));
+}
+
+const DEFAULT_MISSIONS: Partial<Record<TeamUser["poste"], string[]>> = {
+  praticien: ["Soins et suivi des patients"],
+  assistant: ["Assistanat opératoire", "Stérilisation du matériel"],
+  secretariat: ["Accueil et prise de rendez-vous", "Gestion du courrier et des appels"],
+  gestion: ["Gestion administrative et comptable"],
+};
+
+/**
+ * Jeu de données RH par défaut pour les profils actifs qui n'ont pas de fiche sur mesure dans `RH_INFO` :
+ * missions selon le poste, rémunération et congés pour les salariés (pas pour les praticiens libéraux),
+ * DPC pour les praticiens. Montants et dates varient légèrement par personne (déterministe, voir `jrange`/`jdate`).
+ */
+function defaultRH(u: TeamUser): Partial<TeamUser> {
+  const liberal = u.roleIds.includes("role-praticien");
+  const embauche = u.createdAt.slice(0, 10);
+  const out: Partial<TeamUser> = {
+    missions: DEFAULT_MISSIONS[u.poste],
+    oneOnOne: { frequency: "mensuel", nextDate: jdate(`${u.id}-11`, 5, 40) },
+    medecineTravail: { nextDate: jdate(`${u.id}-med`, 30, 300), periodiciteMois: 24 },
+    entretienPro: { prochaineDate: jdate(`${u.id}-entr`, 60, 400) },
+  };
+  if (!liberal) {
+    // Ratios alignés sur STATUT_RATIOS (src/components/team/profile/RHSections.tsx) : gestion = cadre, le reste non-cadre.
+    const statut = u.poste === "gestion" ? "cadre" : "non_cadre";
+    const [netRatio, coutRatio] = statut === "cadre" ? [0.75, 1.48] : [0.78, 1.42];
+    const brutBase = u.poste === "gestion" ? 2900 : u.poste === "secretariat" ? 1950 : 2000;
+    const brut = brutBase + jrange(`${u.id}-brut`, -150, 250);
+    const net = Math.round(brut * netRatio);
+    const coutEntreprise = Math.round(brut * coutRatio);
+    out.salary = { statut, brut, net, coutEntreprise, history: [{ date: embauche, brut, net, coutEntreprise, motif: "Embauche" }] };
+    out.contrat = { type: "cdi", tempsPartiel: u.workDays.length < 5, dateEmbauche: embauche };
+    out.congesPayes = { prisHorsAppli: jrange(`${u.id}-pris`, 0, 3) };
+  } else {
+    out.dpc = { heuresRequises: 30, heuresRealisees: jrange(`${u.id}-dpc`, 5, 28), periodeFin: "2027-12-31" };
+  }
+  return out;
+}
+
 /** Semaines types des agendas Soins (celle de Dr Perche est l'agenda de la démo Soins). */
 const slot = (id: string, day: Weekday, activityTypeId: string, start: string, end: string) => ({ id, day, activityTypeId, start, end });
 export const SEMAINES_TYPES: Record<string, PraticienProfile["weekSlots"]> = {
@@ -425,7 +534,11 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
       const long = rangeLong(a.startDate, a.endDate);
       return kind === "Long" ? long[0].toUpperCase() + long.slice(1) : long;
     });
-  const users = USERS.map((u) => ({ ...shiftDeep(u, shift.week), weeklyHours: WEEKLY_HOURS[u.id] }));
+  const users = USERS.map((u) => ({
+    ...shiftDeep(u, shift.week),
+    weeklyHours: WEEKLY_HOURS[u.id],
+    ...shiftDeep(RH_INFO[u.id] ?? (u.status === "actif" ? defaultRH(u) : {}), shift.week),
+  }));
   return {
     users,
     absences,

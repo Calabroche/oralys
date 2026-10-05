@@ -3,6 +3,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
 import { teamAbsencePeriods } from "@/lib/soinsSync";
+import { TEAM_STORAGE_KEY } from "@/lib/storageKeys";
 import {
   ASSISTANT_NEEDS,
   DEFAULT_SOINS_PRATICIEN,
@@ -17,7 +18,6 @@ import {
 export const slotOwner = (s: { praticienId?: string }) => s.praticienId ?? DEFAULT_SOINS_PRATICIEN;
 /** Les données sans praticien sont celles de Dr Perche : on n'écrit l'identifiant que pour les autres agendas. */
 const ownerTag = (id: string) => (id === DEFAULT_SOINS_PRATICIEN ? undefined : id);
-const TEAM_STORAGE_KEY = "oralys-team-data-v5";
 
 // Incrémenter ce numéro de version à chaque changement de schéma qui
 // casserait la compatibilité avec des données déjà persistées (ex. ajout

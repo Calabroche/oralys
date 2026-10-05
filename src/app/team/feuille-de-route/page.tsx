@@ -70,14 +70,20 @@ export default function FeuilleDeRoutePage() {
                     </ul>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-                    <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
-                      <PenTool className="size-3.5" /> Maquettes Figma :
-                      {v.screens.map((n) => (
-                        <span key={n} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-600">
-                          {String(n).padStart(2, "0")}
-                        </span>
-                      ))}
-                    </p>
+                    {v.screens.length > 0 ? (
+                      <p className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                        <PenTool className="size-3.5" /> Maquettes Figma :
+                        {v.screens.map((n) => (
+                          <span key={n} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.7rem] text-slate-600">
+                            {String(n).padStart(2, "0")}
+                          </span>
+                        ))}
+                      </p>
+                    ) : (
+                      <p className="flex flex-wrap items-center gap-1 text-xs text-slate-400">
+                        <PenTool className="size-3.5" /> Pas encore de maquettes Figma pour cette version
+                      </p>
+                    )}
                     <Button
                       size="sm"
                       variant={isCurrent ? "outline" : "default"}

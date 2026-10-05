@@ -3,7 +3,7 @@
 import { AccessKey, useAccess } from "@/components/team/Access";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CalendarDays, FileText, FlaskConical, History, Landmark, List, MonitorSmartphone, ShieldCheck, UserCog, Users } from "lucide-react";
+import { Building2, CalendarDays, FileText, FlaskConical, FolderOpen, History, Landmark, List, MonitorSmartphone, ShieldCheck, UserCog, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FEATURES, Feature, useVersion, versionOf } from "@/components/team/Version";
 
@@ -12,6 +12,7 @@ const GROUPS: { label: string; icon: typeof Users; href: string | null; team?: b
   { label: "Fiche du cabinet", icon: Building2, href: null },
   { label: "Équipes et disponibilités", icon: Users, href: "/team/reglages/equipes", access: "planning" },
   { label: "Utilisateurs", icon: UserCog, href: "/team/reglages/utilisateurs", access: "utilisateurs" },
+  { label: "Dossiers du personnel", icon: FolderOpen, href: "/team/reglages/dossiers", team: true, access: "utilisateurs" },
   { label: "Rôles & droits", icon: ShieldCheck, href: "/team/reglages/roles", team: true, feature: "roles", access: "utilisateurs" },
   { label: "Postes partagés", icon: MonitorSmartphone, href: "/team/reglages/postes", team: true, feature: "postes", access: "utilisateurs" },
   { label: "Journal d'audit", icon: History, href: "/team/reglages/journal", team: true, feature: "journal", access: "audit" },

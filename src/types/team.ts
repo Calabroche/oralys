@@ -106,6 +106,115 @@ export interface TeamUser {
   specialties: ActeCategory[];
   /** Heures hebdomadaires du contrat (salariés). Absent = ne pointe pas (ex. praticien libéral). */
   weeklyHours?: number;
+
+  // --- Gestion RH : missions, rémunération, contrat, rappels, documents -----
+  /** Missions liées au poste : liste de points, réglée par le gestionnaire. */
+  missions?: string[];
+  /** Rémunération : visible seulement par la personne et par gestionnaire/comptable. */
+  salary?: SalaryInfo;
+  /** Prochain entretien individuel (1:1) avec le gestionnaire. */
+  oneOnOne?: OneOnOne;
+  /** Suivi médecine du travail. */
+  medecineTravail?: MedecineTravail;
+  /** Contrat de travail. */
+  contrat?: Contrat;
+  /** Documents RH : métadonnées seulement (pas de fichier réel dans cette démo). */
+  documents?: RHDocument[];
+  /** Entretien professionnel, obligatoire tous les 2 ans. */
+  entretienPro?: EntretienPro;
+  /** Solde de congés payés. */
+  congesPayes?: CongesPayes;
+  /** DPC (développement professionnel continu), praticiens uniquement. */
+  dpc?: Dpc;
+}
+
+/** Une ligne d'historique de rémunération (date de prise d'effet). */
+export interface SalaryPoint {
+  date: string;
+  brut: number;
+  net: number;
+  /** Coût total pour le cabinet : brut + charges patronales. Réservé gestionnaire/comptable. */
+  coutEntreprise: number;
+  motif?: string;
+}
+
+/** Statut qui détermine les ratios par défaut brut → net / coût entreprise. */
+export type SalaryStatut = "non_cadre" | "cadre" | "fonction_publique" | "liberal" | "portage";
+
+export interface SalaryInfo {
+  statut: SalaryStatut;
+  brut: number;
+  net: number;
+  coutEntreprise: number;
+  history: SalaryPoint[];
+}
+
+export type OneOnOneFrequency = "hebdo" | "mensuel" | "annuel";
+
+/** Un 1:1, une visite ou un entretien déjà passé : saisi par le gestionnaire, jamais modifié ensuite. */
+export interface RappelHistoryEntry {
+  date: string;
+  note?: string;
+}
+
+export interface OneOnOne {
+  frequency: OneOnOneFrequency;
+  nextDate: string;
+  /** Historique des 1:1 déjà tenus. */
+  history?: RappelHistoryEntry[];
+}
+
+export interface MedecineTravail {
+  nextDate: string;
+  periodiciteMois: number;
+  /** Historique des visites déjà passées. */
+  history?: RappelHistoryEntry[];
+}
+
+export type ContratType = "cdi" | "cdd";
+
+export interface Contrat {
+  type: ContratType;
+  tempsPartiel: boolean;
+  dateEmbauche: string;
+  finPeriodeEssai?: string;
+  /** Uniquement pour un CDD. */
+  dateFinCdd?: string;
+}
+
+export type RHDocumentType = "contrat" | "avenant" | "diplome" | "habilitation" | "autre";
+
+export interface RHDocument {
+  id: string;
+  nom: string;
+  type: RHDocumentType;
+  dateAjout: string;
+  /** Pièce jointe (même logique que les justificatifs d'absence) : absente si pas de fichier joint. */
+  mime?: string;
+  size?: number;
+  dataUrl?: string;
+}
+
+export interface EntretienPro {
+  prochaineDate: string;
+  /** Historique des entretiens déjà tenus. */
+  history?: RappelHistoryEntry[];
+}
+
+/**
+ * Congés payés : 25 jours par an pour tout le monde (voir `CP_PAR_AN`), pris et solde calculés depuis
+ * les absences « congé » déclarées dans Team. Seul l'éventuel rattrapage se saisit à la main.
+ */
+export interface CongesPayes {
+  /** Jours pris sur la période hors de l'application (ex. avant sa mise en place), saisis par le gestionnaire. */
+  prisHorsAppli: number;
+}
+
+export interface Dpc {
+  heuresRequises: number;
+  heuresRealisees: number;
+  /** Fin de la période triennale en cours. */
+  periodeFin: string;
 }
 
 // --- Pointage (V3) -----------------------------------------------------------

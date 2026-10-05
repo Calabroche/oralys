@@ -6,9 +6,10 @@ import { AbsenceBadge } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { AbsenceDocuments } from "@/components/team/Justificatifs";
 import { collapseRecurring, shortDate } from "@/lib/team";
+import { joursOuvres } from "@/lib/conges";
 import { ExternalLink } from "lucide-react";
 import { toISODate } from "@/utils/date";
-import { TeamAbsence } from "@/types/team";
+import { AbsenceType, TeamAbsence } from "@/types/team";
 import { cn } from "@/lib/utils";
 
 const PAST_PREVIEW = 5;
@@ -23,12 +24,17 @@ function days(a: TeamAbsence) {
 /**
  * Absences d'une personne, les siennes seulement : en cours et à venir d'abord, puis l'historique.
  * Les justificatifs (donnée de santé) ne sont visibles que par la personne et le gestionnaire.
+ * `types` restreint aux types donnés (ex. seulement "conge" dans la carte Congés payés, ou tout sauf
+ * "conge" dans la carte Absences générale) ; omis, tous les types sont affichés.
  */
-export function PersonAbsences({ userId }: { userId: string }) {
+export function PersonAbsences({ userId, types, workingDays }: { userId: string; types?: AbsenceType[]; workingDays?: boolean }) {
   const { absences, can, sessionUserId, now } = useTeam();
   const [showAllPast, setShowAllPast] = useState(false);
   const today = toISODate(now());
-  const mine = collapseRecurring(absences.filter((a) => a.userId === userId), today);
+  const mine = collapseRecurring(
+    absences.filter((a) => a.userId === userId && (!types || types.includes(a.type))),
+    today
+  );
   const upcoming = mine.filter((a) => a.endDate >= today).sort((a, b) => a.startDate.localeCompare(b.startDate));
   const past = mine.filter((a) => a.endDate < today && a.status !== "refusee").sort((a, b) => b.startDate.localeCompare(a.startDate));
   const seeDocs = userId === sessionUserId || can("param.cabinet") || can("team.planning");
@@ -41,7 +47,7 @@ export function PersonAbsences({ userId }: { userId: string }) {
           <span className="tabular-nums">
             {a.startDate === a.endDate ? shortDate(a.startDate) : `${shortDate(a.startDate)} → ${shortDate(a.endDate)}`}
           </span>
-          <span className="text-xs text-slate-400">{a.recurrence ? `${a.recurrence.toLowerCase()}${isPast ? "" : ", prochaine fois"}` : days(a)}</span>
+          <span className="text-xs text-slate-400">{a.recurrence ? `${a.recurrence.toLowerCase()}${isPast ? "" : ", prochaine fois"}` : workingDays ? `${joursOuvres(a.startDate, a.endDate)} j ouvrés` : days(a)}</span>
           {a.startDate <= today && a.endDate >= today && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">En cours</span>}
         </button>
       </AbsencePopover>

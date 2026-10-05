@@ -15,7 +15,7 @@ const MAX_STORED = 1.5 * 1024 * 1024;
 
 export type DocumentDraft = Omit<AbsenceDocument, "id" | "uploadedAt" | "uploadedById">;
 
-function readFile(file: File): Promise<DocumentDraft> {
+export function readFile(file: File): Promise<DocumentDraft> {
   const base = { name: file.name, mime: file.type || "application/octet-stream", size: file.size };
   if (file.size > MAX_STORED) return Promise.resolve(base);
   return new Promise((resolve) => {
@@ -26,12 +26,12 @@ function readFile(file: File): Promise<DocumentDraft> {
   });
 }
 
-function sizeLabel(bytes: number) {
+export function sizeLabel(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} Mo`;
 }
 
 /** Ouvre le justificatif dans un nouvel onglet (les PDF s'affichent, les autres se téléchargent). */
-function openDocument(doc: DocumentDraft) {
+export function openDocument(doc: DocumentDraft) {
   if (!doc.dataUrl) {
     toast("Fichier non conservé dans la démo", { description: "Au-delà de 1,5 Mo, seul le nom est gardé. En production, le fichier est stocké de façon sécurisée." });
     return;
@@ -43,7 +43,7 @@ function openDocument(doc: DocumentDraft) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function DocumentChip({ doc, onRemove }: { doc: DocumentDraft; onRemove?: () => void }) {
+export function DocumentChip({ doc, onRemove }: { doc: DocumentDraft; onRemove?: () => void }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-white py-0.5 pr-1 pl-2 text-xs">
       <FileText className="size-3.5 shrink-0 text-pink-600" />
@@ -60,7 +60,7 @@ function DocumentChip({ doc, onRemove }: { doc: DocumentDraft; onRemove?: () => 
   );
 }
 
-function FileButton({ label, onFiles, size = "sm" }: { label: string; onFiles: (docs: DocumentDraft[]) => void; size?: "sm" | "xs" }) {
+export function FileButton({ label, onFiles, size = "sm" }: { label: string; onFiles: (docs: DocumentDraft[]) => void; size?: "sm" | "xs" }) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>

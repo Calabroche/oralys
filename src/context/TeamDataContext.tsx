@@ -25,6 +25,7 @@ import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
 import { teamAbsencePeriods } from "@/lib/soinsSync";
+import { TEAM_STORAGE_KEY } from "@/lib/storageKeys";
 import { slotOwner, useAgendaData } from "@/context/AgendaDataContext";
 import {
   ABSENCE_TYPE_LABELS,
@@ -44,7 +45,14 @@ import {
 // v5 : les données de démo sont recalées sur la date du jour (les anciennes, figées au 1er septembre, sont ignorées).
 // v6 : tentative de retirer team.planning du rôle Secrétaire, annulée par l'ancienne migration "secretaire-planning"
 // qui le rajoutait encore (corrigée) — v7 reprend avec la migration "secretaire-lecture-seule" cette fois correcte.
-const STORAGE_KEY = "oralys-team-data-v7";
+// v8 : nouveaux champs RH (missions, rémunération, contrat, rappels, documents, congés, DPC) sur TeamUser.
+// v9 : missions passé de texte libre à liste de points (forme incompatible avec les données déjà en cache).
+// v10 : congés payés (ajout du nombre pris), historique sur les rappels (1:1/médecine/entretien), données RH
+// par défaut sur tous les profils actifs, pièces jointes sur les documents RH.
+// v11 : coût entreprise (charges comprises) sur la rémunération, champ requis sur SalaryInfo/SalaryPoint.
+// v12 : statut (non-cadre/cadre/fonction publique/libéral/portage) sur SalaryInfo, change les ratios de calcul.
+// v13 : congés payés calculés depuis les absences (25 j fixes, solde jamais saisi) : seul le « pris hors appli » reste stocké.
+const STORAGE_KEY = TEAM_STORAGE_KEY;
 
 interface PersistedTeamData {
   users: TeamUser[];
