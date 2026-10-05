@@ -52,9 +52,11 @@ export const VERSIONS: VersionInfo[] = [
       "Voir le planning sur un nombre de jours au choix (2, 3, 5, 10 ou 15), en plus de Jour / Semaine / Mois — même sélecteur dans l'agenda Soins",
       "Les praticiens ont aussi accès au tableau de bord (pas seulement les gestionnaires), sans les actions réservées à la gestion du cabinet",
       "La secrétaire voit tout le planning mais ne peut rien y valider ni réaffecter : lecture seule, à part déclarer sa propre absence",
+      "Dossier du personnel : la gestionnaire remplit contrat, rémunération (brut, net, brut annuel), missions, rendez-vous RH et documents depuis Administration → Dossiers du personnel ; chacun voit le sien en lecture seule sur son profil",
+      "Congés payés : 25 jours fixes pour tous les salariés, jours pris et solde calculés tout seuls depuis les congés déclarés dans Team",
     ],
     tryHref: "/team/planning?view=binomes",
-    screens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28, 29, 30, 36, 37, 38, 39, 40, 41, 43, 44, 53, 54, 55, 56, 59, 60, 61],
+    screens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28, 29, 30, 36, 37, 38, 39, 40, 41, 43, 44, 53, 54, 55, 56, 59, 60, 61, 66, 67, 68, 69],
   },
   {
     id: "v1",

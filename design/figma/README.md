@@ -3,7 +3,7 @@
 Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys) à partir de l'app qui tourne (`/team`).
 Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La démo vit à la date du jour.
 
-51 écrans ont été capturés le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre) avec un exportateur vectoriel écrit pour Figma (calques nommés, texte éditable — voir « Ce que vous obtenez dans Figma » plus bas). 14 écrans ont été recapturés ou ajoutés les 01/10 et 02/10/2026 (`02`, `03`, `04`, `05`, `06`, `59`, `60` — refonte du planning d'équipe ; `61` à `65` — réglages agenda et agenda multi-salles côté Soins, voir plus bas) : cet exportateur n'existe plus dans ce repo, ce sont donc de **vraies captures d'écran** de l'app (PNG, encapsulées dans un `.svg` juste pour garder l'extension et le glisser-déposer Figma cohérents) — pas de calques ni de texte éditable pour celles-ci. Repérables au commentaire `<title>` en tête de leur fichier SVG.
+51 écrans ont été capturés le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre) avec un exportateur vectoriel écrit pour Figma (calques nommés, texte éditable — voir « Ce que vous obtenez dans Figma » plus bas). 14 écrans ont été recapturés ou ajoutés les 01/10 et 02/10/2026 (`02`, `03`, `04`, `05`, `06`, `59`, `60` — refonte du planning d'équipe ; `61` à `65` — réglages agenda et agenda multi-salles côté Soins, voir plus bas) : cet exportateur n'existe plus dans ce repo, ce sont donc de **vraies captures d'écran** de l'app (PNG, encapsulées dans un `.svg` juste pour garder l'extension et le glisser-déposer Figma cohérents) — pas de calques ni de texte éditable pour celles-ci. Repérables au commentaire `<title>` en tête de leur fichier SVG. Le 05/10/2026, même méthode pour le dossier du personnel : `36` recapturé (lien « Profil et dossier RH ») et `66` à `69` ajoutés (Administration → Dossiers du personnel, dossier vu par la gestionnaire et par le collaborateur, congés payés calculés).
 
 ## Contenu du dossier
 
@@ -11,7 +11,7 @@ Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La 
 |---|---|
 | `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** (sélecteur à 4 versions) : chaque version avec ses écrans, capturés dans cette version. Fige l'état du 25/09, avant la refonte du planning et la V4 : pas régénérée, périmée — voir le tableau « Découpage par version » plus bas pour l'état à jour |
 | `Oralys-Team-planche-complete.svg` | **Les 58 premiers écrans** (état du 25/09), rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma. Ne contient pas les écrans 59 à 65, ajoutés après coup |
-| `screens/*.svg` | Les 65 maquettes de la version complète, un fichier par écran (1440 px de large) : 51 vectorielles (25/09), 14 captures d'écran encapsulées (01-02/10, voir ci-dessus) |
+| `screens/*.svg` | Les 69 maquettes de la version complète, un fichier par écran (1440 px de large) : 50 vectorielles (25/09), 19 captures d'écran encapsulées (01-02/10 et 05/10, voir ci-dessus) |
 | `versions/{mvp,v1,v2,v3,v4}/*.svg` | Les mêmes écrans rangés par version (et leur `png/` de contrôle). `v4/` contient les 4 écrans du multi-salles côté Soins (62 à 65) |
 | `png/*.png` | Rendu de contrôle de chaque écran (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
@@ -40,7 +40,7 @@ La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de 
 
 | Version | Problème réglé | Ce qu'on peut faire en plus | Écrans |
 |---|---|---|---|
-| **MVP** · Qui est là, qui manque, qui remplace | Les absences vivent dans un tableau à part, l'alerte passe par téléphone et les remplacements se font de tête | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · équipe de chaque praticien, vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · réaffecter les RDV d'un assistant absent · planning par personne, vue Jour · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête · régler dans Soins le nombre d'assistants par type d'activité | 01 à 10, 12 à 18, 22 à 30, 36 à 41, 43, 44, 53 à 56, 59, 60, 61 |
+| **MVP** · Qui est là, qui manque, qui remplace | Les absences vivent dans un tableau à part, l'alerte passe par téléphone et les remplacements se font de tête | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · équipe de chaque praticien, vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · réaffecter les RDV d'un assistant absent · planning par personne, vue Jour · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête · régler dans Soins le nombre d'assistants par type d'activité · dossier du personnel : la gestionnaire remplit contrat, rémunération, missions, rendez-vous RH et documents, chacun les voit en lecture seule sur son profil · congés payés à 25 j fixes, pris et solde calculés depuis les congés déclarés | 01 à 10, 12 à 18, 22 à 30, 36 à 41, 43, 44, 53 à 56, 59, 60, 61, 66 à 69 |
 | **V1** · Intelligence et conformité | Les remplacements fonctionnent : il faut les rendre plus justes et savoir qui a fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
 | **V2** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
 | **V3** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal · récapitulatif du mois et export paie | 49 à 52, 57, 58 |
@@ -92,6 +92,10 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | Utilisateurs : créer, inviter, archiver, supprimer, modifier | MVP | ✓ | — | — | — | — | — | — |
 | Rôles et grille des droits, postes partagés | V1 | ✓ | — | — | — | — | — | — |
 | Journal d'audit | V1 | ✓ | — | — | — | — | — | ✓ |
+| **Dossier du personnel** |  |  |  |  |  |  |  |  |
+| Remplir les dossiers : contrat, missions, rendez-vous RH, documents, congés pris hors application | MVP | ✓ | — | — | — | — | — | — |
+| Régler la rémunération, voir le coût entreprise | MVP | ✓ | — | — | — | — | ✓ | — |
+| Voir son propre dossier en lecture seule (salaire brut, net et annuel, contrat, rendez-vous, congés payés) | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | **Mon profil** |  |  |  |  |  |  |  |  |
 | Disponibilités, actes préférés, préférences de binôme | V2 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Modifier les habilitations | V2 | ✓ | — | — | — | — | — | — |
@@ -113,7 +117,7 @@ Depuis le 01/10/2026, la secrétaire est passée en lecture seule sur tout le pl
 
 ## Inventaire des écrans
 
-⟳ marque les 14 écrans recapturés ou ajoutés les 01-02/10/2026 (vraie capture d'écran encapsulée en SVG, pas de calques — voir en tête du fichier) : 7 pour la refonte du planning d'équipe (Hub Planning en pastilles, grille Semaine sans samedi, nouvelle vue Jour), 5 pour le réglage des salles et l'agenda multi-salles côté Soins (61 à 65).
+⟳ marque les 19 écrans recapturés ou ajoutés les 01-02/10 et 05/10/2026 (dont 36 et 66 à 69 pour le dossier du personnel) (vraie capture d'écran encapsulée en SVG, pas de calques — voir en tête du fichier) : 7 pour la refonte du planning d'équipe (Hub Planning en pastilles, grille Semaine sans samedi, nouvelle vue Jour), 5 pour le réglage des salles et l'agenda multi-salles côté Soins (61 à 65).
 
 ⚠️ Les écrans 45 à 48 (ci-dessous) montrent le sélecteur de version tel qu'il était le 25/09/2026, avec l'ancien barème à 4 versions (MVP → V3). Le composant réel a depuis gagné une 5e version (V4, multi-salles) et son barème a été renuméroté le 28/09 : ces 4 SVG n'ont pas été recapturés, seule la description du tableau plus haut (« Découpage par version ») est à jour.
 
@@ -197,6 +201,14 @@ Depuis le 01/10/2026, la secrétaire est passée en lecture seule sur tout le pl
 | 34 | `34-admin-journal-audit` | Journal filtrable (personne, type, période, sensibles), rôle au moment de l'action, poste | Traçabilité |
 | 35 | `35-admin-postes-partages` | Réglages par poste : PIN, opérateur explicite, verrouillage auto | Postes partagés |
 
+### Dossiers du personnel (RH)
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 66 ⟳ | `66-admin-dossiers-du-personnel` | Administration → Dossiers du personnel : une ligne par personne active (contrat, congés restants sur 25, prochain rendez-vous RH en rouge s'il est dépassé, ce qui reste à compléter), bouton « Ouvrir le dossier » | La gestionnaire tient les dossiers à jour et repère ce qui manque |
+| 67 ⟳ | `67-dossier-rh-gestionnaire` | Dossier de Léa vu par la gestionnaire : missions modifiables, rémunération (statut, brut mensuel et brut annuel, net, coût entreprise, révisions), rappels, contrat, congés payés avec « jours pris hors application », documents | Remplir le dossier de chaque salarié |
+| 68 ⟳ | `68-dossier-rh-collaborateur` | Mon profil de Léa : le même dossier en lecture seule (brut mensuel, net, brut annuel, prochain rendez-vous et ceux effectués, contrat, documents), sans aucun bouton d'ajout | Consulter son dossier sans passer par la gestionnaire |
+| 69 ⟳ | `69-conges-payes-decompte` | Carte Congés payés : 25 j acquis (fixe), 10 j pris, 2 j posés à venir, 13 j de solde calculé ; chaque congé en jours ouvrés | Un congé validé se décompte tout seul |
+
 ### Temps de travail (pointage, V3)
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
@@ -218,7 +230,7 @@ Depuis le 01/10/2026, la secrétaire est passée en lecture seule sur tout le pl
 ### Éléments globaux
 | # | Fichier | Contenu |
 |---|---|---|
-| 36 | `36-fiche-personne` | Fiche latérale ouverte depuis n'importe quel nom : liens vers Planning, Remplacements, Journal, Modifier, déclarer une absence, absences en cours, onglets Rôles & droits / Dispos / Historique |
+| 36 ⟳ | `36-fiche-personne` | Fiche latérale ouverte depuis n'importe quel nom : liens vers « Profil et dossier RH » (gestionnaire), Planning, Remplacements, Journal, Modifier, déclarer une absence, absences en cours, onglets Rôles & droits / Dispos / Absences / Historique |
 | 37 | `37-changer-utilisateur-choix` | Bascule rapide sur poste partagé : choix de la personne et du poste |
 | 38 | `38-changer-utilisateur-pin` | Saisie du PIN à 4 chiffres |
 | 39 | `39-notifications` | Alertes Team → Soins |
