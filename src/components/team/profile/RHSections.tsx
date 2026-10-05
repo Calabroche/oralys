@@ -48,6 +48,9 @@ const DOCUMENT_TYPE_LABELS: Record<RHDocumentType, string> = {
 
 const FREQUENCY_LABELS: Record<OneOnOneFrequency, string> = { hebdo: "Hebdo", mensuel: "Mensuel", annuel: "Annuel" };
 
+/** Brut annuel : 12 fois le brut mensuel (sans 13e mois ni primes, qui ne sont pas saisis). */
+const annuel = (brutMensuel: number) => brutMensuel * 12;
+
 function euros(n: number): string {
   return `${n.toLocaleString("fr-FR")} €`;
 }
@@ -232,6 +235,8 @@ function SalaryChart({ history }: { history: SalaryInfo["history"] }) {
           <p className="text-slate-600">
             {euros(active.brut)} brut · <span className="font-medium text-pink-700">{euros(active.net)}</span> net
           </p>
+          <p className="text-slate-500">{euros(annuel(active.brut))} brut annuel
+          </p>
           {active.motif && <p className="text-slate-400">{active.motif}</p>}
         </div>
       )}
@@ -331,7 +336,7 @@ function SalaryHistoryList({ user, salary, canEdit }: { user: TeamUser; salary: 
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <span className="tabular-nums text-slate-500">{formatShortDate(h.date)}</span>
                   <span className="text-slate-700">
-                    {euros(h.brut)} brut · {euros(h.net)} net
+                    {euros(h.brut)} brut · {euros(h.net)} net · {euros(annuel(h.brut))} brut annuel
                     {canEdit && ` · ${euros(h.coutEntreprise)} coût`}
                   </span>
                   {h.motif && <span className="text-xs text-slate-400">{h.motif}</span>}
@@ -445,6 +450,7 @@ export function SalaryCard({ user, canSee, canEdit }: { user: TeamUser; canSee: 
               <div className="space-y-1.5">
                 <Label>Brut mensuel</Label>
                 <Input type="number" value={brut} onChange={(e) => onBrutChange(e.target.value)} />
+                {Number(brut) > 0 && <p className="text-xs text-slate-500">soit {euros(annuel(Number(brut)))} brut annuel</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>
@@ -467,9 +473,18 @@ export function SalaryCard({ user, canSee, canEdit }: { user: TeamUser; canSee: 
             </div>
           </div>
         ) : salary ? (
-          <p className="text-sm text-slate-700">
-            <span className="font-medium">{euros(salary.brut)}</span> brut · {euros(salary.net)} net
-          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["Brut mensuel", salary.brut],
+              ["Net mensuel", salary.net],
+              ["Brut annuel", annuel(salary.brut)],
+            ].map(([label, v]) => (
+              <div key={label} className="rounded-lg border bg-slate-50 px-3 py-2.5">
+                <p className="text-xs text-slate-500">{label}</p>
+                <p className="text-lg font-semibold text-slate-900 tabular-nums">{euros(v as number)}</p>
+              </div>
+            ))}
+          </div>
         ) : (
           <p className="text-sm text-slate-400">Pas encore renseignée par le gestionnaire.</p>
         )}
