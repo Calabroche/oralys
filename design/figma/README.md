@@ -1,17 +1,19 @@
 # Oralys Team : maquettes pour Figma
 
-Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys), régénéré le 25/09/2026 (en-tête avec le nom de la personne connectée, V4 pointage) à partir de l'app qui tourne (`/team`).
-Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La démo vit à la date du jour : ces maquettes ont été capturées le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre).
+Export haute fidélité du prototype Oralys Team (planète « Team » de l'univers Oralys) à partir de l'app qui tourne (`/team`).
+Données de démo : cabinet Oralpes, session Delphine Girard (Gestionnaire). La démo vit à la date du jour.
+
+51 écrans ont été capturés le vendredi 25 septembre 2026 (arrêt maladie de Thomas ce jour-là, congés de Camille et Léa la semaine du 5 octobre) avec un exportateur vectoriel écrit pour Figma (calques nommés, texte éditable — voir « Ce que vous obtenez dans Figma » plus bas). 14 écrans ont été recapturés ou ajoutés les 01/10 et 02/10/2026 (`02`, `03`, `04`, `05`, `06`, `59`, `60` — refonte du planning d'équipe ; `61` à `65` — réglages agenda et agenda multi-salles côté Soins, voir plus bas) : cet exportateur n'existe plus dans ce repo, ce sont donc de **vraies captures d'écran** de l'app (PNG, encapsulées dans un `.svg` juste pour garder l'extension et le glisser-déposer Figma cohérents) — pas de calques ni de texte éditable pour celles-ci. Repérables au commentaire `<title>` en tête de leur fichier SVG.
 
 ## Contenu du dossier
 
 | Dossier / fichier | Rôle |
 |---|---|
-| `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** : chaque version avec ses écrans, capturés dans cette version (ce qui n'existe pas encore est masqué). Idéal pour présenter ou chiffrer une livraison |
-| `Oralys-Team-planche-complete.svg` | **Les 58 écrans de la version complète**, rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma |
-| `screens/*.svg` | Les 58 maquettes vectorielles de la version complète, un fichier par écran (1440 px de large) |
-| `versions/{mvp,v1,v2,v3}/*.svg` | Les mêmes écrans capturés dans leur version (et leur `png/` de contrôle) |
-| `png/*.png` | Rendu de contrôle de chaque SVG (référence visuelle) |
+| `Oralys-Team-planche-par-version.svg` | **La démo découpée MVP → V3** (sélecteur à 4 versions) : chaque version avec ses écrans, capturés dans cette version. Fige l'état du 25/09, avant la refonte du planning et la V4 : pas régénérée, périmée — voir le tableau « Découpage par version » plus bas pour l'état à jour |
+| `Oralys-Team-planche-complete.svg` | **Les 58 premiers écrans** (état du 25/09), rangés par section avec titres et légendes. Un seul glisser-déposer dans Figma. Ne contient pas les écrans 59 à 65, ajoutés après coup |
+| `screens/*.svg` | Les 65 maquettes de la version complète, un fichier par écran (1440 px de large) : 51 vectorielles (25/09), 14 captures d'écran encapsulées (01-02/10, voir ci-dessus) |
+| `versions/{mvp,v1,v2,v3,v4}/*.svg` | Les mêmes écrans rangés par version (et leur `png/` de contrôle). `v4/` contient les 4 écrans du multi-salles côté Soins (62 à 65) |
+| `png/*.png` | Rendu de contrôle de chaque écran (référence visuelle) |
 | `tokens.json` | Design tokens (couleurs, typo, rayons, espacements, tailles, ombres) au format Tokens Studio |
 | `index.html` | Planche de consultation dans un navigateur |
 
@@ -34,17 +36,24 @@ Les SVG ont été produits par un exportateur écrit pour Figma (et non une simp
 
 ## Découpage par version
 
-La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de « Team ») : ce qui n'est pas encore livré dans la version choisie est masqué, et un message liste ce qu'on peut faire en plus. La page `/team/feuille-de-route` présente les 5 versions.
+La démo a un sélecteur de version (menu utilisateur, ou pastille à côté de « Team ») : ce qui n'est pas encore livré dans la version choisie est masqué, et un message liste ce qu'on peut faire en plus. La page `/team/feuille-de-route` présente les 5 versions. Barème à jour depuis le renumérotage du 28/09/2026 (l'ancienne V1 a été fusionnée dans le MVP) et l'ajout de la V4 multi-salles le 01/10/2026 — ce tableau et les dossiers `versions/` ont été réalignés dessus.
 
 | Version | Problème réglé | Ce qu'on peut faire en plus | Écrans |
 |---|---|---|---|
-| **MVP** · Qui est là, qui manque | Les absences vivent dans un tableau à part, l'alerte passe par téléphone | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · planning par personne · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête | 01, 03 à 07, 09, 22 à 30, 37 à 41, 53 à 55 |
-| **V1** · Binômes et remplacements | On ne sait pas qui travaille avec quel praticien ni qui remplace | Équipe de chaque praticien (titulaires, back-ups, besoin) · vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · remplaçants classés par règles, reprogrammer un RDV | 02, 08, 10, 12 à 18, 36, 43, 44, 56 |
-| **V2** · Intelligence et conformité | Rendre les remplacements plus justes et tracer qui fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
-| **V3** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
-| **V4** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal · récapitulatif du mois et export paie | 49 à 52, 57, 58 |
+| **MVP** · Qui est là, qui manque, qui remplace | Les absences vivent dans un tableau à part, l'alerte passe par téléphone et les remplacements se font de tête | Créer, inviter, archiver, réactiver un utilisateur (email en double bloqué) · déclarer, valider, refuser, annuler une absence ou retirer un jour · équipe de chaque praticien, vue Binômes et manques · récupérer un prêt, prêter pour la journée, accepter moins d'assistants · réaffecter les RDV d'un assistant absent · planning par personne, vue Jour · alerte de dernier moment et agenda Soins fermé · se mettre sur son profil (changer d'utilisateur par PIN), nom affiché dans l'en-tête · régler dans Soins le nombre d'assistants par type d'activité | 01 à 10, 12 à 18, 22 à 30, 36 à 41, 43, 44, 53 à 56, 59, 60, 61 |
+| **V1** · Intelligence et conformité | Les remplacements fonctionnent : il faut les rendre plus justes et savoir qui a fait quoi | Score d'affinité · suggestion à la prise de RDV dans Soins · rôles et grille des droits · journal d'audit · réglage des postes partagés (PIN obligatoire, verrouillage), opérateur de stérilisation | 11, 19 à 21, 31 à 35 |
+| **V2** · Le collaborateur | Le collaborateur devient acteur de son planning | Disponibilités, compétences, actes préférés · préférences de binôme confidentielles | 42 |
+| **V3** · Temps de travail | La clinique pointe avec des bipeurs, sans lien avec le planning, les absences ni le contrat | Pointer arrivée, pause, reprise, départ depuis son profil · heures de la semaine comparées au contrat · heures au-delà du contrat et anomalies (départ oublié, pause trop courte, plus de 10 h) · correction tracée au journal · récapitulatif du mois et export paie | 49 à 52, 57, 58 |
+| **V4** · Agenda multi-salles | Soins ne pensait qu'une salle par praticien : un chevauchement réel s'affichait comme une collision illisible, Team ne comptait qu'un seul assistant là où il en fallait deux en même temps | Salle précise à chaque créneau de semaine type et à la prise de RDV · salles qui se chevauchent côte à côte au lieu de superposées · vue Activité (journal du jour) · besoin en assistants qui somme les salles tenues en parallèle · affectation nommée par salle dans le planning, y compris en vue Jour · fiche praticien éclatée par salle | 62 à 65 |
 
 Différences visibles d'une version à l'autre (utile pour le développement) : en MVP, pas d'onglets Remplacements ni Praticiens & équipes, pas de vue Binômes ni de tensions d'assistants ; « Trouver un remplaçant » devient « Voir le planning » ; l'Aperçu Soins ne montre que l'agenda fermé ; dans l'Administration, Rôles, Postes et Journal apparaissent grisés avec leur version.
+
+### V4 : agenda multi-salles côté Soins
+
+Contrairement à Team, **Soins n'a pas de sélecteur de version** : ce que montrent les écrans 61 à 65 (réglage des salles, semaine type, agenda, Activité, prise de RDV) est toujours visible dans Soins, quelle que soit la version affichée côté Team — seul le **reflet dans Team** (écran 65, et le détail par salle dans le planning d'équipe des écrans 59/60) est gardé derrière la V4. Il n'existe aucun écran de **création** de salle : les salles d'un praticien (ex. Dr Martin = Bloc 1 + Salle 2) sont des données de démo fixes (`ROOMS` dans `src/data/mockData.ts`), pas un formulaire — l'écran 61 montre le réglage qui existe réellement (le nombre d'assistants par type d'activité), pas une création de salle qui n'existe pas.
+- 61 montre déjà les salles de Dr Martin côte à côte dans sa semaine type (Soins n'étant pas gardé par version), mais est rangé en MVP : la capacité qu'il illustre en premier lieu (régler les assistants par type d'activité) existe depuis le MVP.
+- 62 à 65 sont rangés en V4 : ils montrent spécifiquement le choix d'une salle (modale de créneau, agenda, Activité) et son reflet dans Team (prise de RDV).
+- Pour une maquette statique complémentaire (pas un export Figma) : l'Artifact claude.ai « Agenda multi-salles » (https://claude.ai/artifact/2LChT19c7Qit3XX9yUwQEB) — user stories par rôle, story map.
 
 ## Droits par rôle
 
@@ -62,32 +71,37 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | **Absences** |  |  |  |  |  |  |  |  |
 | Déclarer ou annuler sa propre absence | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Déclarer ou annuler l'absence d'un autre | MVP | ✓ | — | ✓ | — | — | — | — |
-| Valider ou refuser une demande d'absence | MVP | ✓ | — | ✓ | — | — | — | — |
+| Valider ou refuser une demande d'absence | MVP | ✓ | — | — | — | — | — | — |
 | **Planning d'équipe** |  |  |  |  |  |  |  |  |
-| Consulter le planning (par personne, binômes) | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Agir depuis le planning (manque, prêt du jour, besoin du jour, tensions) | V1 | ✓ | — | ✓ | — | — | — | — |
+| Consulter le planning (par personne, binômes), lecture seule | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Agir depuis le planning (manque, prêt du jour, besoin du jour, tensions) | MVP | ✓ | — | — | — | — | — | — |
 | **Remplacements** |  |  |  |  |  |  |  |  |
-| Voir les RDV à réaffecter et les candidats | V1 | ✓ | ✓ | ✓ | — | — | — | — |
-| Affecter un remplaçant | V1 | ✓ | ✓ | ✓ | — | — | — | — |
-| Reprogrammer ou annuler un RDV | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| Voir les RDV à réaffecter et les candidats | MVP | ✓ | ✓ | ✓ | — | — | — | — |
+| Affecter un remplaçant | MVP | ✓ | ✓ | — | — | — | — | — |
+| Reprogrammer ou annuler un RDV | MVP | ✓ | ✓ | — | — | — | — | — |
 | **Praticiens & équipes** |  |  |  |  |  |  |  |  |
-| Voir et régler les fiches praticiens (titulaires, back-ups, besoin) | V1 | ✓ | Sa fiche | ✓ | — | — | — | — |
-| Créer un profil praticien | V1 | ✓ | — | ✓ | — | — | — | — |
+| Voir et régler les fiches praticiens (titulaires, back-ups, besoin) | MVP | ✓ | Sa fiche | — | — | — | — | — |
+| Créer un profil praticien | MVP | ✓ | — | — | — | — | — | — |
 | **Aperçu Soins** |  |  |  |  |  |  |  |  |
 | Voir l'agenda fermé d'un praticien absent | MVP | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Prise de RDV avec suggestion d'assistant | V2 | ✓ | ✓ | ✓ | — | — | — | — |
-| Être opérateur d'un cycle de stérilisation | V2 | — | ✓ | — | ✓ | ✓ | — | ✓ |
+| **Remplacements (intelligence)** |  |  |  |  |  |  |  |  |
+| Classement des remplaçants par score d'affinité | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| Prise de RDV avec suggestion d'assistant | V1 | ✓ | ✓ | ✓ | — | — | — | — |
+| Être opérateur d'un cycle de stérilisation | V1 | — | ✓ | — | ✓ | ✓ | — | ✓ |
 | **Administration** |  |  |  |  |  |  |  |  |
 | Utilisateurs : créer, inviter, archiver, supprimer, modifier | MVP | ✓ | — | — | — | — | — | — |
-| Rôles et grille des droits, postes partagés | V2 | ✓ | — | — | — | — | — | — |
-| Journal d'audit | V2 | ✓ | — | — | — | — | — | ✓ |
+| Rôles et grille des droits, postes partagés | V1 | ✓ | — | — | — | — | — | — |
+| Journal d'audit | V1 | ✓ | — | — | — | — | — | ✓ |
 | **Mon profil** |  |  |  |  |  |  |  |  |
-| Disponibilités, actes préférés, préférences de binôme | V3 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Modifier les habilitations | V3 | ✓ | — | — | — | — | — | — |
+| Disponibilités, actes préférés, préférences de binôme | V2 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Modifier les habilitations | V2 | ✓ | — | — | — | — | — | — |
 | **Temps de travail** |  |  |  |  |  |  |  |  |
-| Pointer (arrivée, pause, départ) avec son code PIN, voir ses propres heures | V4 | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Voir les heures de toute l'équipe, corriger un pointage | V4 | ✓ | — | ✓ | — | — | — | — |
-| Récapitulatif du mois de toute l'équipe et export CSV pour la paie | V4 | ✓ | — | ✓ | — | — | — | — |
+| Pointer (arrivée, pause, départ) avec son code PIN, voir ses propres heures | V3 | ✓ | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Voir les heures de toute l'équipe, corriger un pointage | V3 | ✓ | — | ✓ | — | — | — | — |
+| Récapitulatif du mois de toute l'équipe et export CSV pour la paie | V3 | ✓ | — | ✓ | — | — | — | — |
+La V4 (agenda multi-salles) n'ajoute pas de nouveau droit : à partir de cette version, qui voyait déjà une section ci-dessus (planning d'équipe, remplacements, fiche praticien, prise de RDV) y voit le détail par salle en plus ; qui pouvait déjà y agir agit salle par salle. Rien ne s'ouvre à un rôle qui n'y avait pas accès avant.
+
+Depuis le 01/10/2026, la secrétaire est passée en lecture seule sur tout le planning d'équipe et les remplacements (ne peut plus valider, refuser ni affecter) ; seule sa propre absence reste modifiable par elle — c'est déjà reflété dans les colonnes ci-dessus.
 
 ## Identité de la planète Team
 
@@ -98,6 +112,10 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 - **Mise en page** : en-tête sur 3 colonnes (logo + planète | cabinet centré | changer d'utilisateur, alertes, avatar), contenu 1280 px max, Administration avec barre latérale de 256 px (même ordre que la prod, entrées Team badgées « Team »).
 
 ## Inventaire des écrans
+
+⟳ marque les 14 écrans recapturés ou ajoutés les 01-02/10/2026 (vraie capture d'écran encapsulée en SVG, pas de calques — voir en tête du fichier) : 7 pour la refonte du planning d'équipe (Hub Planning en pastilles, grille Semaine sans samedi, nouvelle vue Jour), 5 pour le réglage des salles et l'agenda multi-salles côté Soins (61 à 65).
+
+⚠️ Les écrans 45 à 48 (ci-dessous) montrent le sélecteur de version tel qu'il était le 25/09/2026, avec l'ancien barème à 4 versions (MVP → V3). Le composant réel a depuis gagné une 5e version (V4, multi-salles) et son barème a été renuméroté le 28/09 : ces 4 SVG n'ont pas été recapturés, seule la description du tableau plus haut (« Découpage par version ») est à jour.
 
 ### Présentation de la démo
 | # | Fichier | Contenu | User stories |
@@ -115,16 +133,18 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 ### Planning
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
-| 02 | `02-planning-binomes-semaine` | **Vue Binômes** (par défaut) : une ligne par praticien, besoin en assistants, titulaires / back-ups, puces par jour (titulaire vert, back-up bleu pointillé ↻, prêt violet ⇄, « Manque n » rouge), titulaires absents barrés, bandeau Tensions | Qui travaille avec quel praticien, manques selon le besoin |
-| 03 | `03-planning-par-personne` | Vue par personne groupée par les 6 rôles de la prod, filtres par rôle avec compteurs, cellule = praticien du jour (assistant) ou binôme (praticien) | Calendrier consolidé, absences par poste |
-| 04 | `04-planning-mois` | Même vue sur le mois (cellules compactes) | Vue mensuelle |
-| 05 | `05-planning-demandes-a-valider` | Demandes de congé : charge d'agenda du praticien (barre %), tension créée si validée, Valider / Refuser | Arbitrer un congé en connaissant la charge |
-| 06 | `06-planning-toutes-absences` | Liste de toutes les absences, badge cliquable, annulation | Historique des absences |
+| 02 | `02-planning-binomes-semaine` ⟳ | **Vue Équipes** (par défaut) : Hub Planning en pastilles (Calendrier, Toutes les absences, Demandes à valider, Manques à couvrir, À remplacer, chacune avec son compteur), sélecteur Jour / Semaine / N Jours / Mois, semaine sans samedi ; une ligne par praticien, besoin en assistants, titulaires / back-ups, cartes matin/aprèm à accent de bordure (titulaire vert, back-up bleu pointillé ↻, prêt violet ⇄, « Manque n » rouge), titulaires absents barrés, notes de bas de cellule séparées par un filet pointillé | Qui travaille avec quel praticien, manques selon le besoin |
+| 03 | `03-planning-par-personne` ⟳ | Vue par personne groupée par les 6 rôles de la prod, filtres par rôle avec compteurs, cellule = praticien du jour (assistant) ou binôme (praticien), même Hub Planning et semaine sans samedi que 02 | Calendrier consolidé, absences par poste |
+| 04 | `04-planning-mois` ⟳ | Même vue sur le mois (cellules compactes, sans samedi ni dimanche) | Vue mensuelle |
+| 05 | `05-planning-demandes-a-valider` ⟳ | Pastille Hub dédiée (plus un onglet « À traiter » unique) : demandes de congé (charge d'agenda du praticien en %, tension créée si validée, Valider / Refuser) et absences de dernier moment groupées au-dessus | Arbitrer un congé en connaissant la charge |
+| 06 | `06-planning-toutes-absences` ⟳ | Pastille Hub dédiée, remontée en tête (avant les pastilles d'action) : liste de toutes les absences, badge cliquable, annulation | Historique des absences |
 | 07 | `07-planning-absence-retour-arriere` | Popover d'absence : détails, « Présent(e) finalement le … », « Annuler toute l'absence », lien vers les RDV impactés | Retour arrière total ou pour un jour |
 | 08 | `08-planning-binome-actions` | Popover sur une puce d'assistant : déclarer absent ce jour, voir la fiche (et « Retirer le prêt » pour un prêt) | Action directe depuis le planning |
 | 43 | `43-planning-manque-pourquoi-et-actions` | Clic sur « Manque 1 » : où est chaque assistant rattaché ce jour-là (prêté à un autre praticien, absent, présent), boutons « Récupérer » (annule un prêt) et « Retirer l'absence », action **« Confirmer : 1 assistant suffit »** pour cette journée seulement, lien vers les prêts | Comprendre un manque et agir sans quitter le planning |
 | 44 | `44-planning-besoin-ajuste-journee` | Après confirmation : case verte, mention « Besoin 1 ce jour (au lieu de 2) », popover avec « Rétablir 2 » | Accepter de travailler avec moins d'assistants un jour donné, réversible |
 | 09 | `09-planning-declarer-absence` | Modale de déclaration : collaborateur, motif (segmenté), dates, précision, alerte « dernier moment » | Déclarer une absence (maladie, congé, formation) |
+| 59 | `59-planning-manques-a-couvrir` ⟳ | Pastille Hub dédiée (nouvelle, séparée des demandes) : « Manques d'assistant à couvrir » sur 14 jours (un encart par manque, bouton « Voir la journée ») puis « Postes non couverts » (accueil, stérilisation sans aide) | Traiter les manques sans les chercher dans la grille |
+| 60 | `60-planning-vue-jour` ⟳ | Nouveau mode « Jour » à côté de Semaine/Mois : une carte par praticien, une carte par demi-journée (besoin, assistants affectés, « Manque n »). Au-delà du MVP (V4), chaque carte éclate en plus par salle | Voir une seule journée en grand, sans la tasser dans la grille semaine |
 
 ### Remplacements
 | # | Fichier | Contenu | User stories |
@@ -152,6 +172,15 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | 22 | `22-soins-agenda-ferme` | Absences praticiens validées → agenda Soins fermé | Fermeture automatique de l'agenda |
 | 23 | `23-oralys-soins-selecteur-planete` | Planète Soins (liseré vert) et son sélecteur | Passage d'une planète à l'autre |
 
+### Réglages agenda & multi-salles (Soins)
+| # | Fichier | Contenu | User stories |
+|---|---|---|---|
+| 61 | `61-soins-reglages-agenda-salles` ⟳ | Page Réglages → Agenda de Dr Sophie Martin : cartes « Types d'activité » avec le nombre d'assistants réglable par type (Bloc = 4), puis la grille « Semaine type » — ses deux salles (Bloc 1, Salle 2) y apparaissent déjà côte à côte quand elles se chevauchent | Régler le besoin en assistants par type d'activité ; base du calcul des manques dans Team |
+| 62 | `62-soins-semaine-type-modal-salle` ⟳ | Modale d'un créneau de semaine type (« Bloc », lundi 08:00-12:00) : champ Salle avec son aide « permet de tenir 2 salles en parallèle sur le même horaire », présent seulement si le praticien a plusieurs salles | Choisir la salle d'un créneau récurrent |
+| 63 | `63-soins-agenda-salles` ⟳ | Agenda (semaine) de Dr Sophie Martin : créneaux Bloc 1 et Salle 2 affichés en colonnes côte à côte quand ils se chevauchent dans le temps, pleine largeur sinon | Voir le planning réel d'un praticien à plusieurs salles |
+| 64 | `64-soins-activite-salles` ⟳ | Vue Activité du jour : deux RDV réels qui se chevauchent (Fontaine Marc en Bloc 1, Bernard Claire en Salle 2) affichés côte à côte, légende explicite en bas | Voir en un coup d'œil ce qui se passe en parallèle aujourd'hui |
+| 65 | `65-soins-prise-rdv-salle` ⟳ | Team, Aperçu Soins → Prise de RDV : champ Salle (ici « Bloc 1 », déduit de l'acte, modifiable) à côté du praticien, de la date et de l'acte | Le choix de salle fait à la prise de RDV, et comment il remonte côté Team |
+
 ### Administration
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
@@ -168,7 +197,7 @@ Droits par défaut, validés le 25/09/2026. Ils découlent de la grille des droi
 | 34 | `34-admin-journal-audit` | Journal filtrable (personne, type, période, sensibles), rôle au moment de l'action, poste | Traçabilité |
 | 35 | `35-admin-postes-partages` | Réglages par poste : PIN, opérateur explicite, verrouillage auto | Postes partagés |
 
-### Temps de travail (pointage, V4)
+### Temps de travail (pointage, V3)
 | # | Fichier | Contenu | User stories |
 |---|---|---|---|
 | 49 | `49-pointage-pointeuse` | Pastille « Pas encore pointé » / « En poste · 2 h 43 » dans l'en-tête ; au clic : nom de la personne en grand, « Ce n'est pas vous ? Changer d'utilisateur », bouton d'action du moment, pointages du jour | Pointer sur son propre profil, remplace les bipeurs |
