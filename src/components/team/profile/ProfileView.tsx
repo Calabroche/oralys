@@ -171,7 +171,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {profile && <EquipeCard profile={profile} canEdit={canEdit} />}
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
 
-      <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />
+      {/* Praticien libéral : pas de salaire versé par le cabinet. */}
+      {!liberal && <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />}
       <RappelsCard user={user} canEdit={canEditRH} medecineOnly={liberal} />
       {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
       {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
@@ -286,12 +287,14 @@ export function ProfileView({ user }: { user: TeamUser }) {
         <CardHeader>
           <CardTitle>{self ? "Mes absences" : "Absences"}</CardTitle>
           <CardDescription>
-            Maladie, formation et autres absences — hors congés et RTT, à retrouver dans la carte Congés payés. Cliquer une absence pour la voir en détail, la
-            modifier ou l&apos;annuler.
+            {liberal
+              ? "Congés, maladie, formation et autres absences. Cliquer une absence pour la voir en détail, la modifier ou l'annuler."
+              : "Maladie, formation et autres absences, hors congés (à retrouver dans la carte Congés payés). Cliquer une absence pour la voir en détail, la modifier ou l'annuler."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PersonAbsences userId={user.id} types={["maladie", "formation", "autre"]} />
+          {/* Un praticien n'a pas de carte Congés payés : ses congés restent ici avec le reste. */}
+          <PersonAbsences userId={user.id} types={liberal ? undefined : ["maladie", "formation", "autre"]} />
         </CardContent>
       </Card>
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={self ? undefined : { userId: user.id, date: today }} />
