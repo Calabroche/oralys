@@ -122,6 +122,10 @@ export interface TeamUser {
   photo?: string;
   /** Rémunération : visible seulement par la personne et par gestionnaire/comptable. */
   salary?: SalaryInfo;
+  /** Primes versées (exceptionnelles, objectifs…), même visibilité que la rémunération. */
+  primes?: Prime[];
+  /** Rendez-vous de recadrage déjà tenus, saisis par le gestionnaire. */
+  recadrages?: RappelHistoryEntry[];
   /** Prochain entretien individuel (1:1) avec le gestionnaire. */
   oneOnOne?: OneOnOne;
   /** Suivi médecine du travail. */
@@ -145,6 +149,14 @@ export interface SalaryPoint {
   net: number;
   /** Coût total pour le cabinet : brut + charges patronales. Réservé gestionnaire/comptable. */
   coutEntreprise: number;
+  motif?: string;
+}
+
+/** Une prime versée : date, montant brut et motif. */
+export interface Prime {
+  id: string;
+  date: string;
+  montant: number;
   motif?: string;
 }
 
@@ -192,7 +204,7 @@ export interface Contrat {
   dateFinCdd?: string;
 }
 
-export type RHDocumentType = "contrat" | "avenant" | "diplome" | "habilitation" | "compte_rendu" | "autre";
+export type RHDocumentType = "contrat" | "avenant" | "fiche_poste" | "entretien" | "diplome" | "habilitation" | "compte_rendu" | "autre";
 
 export interface RHDocument {
   id: string;
@@ -214,6 +226,8 @@ export interface DocTemplate {
   id: string;
   titre: string;
   contenu: string;
+  /** Rangement du document créé depuis ce modèle (compte rendu par défaut). */
+  type?: RHDocumentType;
 }
 
 /**
@@ -235,6 +249,23 @@ export interface Mission {
   horaire?: string;
   /** Périodes déjà faites (jour ISO, lundi de la semaine ISO, ou « AAAA-MM »). */
   faites?: string[];
+  /** Mission qui mérite un contrôle (ex. la compta) : une fois cochée, le gestionnaire ou le praticien la valide. */
+  aControler?: boolean;
+  /** Résultat du contrôle par période : conforme ou non conforme. */
+  controles?: Record<string, "ok" | "ko">;
+}
+
+/** Mission type du catalogue du cabinet : on la pioche pour l'ajouter à une personne, sans tout retaper. */
+export interface MissionTemplate {
+  id: string;
+  titre: string;
+  frequence: MissionFrequence;
+  jour?: Weekday;
+  jourDuMois?: number;
+  horaire?: string;
+  aControler?: boolean;
+  /** Postes à qui elle s'adresse d'abord (proposée en tête de liste pour eux). */
+  postes?: Poste[];
 }
 
 export interface EntretienPro {

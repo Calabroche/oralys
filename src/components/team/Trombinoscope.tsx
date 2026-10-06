@@ -7,7 +7,7 @@ import { usePersonSheet } from "@/components/team/PersonSheet";
 import { travailleAvec } from "@/components/team/profile/Fiche";
 import { assiduite } from "@/lib/assiduite";
 import { hasCongesPayes } from "@/lib/conges";
-import { missionsSummary } from "@/lib/missions";
+import { missionsSummary, personMissionRate, rateColor, rateTone } from "@/lib/missions";
 import { ABSENCE_TYPE_LABELS, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, fullName, isHealthProfessional, primaryRoleId, worksOn } from "@/lib/team";
 import { TeamUser } from "@/types/team";
 import { toISODate } from "@/utils/date";
@@ -47,6 +47,8 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
                 const works = worksOn(u, today);
                 const avec = travailleAvec(u, profiles);
                 const ms = sensitive ? missionsSummary(u, today) : null;
+                // Pastille : la couleur suit le taux de réalisation sur 8 semaines, du rouge au vert.
+                const rate = sensitive ? personMissionRate(u, today, (iso) => worksOn(u, iso)) : null;
                 const ass = sensitive && hasCongesPayes(u) ? assiduite(u, absences, today) : null;
                 return (
                   <li key={u.id}>
@@ -60,9 +62,18 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
                           <span
                             className={cn(
                               "absolute -right-0.5 -bottom-0.5 size-4 rounded-full border-2 border-white",
-                              ms.tone === "rouge" ? "bg-rose-500" : ms.tone === "orange" ? "bg-amber-400" : "bg-emerald-500"
+                              !rate && (ms.tone === "rouge" ? "bg-rose-500" : ms.tone === "orange" ? "bg-amber-400" : "bg-emerald-500")
                             )}
-                            title={ms.tone === "rouge" ? `${ms.enRetard.length} mission(s) en retard` : ms.tone === "orange" ? "Mission à faire aujourd'hui" : "Missions à jour"}
+                            style={rate ? { backgroundColor: rateColor(rate.taux) } : undefined}
+                            title={
+                              rate
+                                ? `Missions réalisées à ${rate.taux} % sur 8 semaines`
+                                : ms.tone === "rouge"
+                                  ? `${ms.enRetard.length} mission(s) en retard`
+                                  : ms.tone === "orange"
+                                    ? "Mission à faire aujourd'hui"
+                                    : "Missions à jour"
+                            }
                           />
                         )}
                       </span>
@@ -92,9 +103,14 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
                       </span>
                       {(ms?.tone || ass) && (
                         <span className="flex flex-wrap justify-center gap-x-2 text-[11px] text-slate-500">
-                          {ms?.tone === "rouge" && <span className="text-rose-700">{ms.enRetard.length} mission(s) en retard</span>}
-                          {ms?.tone === "orange" && <span className="text-amber-700">{ms.aFaire.length} à faire</span>}
-                          {ms?.tone === "vert" && <span className="text-emerald-700">Missions à jour</span>}
+                          {rate && (
+                            <span className={rateTone(rate.taux) === "vert" ? "text-emerald-700" : rateTone(rate.taux) === "orange" ? "text-amber-700" : "text-rose-700"}>
+                              Missions {rate.taux} %
+                            </span>
+                          )}
+                          {ms?.tone === "rouge" && <span className="text-rose-700">{ms.enRetard.length} en retard</span>}
+                          {!rate && ms?.tone === "orange" && <span className="text-amber-700">{ms.aFaire.length} à faire</span>}
+                          {!rate && ms?.tone === "vert" && <span className="text-emerald-700">Missions à jour</span>}
                           {ass && <span>Assiduité {ass.taux.toLocaleString("fr-FR")} %</span>}
                         </span>
                       )}

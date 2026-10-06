@@ -1,10 +1,24 @@
 "use client";
 
 import { Fragment } from "react";
-import { Siren } from "lucide-react";
+import { ListChecks, Siren } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTeam } from "@/context/TeamDataContext";
-import { ABSENCE_TYPE_LABELS, DayStaffing, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, displayName, halvesOn, isChairAssistant, isLastMinute, primaryRoleId, worksOn } from "@/lib/team";
+import {
+  ABSENCE_TYPE_LABELS,
+  DayStaffing,
+  ROLE_GROUP_LABELS,
+  ROLE_ORDER,
+  absenceOn,
+  displayName,
+  halvesOn,
+  isChairAssistant,
+  isHealthProfessional,
+  isLastMinute,
+  primaryRoleId,
+  worksOn,
+} from "@/lib/team";
+import { missionsDueOn } from "@/lib/missions";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink } from "@/components/team/PersonSheet";
@@ -40,7 +54,9 @@ export function TeamCalendar({
   readOnly?: boolean;
   onCellClick?: (userId: string, date: string) => void;
 }) {
-  const { absences, now, findUser, roles } = useTeam();
+  const { absences, now, findUser, roles, sessionUser, can } = useTeam();
+  // Missions du jour : chacun voit les siennes ; gestionnaire, praticiens et comptable voient celles de tous.
+  const seesAllMissions = can("param.cabinet") || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
   const today = toISODate(now());
   const compact = dates.length > 10;
   const roleIds = [...ROLE_ORDER, ...roles.map((r) => r.id).filter((id) => !ROLE_ORDER.includes(id))];
@@ -141,6 +157,7 @@ export function TeamCalendar({
                               {!compact && !isChairAssistant(u) && halvesOn(u, iso).length === 1 && (
                                 <span className="text-[0.62rem] leading-tight text-slate-500">{halvesOn(u, iso)[0] === "matin" ? "matin" : "après-midi"}</span>
                               )}
+                              {!compact && (seesAllMissions || u.id === sessionUser?.id) && <DayMissions user={u} iso={iso} today={today} />}
                             </span>
                             <span className="hidden text-xs text-slate-400 group-hover:inline">+ absence</span>
                           </button>
@@ -157,6 +174,27 @@ export function TeamCalendar({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Missions dues ce jour-là : un petit compteur, coloré selon la pire situation, le détail au survol. */
+function DayMissions({ user, iso, today }: { user: TeamUser; iso: string; today: string }) {
+  const list = missionsDueOn(user, iso, today);
+  if (!list.length) return null;
+  const late = list.some((x) => x.etat === "en_retard" || x.etat === "non_conforme");
+  const todo = iso === today && list.some((x) => x.etat === "a_faire");
+  const label: Record<string, string> = { fait: "fait", a_controler: "à contrôler", non_conforme: "non conforme", a_faire: iso === today ? "à faire" : "prévu", en_retard: "pas fait" };
+  return (
+    <span
+      className={cn(
+        "mt-0.5 inline-flex items-center gap-0.5 rounded px-1 text-[0.62rem] leading-4 font-medium",
+        late ? "bg-rose-50 text-rose-700" : todo ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-600"
+      )}
+      title={list.map((x) => `${x.mission.titre}${x.mission.horaire ? ` (${x.mission.horaire})` : ""} : ${label[x.etat]}`).join("\n")}
+    >
+      <ListChecks className="size-3" />
+      {list.length === 1 ? (list[0].mission.titre.length > 18 ? `${list[0].mission.titre.slice(0, 17)}…` : list[0].mission.titre) : `${list.length} missions`}
+    </span>
   );
 }
 

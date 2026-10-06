@@ -17,9 +17,10 @@ import {
   TeamNotification,
   TeamUser,
   DocTemplate,
+  MissionTemplate,
   WeekHours,
 } from "@/types/team";
-import { BESOINS_PAR_ACTIVITE, DOC_TEMPLATES, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
+import { BESOINS_PAR_ACTIVITE, DOC_TEMPLATES, FICHES_ET_ENTRETIENS, MISSION_TEMPLATES, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
 import { missionsOf } from "@/lib/missions";
 import { scheduleFromSlots, setActivityCatalog } from "@/lib/semaine";
 import { daysFromHours } from "@/lib/horaires";
@@ -75,6 +76,8 @@ interface PersistedTeamData {
   punches: Punch[];
   /** Modèles de documents (trame de 1:1, entretien…) créés par le gestionnaire. */
   docTemplates?: DocTemplate[];
+  /** Catalogue de missions types du cabinet. */
+  missionTemplates?: MissionTemplate[];
   /** Corrections appliquées une fois aux démos déjà enregistrées. */
   migrations?: string[];
 }
@@ -87,6 +90,7 @@ function initialData(): PersistedTeamData {
     sessionUserId: "u-delphine",
     workstation: null,
     docTemplates: DOC_TEMPLATES,
+    missionTemplates: MISSION_TEMPLATES,
     dayOverrides: [],
     dayNeeds: [],
   };
@@ -122,7 +126,10 @@ function loadData(): PersistedTeamData {
           numeroAM: u.numeroAM ?? s?.numeroAM,
           phone: u.phone ?? s?.phone,
           // Missions suivies (retour du 06/10) : les démos existantes reçoivent celles de la démo ; l'ancien texte libre devient « sans suivi ».
-          missions: !done.includes("missions-suivies") && s?.missions ? s.missions : missionsOf(u),
+          // Historique sur 8 semaines et missions contrôlées (réunion du 06/10) : même logique, une seule fois.
+          missions: (!done.includes("missions-suivies") || !done.includes("missions-historique")) && s?.missions ? s.missions : missionsOf(u),
+          // Primes et recadrages (réunion du 06/10) : ceux de la démo, une seule fois.
+          ...(!done.includes("primes-recadrages") ? { primes: u.primes ?? s?.primes, recadrages: u.recadrages ?? s?.recadrages } : {}),
           // Semaine type avec la mission de chaque plage (retour du 06/10).
           ...(!done.includes("semaine-type-salaries") && s?.schedule ? { schedule: labelSchedule(u.schedule, s.schedule) } : {}),
           ...(!done.includes("demi-journees") && !u.halfDays && s?.halfDays ? { halfDays: s.halfDays } : {}),
@@ -164,15 +171,21 @@ function loadData(): PersistedTeamData {
               return !p?.weekSlots?.length || (day !== null && p.weekSlots.some((w) => w.day === day));
             })
           : stored.rdvs;
+      // Fiches de poste et entretien annuel (réunion du 06/10) : ajoutés aux modèles déjà enregistrés.
+      const docTemplates =
+        stored.docTemplates && !done.includes("modeles-fiches-poste")
+          ? [...stored.docTemplates, ...FICHES_ET_ENTRETIENS.filter((t) => !stored.docTemplates!.some((x) => x.id === t.id))]
+          : stored.docTemplates;
       return {
         ...seed,
         ...stored,
+        ...(docTemplates ? { docTemplates } : {}),
         ...(users ? { users } : {}),
         ...(roles ? { roles } : {}),
         ...(profiles ? { profiles } : {}),
         ...(rdvs ? { rdvs } : {}),
         ...(absences ? { absences } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation", "missions-suivies", "semaine-type-salaries"])],
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation", "missions-suivies", "semaine-type-salaries", "missions-historique", "primes-recadrages", "modeles-fiches-poste"])],
       };
     }
   } catch {
@@ -243,6 +256,9 @@ interface TeamDataContextValue extends PersistedTeamData {
   docTemplates: DocTemplate[];
   upsertDocTemplate: (t: DocTemplate) => void;
   deleteDocTemplate: (id: string) => void;
+  missionTemplates: MissionTemplate[];
+  upsertMissionTemplate: (t: MissionTemplate) => void;
+  deleteMissionTemplate: (id: string) => void;
   resetDemo: () => void;
 }
 
@@ -942,6 +958,13 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         return { ...d, docTemplates: list.some((x) => x.id === t.id) ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t] };
       }),
     deleteDocTemplate: (id) => mutate((d) => ({ ...d, docTemplates: (d.docTemplates ?? DOC_TEMPLATES).filter((x) => x.id !== id) })),
+    missionTemplates: data.missionTemplates ?? MISSION_TEMPLATES,
+    upsertMissionTemplate: (t) =>
+      mutate((d) => {
+        const list = d.missionTemplates ?? MISSION_TEMPLATES;
+        return { ...d, missionTemplates: list.some((x) => x.id === t.id) ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t] };
+      }),
+    deleteMissionTemplate: (id) => mutate((d) => ({ ...d, missionTemplates: (d.missionTemplates ?? MISSION_TEMPLATES).filter((x) => x.id !== id) })),
     resetDemo: resetAllDemoData,
   };
 

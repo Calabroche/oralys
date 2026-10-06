@@ -134,7 +134,7 @@ function PlanetSwitcher() {
 }
 
 function Notifications() {
-  const { notifications: all, markAllRead, sessionUser, now } = useTeam();
+  const { notifications: all, markAllRead, sessionUser, now, users, profiles, can } = useTeam();
   const allowed = useAccess();
   // Rappels de missions : chacun reçoit les siennes (à faire aujourd'hui, en retard), quel que soit son rôle.
   const today = toISODate(now());
@@ -151,8 +151,23 @@ function Notifications() {
           read: false,
         }))
     : [];
+  // Missions à contrôler : pour le gestionnaire (tout le cabinet) et le praticien (son équipe rattachée).
+  const equipe = new Set(profiles.filter((p) => p.praticienUserId === sessionUser?.id).flatMap((p) => p.team.map((l) => l.userId)));
+  const controles: TeamNotification[] = users
+    .filter((u) => u.status === "actif" && u.id !== sessionUser?.id && (can("param.cabinet") || equipe.has(u.id)))
+    .flatMap((u) =>
+      missionsSummary(u, today).aControler.map((st) => ({
+        id: `controle-${st.mission.id}-${st.due?.key}`,
+        at: today,
+        kind: "info" as const,
+        title: `À contrôler : ${st.mission.titre}`,
+        body: `${u.firstName} ${u.lastName} l'a cochée. À valider conforme ou non conforme dans son dossier.`,
+        href: `/team/profil/${u.id}`,
+        read: false,
+      }))
+    );
   // Les alertes (dernier moment, demandes, tensions) concernent ceux qui gèrent planning et remplacements.
-  const notifications = [...rappels, ...(allowed("remplacements") ? all : [])];
+  const notifications = [...rappels, ...controles, ...(allowed("remplacements") ? all : [])];
   const unread = notifications.filter((n) => !n.read).length;
   return (
     <Popover>

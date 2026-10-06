@@ -18,7 +18,7 @@ import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
 import { IdentityCard, RecapContent, SemaineTypeSalarie } from "@/components/team/profile/Fiche";
 import { usePersonRights } from "@/components/team/profile/rights";
-import { CongesPayesCard, ContratCard, DocumentsCard, DpcCard, MissionsCard, RappelsCard, SalaryCard } from "@/components/team/profile/RHSections";
+import { CongesPayesCard, ContratCard, DocumentsCard, DpcCard, MissionsCard, RappelsCard, RecadragesCard, SalaryCard } from "@/components/team/profile/RHSections";
 import { useVersion } from "@/components/team/Version";
 import { ACTES, SKILLS } from "@/data/teamMockData";
 import { displayName, fullName, isHealthProfessional } from "@/lib/team";
@@ -143,6 +143,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {/* Praticien libéral : pas de salaire versé par le cabinet. */}
       {!liberal && <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />}
       <RappelsCard user={user} canEdit={canEditRH} medecineOnly={liberal} />
+      {!liberal && rights.canSeeRecadrages && <RecadragesCard user={user} canEdit={canEditRH} />}
       {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
       {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
       {profile && <DpcCard user={user} canEdit={canEditRH} />}

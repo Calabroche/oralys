@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { missionsSummary } from "@/lib/missions";
+import { FREQUENCE_LABELS, TAUX_MISSIONS_NB, frequenceLabel, missionsSummary, personMissionRate, rateTone } from "@/lib/missions";
 import { assiduite, ASSIDUITE_NB } from "@/lib/assiduite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,12 @@ import { AccessGate } from "@/components/team/Access";
 import { PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
 import { useTeam } from "@/context/TeamDataContext";
 import { CP_PAR_AN, cpSummary, hasCongesPayes } from "@/lib/conges";
-import { fullName } from "@/lib/team";
-import { DocTemplate, TeamUser } from "@/types/team";
+import { fullName, worksOn } from "@/lib/team";
+import { DocTemplate, MissionFrequence, MissionTemplate, Poste, TeamUser } from "@/types/team";
+import { Weekday } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { WEEKDAYS, WEEKDAY_LABELS } from "@/utils/date";
 import { formatShortDate, toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
@@ -61,8 +65,12 @@ function Dossiers() {
       <Tabs defaultValue="liste">
         <TabsList variant="line">
           <TabsTrigger value="liste">Liste</TabsTrigger>
+          <TabsTrigger value="missions">Missions types</TabsTrigger>
           <TabsTrigger value="modeles">Modèles de documents</TabsTrigger>
         </TabsList>
+        <TabsContent value="missions" className="mt-5">
+          <MissionsTypes />
+        </TabsContent>
         <TabsContent value="modeles" className="mt-5">
           <ModelesDocuments />
         </TabsContent>
@@ -87,6 +95,7 @@ function Dossiers() {
               const cp = salarie ? cpSummary(u, absences, today) : null;
               const rdv = nextRendezVous(u);
               const ms = missionsSummary(u, today);
+              const rate = personMissionRate(u, today, (iso) => worksOn(u, iso));
               const ass = salarie ? assiduite(u, absences, today) : null;
               const missing = [
                 salarie && !u.missions?.length && "missions",
@@ -137,8 +146,16 @@ function Dossiers() {
                   </TableCell>
                   <TableCell className="text-sm">
                     {ms.tone ? (
-                      <span className={cn(ms.tone === "rouge" ? "text-rose-700" : ms.tone === "orange" ? "text-amber-700" : "text-emerald-700")}>
-                        {ms.tone === "rouge" ? `${ms.enRetard.length} en retard` : ms.tone === "orange" ? `${ms.aFaire.length} à faire` : "À jour"}
+                      <span className="flex flex-col">
+                        {rate && (
+                          <span className={cn("font-medium tabular-nums", rateTone(rate.taux) === "rouge" ? "text-rose-700" : rateTone(rate.taux) === "orange" ? "text-amber-700" : "text-emerald-700")}>
+                            {rate.taux} % sur 8 sem.
+                          </span>
+                        )}
+                        <span className={cn("text-xs", ms.tone === "rouge" ? "text-rose-700" : ms.tone === "orange" ? "text-amber-700" : "text-slate-500")}>
+                          {ms.tone === "rouge" ? `${ms.enRetard.length} en retard` : ms.tone === "orange" ? `${ms.aFaire.length} à faire` : "à jour"}
+                          {ms.aControler.length > 0 && <span className="text-sky-700"> · {ms.aControler.length} à contrôler</span>}
+                        </span>
                       </span>
                     ) : (
                       <span className="text-slate-400">—</span>
@@ -177,9 +194,171 @@ function Dossiers() {
         </Table>
       </div>
       <p className="text-[11px] text-slate-400">NB : {ASSIDUITE_NB}</p>
+      <p className="text-[11px] text-slate-400">NB : {TAUX_MISSIONS_NB}</p>
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+const POSTE_LABELS: Record<Poste, string> = { assistant: "Assistants et aides", secretariat: "Secrétariat", gestion: "Gestion", praticien: "Praticiens" };
+
+/** Missions types du cabinet : on les pioche depuis la carte Missions de chaque profil, sans tout retaper. */
+function MissionsTypes() {
+  const { missionTemplates, upsertMissionTemplate, deleteMissionTemplate } = useTeam();
+  const [editing, setEditing] = useState<MissionTemplate | null>(null);
+  const groupes = (["assistant", "secretariat", "gestion"] as Poste[])
+    .map((p) => ({ p, list: missionTemplates.filter((t) => t.postes?.includes(p)) }))
+    .concat([{ p: "praticien", list: missionTemplates.filter((t) => !t.postes?.length) }])
+    .filter((g) => g.list.length);
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-500">
+        Les missions qui reviennent dans le cabinet. Dans chaque profil, carte Missions → « Piocher dans les missions types » : la mission est pré-remplie (fréquence,
+        jour, horaire, contrôle), il n&apos;y a plus qu&apos;à l&apos;ajouter.
+      </p>
+      {groupes.map((g) => (
+        <section key={g.p}>
+          <h3 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">{g.p === "praticien" ? "Pour tous" : POSTE_LABELS[g.p]}</h3>
+          <ul className="divide-y rounded-lg border">
+            {g.list.map((t) => (
+              <li key={`${g.p}-${t.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium text-slate-900">{t.titre}</span>
+                  {t.aControler && (
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 text-[11px] text-sky-700">
+                      <ShieldCheck className="size-3" /> à contrôler
+                    </span>
+                  )}
+                  <span className="block text-xs text-slate-500">{frequenceLabel(t)}</span>
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(t)} aria-label="Modifier">
+                  <Pencil />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Supprimer"
+                  onClick={() => {
+                    deleteMissionTemplate(t.id);
+                    toast("Mission type supprimée", { description: t.titre, action: { label: "Annuler", onClick: () => upsertMissionTemplate(t) } });
+                  }}
+                >
+                  <Trash2 />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <Button variant="outline" onClick={() => setEditing({ id: `mtpl-${Date.now().toString(36)}`, titre: "", frequence: "hebdo", jour: "lundi", postes: [] })}>
+        <Plus /> Nouvelle mission type
+      </Button>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {editing && (
+            <MissionTemplateForm
+              template={editing}
+              onSave={(t) => {
+                upsertMissionTemplate(t);
+                toast.success("Mission type enregistrée", { description: t.titre });
+                setEditing(null);
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function MissionTemplateForm({ template, onSave, onCancel }: { template: MissionTemplate; onSave: (t: MissionTemplate) => void; onCancel: () => void }) {
+  const [t, setT] = useState(template);
+  const [debut, setDebut] = useState(template.horaire?.split(" → ")[0] ?? "");
+  const [fin, setFin] = useState(template.horaire?.split(" → ")[1] ?? "");
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{template.titre ? "Modifier la mission type" : "Nouvelle mission type"}</DialogTitle>
+        <DialogDescription>Elle sera proposée dans la carte Missions de chaque profil, en tête pour les postes cochés.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-3">
+        <Input placeholder="Titre (ex. Réassort des salles)" value={t.titre} onChange={(e) => setT({ ...t, titre: e.target.value })} />
+        <div className="flex flex-wrap gap-2">
+          <Select value={t.frequence} onValueChange={(v) => setT({ ...t, frequence: v as MissionFrequence })}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(FREQUENCE_LABELS).map(([id, label]) => (
+                <SelectItem key={id} value={id}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {t.frequence === "hebdo" && (
+            <Select value={t.jour ?? "lundi"} onValueChange={(v) => setT({ ...t, jour: v as Weekday })}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEKDAYS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {WEEKDAY_LABELS[d]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {t.frequence === "mensuelle" && (
+            <span className="flex items-center gap-1.5 text-sm text-slate-500">
+              le
+              <Input type="number" min={1} max={28} className="w-16" value={t.jourDuMois ?? 1} onChange={(e) => setT({ ...t, jourDuMois: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })} />
+            </span>
+          )}
+        </div>
+        {t.frequence !== "aucune" && (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            Horaire (facultatif)
+            <Input type="time" className="w-28" value={debut} onChange={(e) => setDebut(e.target.value)} />→
+            <Input type="time" className="w-28" value={fin} onChange={(e) => setFin(e.target.value)} />
+          </div>
+        )}
+        {t.frequence !== "aucune" && (
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <Checkbox checked={Boolean(t.aControler)} onCheckedChange={(v) => setT({ ...t, aControler: v === true || undefined })} />À contrôler par le gestionnaire ou le
+            praticien
+          </label>
+        )}
+        <div className="space-y-1.5">
+          <p className="text-sm text-slate-600">Pour quels postes ?</p>
+          <div className="flex flex-wrap gap-3">
+            {(["assistant", "secretariat", "gestion"] as Poste[]).map((p) => (
+              <label key={p} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={t.postes?.includes(p) ?? false}
+                  onCheckedChange={(v) => setT({ ...t, postes: v === true ? [...(t.postes ?? []), p] : (t.postes ?? []).filter((x) => x !== p) })}
+                />
+                {POSTE_LABELS[p]}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>
+          Annuler
+        </Button>
+        <Button
+          onClick={() => onSave({ ...t, titre: t.titre.trim(), horaire: t.frequence !== "aucune" && debut && fin ? `${debut} → ${fin}` : undefined })}
+          disabled={!t.titre.trim()}
+        >
+          Enregistrer
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

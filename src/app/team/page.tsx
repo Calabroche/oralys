@@ -140,7 +140,7 @@ export default function TeamDashboard() {
         <Trombinoscope />
         {sensitive && (
           <p className="text-[11px] text-slate-400">
-            Pastille sur la photo : rouge = mission en retard, orange = à faire aujourd&apos;hui, vert = missions à jour. NB : {ASSIDUITE_NB}
+            Pastille sur la photo : la part des missions faites sur les 8 dernières semaines, du vert (toujours faites) au rouge (souvent oubliées). NB : {ASSIDUITE_NB}
           </p>
         )}
       </section>

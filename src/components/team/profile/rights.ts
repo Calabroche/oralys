@@ -7,7 +7,8 @@ import { TeamUser } from "@/types/team";
 /**
  * Qui peut quoi sur la fiche d'une personne :
  * - `canManage` : régler sa semaine type et ses missions (le gestionnaire, ou le praticien pour son équipe) ;
- * - `canSeeSensitive` : salaire, assiduité, état des missions (la personne elle-même, le gestionnaire, les praticiens, le comptable).
+ * - `canSeeSensitive` : salaire, assiduité, état des missions (la personne elle-même, le gestionnaire, les praticiens, le comptable) ;
+ * - `canSeeRecadrages` : rendez-vous de recadrage (pas le comptable, ça ne touche pas à la paie).
  */
 export function usePersonRights(user: TeamUser) {
   const { can, sessionUser, sessionUserId, profiles, roles } = useTeam();
@@ -21,6 +22,7 @@ export function usePersonRights(user: TeamUser) {
     viewerPraticien,
     canManage: gestion || ownsTeam,
     canSeeSensitive: self || gestion || viewerPraticien || can("compta"),
+    canSeeRecadrages: self || gestion || viewerPraticien,
     /** Photo et téléphone : la personne elle-même ou le gestionnaire. */
     canEditContact: self || gestion,
   };

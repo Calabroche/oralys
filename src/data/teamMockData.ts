@@ -14,8 +14,9 @@ import {
   TeamUser,
   DocTemplate,
   Mission,
+  MissionTemplate,
 } from "@/types/team";
-import { lastDue } from "@/lib/missions";
+import { echeances, lastDue } from "@/lib/missions";
 import { effectiveHours } from "@/lib/horaires";
 import { Weekday } from "@/types";
 import { addDays, toISODate, toWeekday } from "@/utils/date";
@@ -199,22 +200,64 @@ function sansSuivi(titres: string[]): Mission[] {
 
 /**
  * Missions suivies de la démo. `fait` : la dernière échéance est déjà cochée ; sinon elle reste à faire
- * ou en retard (Karima n'a pas fait l'export du lundi, la fin de journée de Manon reste à faire).
+ * ou en retard (Karima n'a pas fait l'export du jeudi, la fin de journée de Manon reste à faire).
+ * `taux` : part des échéances des 8 dernières semaines déjà faites, pour montrer le suivi dans la durée
+ * (Karima et Inès décrochent, Nathalie et Delphine sont toujours à jour).
+ * `ko` : échéances contrôlées jugées non conformes (rapprochement bancaire de Karima).
  */
-const MISSIONS_SUIVIES: Record<string, (Mission & { fait: boolean })[]> = {
+type MissionDemo = Mission & { fait: boolean; taux: number; ko?: number };
+const MISSIONS_SUIVIES: Record<string, MissionDemo[]> = {
   "u-karima": [
-    { id: "mt-karima-1", titre: "Export des écritures pour le cabinet comptable", frequence: "hebdo", jour: "lundi", fait: false },
-    { id: "mt-karima-2", titre: "Rapprochement bancaire", frequence: "mensuelle", jourDuMois: 5, fait: true },
+    { id: "mt-karima-1", titre: "Export des écritures pour le cabinet comptable", frequence: "hebdo", jour: "jeudi", fait: false, taux: 60 },
+    { id: "mt-karima-2", titre: "Rapprochement bancaire", frequence: "mensuelle", jourDuMois: 5, aControler: true, fait: true, taux: 100, ko: 1 },
   ],
   "u-manon": [
-    { id: "mt-manon-1", titre: "Ouvrir et préparer les salles", frequence: "quotidienne", horaire: "08:00 → 08:30", fait: true },
-    { id: "mt-manon-2", titre: "Dernier cycle de stérilisation et fermeture des salles", frequence: "quotidienne", horaire: "17:30 → 18:00", fait: false },
+    { id: "mt-manon-1", titre: "Ouvrir et préparer les salles", frequence: "quotidienne", horaire: "08:00 → 08:30", fait: true, taux: 95 },
+    { id: "mt-manon-2", titre: "Dernier cycle de stérilisation et fermeture des salles", frequence: "quotidienne", horaire: "17:30 → 18:00", fait: false, taux: 78 },
   ],
-  "u-nathalie": [{ id: "mt-nathalie-1", titre: "Relancer les devis non signés", frequence: "hebdo", jour: "vendredi", fait: true }],
-  "u-thomas": [{ id: "mt-thomas-1", titre: "Inventaire du stock d'implants", frequence: "hebdo", jour: "vendredi", fait: true }],
-  "u-ines": [{ id: "mt-ines-1", titre: "Test d'étanchéité des autoclaves (Bowie-Dick)", frequence: "hebdo", jour: "lundi", fait: false }],
-  "u-delphine": [{ id: "mt-delphine-1", titre: "Préparer les éléments de paie", frequence: "mensuelle", jourDuMois: 25, fait: true }],
+  "u-nathalie": [
+    { id: "mt-nathalie-1", titre: "Relancer les devis non signés", frequence: "hebdo", jour: "vendredi", fait: true, taux: 100 },
+    { id: "mt-nathalie-2", titre: "Remise des chèques en banque", frequence: "hebdo", jour: "mardi", aControler: true, fait: true, taux: 100 },
+  ],
+  "u-thomas": [{ id: "mt-thomas-1", titre: "Inventaire du stock d'implants", frequence: "hebdo", jour: "vendredi", horaire: "16:00 → 17:00", fait: true, taux: 88 }],
+  "u-ines": [{ id: "mt-ines-1", titre: "Test d'étanchéité des autoclaves (Bowie-Dick)", frequence: "hebdo", jour: "lundi", horaire: "08:00 → 08:30", fait: false, taux: 50 }],
+  "u-delphine": [{ id: "mt-delphine-1", titre: "Préparer les éléments de paie", frequence: "mensuelle", jourDuMois: 25, fait: true, taux: 100 }],
 };
+
+/**
+ * Historique d'une mission de démo : les échéances passées sont cochées selon `taux` (déterministe),
+ * la dernière selon `fait`. Les missions contrôlées sont jugées conformes, sauf les `ko` premières
+ * (les plus anciennes) ; la toute dernière reste à contrôler.
+ */
+function missionHistory({ fait, taux, ko = 0, ...m }: MissionDemo, todayIso: string, travaille: (iso: string) => boolean): Mission {
+  const due = lastDue(m, todayIso);
+  const passees = echeances(m, todayIso, travaille).filter((e) => e.key !== due?.key);
+  // Répartition régulière : exactement `taux` % des échéances passées sont faites, les oublis étalés dans le temps.
+  const faites = passees.filter((_, i) => Math.floor(((i + 1) * taux) / 100) > Math.floor((i * taux) / 100)).map((e) => e.key);
+  if (fait && due) faites.push(due.key);
+  const out: Mission = { ...m, faites: [...new Set(faites)] };
+  if (m.aControler) {
+    const controlees = out.faites!.filter((k) => k !== due?.key);
+    out.controles = Object.fromEntries(controlees.map((k, i) => [k, i < ko ? "ko" : "ok"]));
+  }
+  return out;
+}
+
+/** Catalogue de missions types du cabinet : on les pioche depuis le profil, on peut en ajouter. */
+export const MISSION_TEMPLATES: MissionTemplate[] = [
+  { id: "mtpl-ouverture", titre: "Ouvrir et préparer les salles", frequence: "quotidienne", horaire: "08:00 → 08:30", postes: ["assistant"] },
+  { id: "mtpl-fermeture", titre: "Fermeture et désinfection des salles", frequence: "quotidienne", horaire: "17:30 → 18:00", postes: ["assistant"] },
+  { id: "mtpl-reassort", titre: "Réassort des salles", frequence: "hebdo", jour: "lundi", postes: ["assistant"] },
+  { id: "mtpl-stock", titre: "Inventaire et commande du stock", frequence: "hebdo", jour: "vendredi", horaire: "16:00 → 17:00", postes: ["assistant"] },
+  { id: "mtpl-bowie", titre: "Test d'étanchéité des autoclaves (Bowie-Dick)", frequence: "hebdo", jour: "lundi", horaire: "08:00 → 08:30", postes: ["assistant"] },
+  { id: "mtpl-tracabilite", titre: "Traçabilité de la stérilisation", frequence: "quotidienne", aControler: true, postes: ["assistant"] },
+  { id: "mtpl-devis", titre: "Relancer les devis non signés", frequence: "hebdo", jour: "vendredi", postes: ["secretariat"] },
+  { id: "mtpl-cheques", titre: "Remise des chèques en banque", frequence: "hebdo", jour: "mardi", aControler: true, postes: ["secretariat"] },
+  { id: "mtpl-impayes", titre: "Relance des impayés", frequence: "mensuelle", jourDuMois: 10, postes: ["secretariat", "gestion"] },
+  { id: "mtpl-export", titre: "Export des écritures pour le cabinet comptable", frequence: "hebdo", jour: "lundi", postes: ["gestion"] },
+  { id: "mtpl-rapprochement", titre: "Rapprochement bancaire", frequence: "mensuelle", jourDuMois: 5, aControler: true, postes: ["gestion"] },
+  { id: "mtpl-paie", titre: "Préparer les éléments de paie", frequence: "mensuelle", jourDuMois: 25, postes: ["gestion"] },
+];
 
 /** Ce que chacun fait sur ses plages habituelles (semaine type), quand ce n'est pas le fauteuil de son praticien. */
 const LIBELLES_PLAGES: Record<string, string> = {
@@ -240,6 +283,31 @@ const TELEPHONES: Record<string, string> = {
   "u-julie": "07 23 56 89 12",
 };
 
+/** Modèles ajoutés après la réunion du 06/10 : fiches de poste et entretien annuel. */
+export const FICHES_ET_ENTRETIENS: DocTemplate[] = [
+  {
+    id: "tpl-entretien-annuel",
+    titre: "Entretien annuel",
+    type: "entretien",
+    contenu:
+      "Bilan de l'année écoulée :\n- \n\nObjectifs de l'an passé : atteints ? \n- \n\nMissions : ce qui roule, ce qui coince\n- \n\nObjectifs pour l'année à venir :\n- \n\nRémunération, primes (si abordé) :\n- \n\nSouhaits du collaborateur :\n- \n\nSigné le :",
+  },
+  {
+    id: "tpl-fiche-secretaire",
+    titre: "Fiche de poste : secrétaire",
+    type: "fiche_poste",
+    contenu:
+      "Poste : secrétaire médicale\nRattachement : gestionnaire du cabinet\n\nMissions principales :\n- Accueil physique et téléphonique des patients\n- Prise et gestion des rendez-vous\n- Relance des devis non signés\n- Encaissements et remise des chèques\n\nMissions annexes :\n- \n\nHoraires : voir la semaine type\n\nCompétences attendues :\n- ",
+  },
+  {
+    id: "tpl-fiche-assistante",
+    titre: "Fiche de poste : assistante dentaire",
+    type: "fiche_poste",
+    contenu:
+      "Poste : assistante dentaire\nRattachement : praticien de rattachement, gestionnaire du cabinet\n\nMissions principales :\n- Assistanat au fauteuil\n- Préparation et remise en état des salles\n- Stérilisation et traçabilité\n- Gestion du stock\n\nMissions annexes :\n- \n\nHoraires : voir la semaine type\n\nHabilitations requises :\n- ",
+  },
+];
+
 /** Modèles de documents proposés au départ : le gestionnaire les adapte ou en crée d'autres. */
 export const DOC_TEMPLATES: DocTemplate[] = [
   {
@@ -259,6 +327,7 @@ export const DOC_TEMPLATES: DocTemplate[] = [
     titre: "Rendez-vous de recadrage",
     contenu: "Faits constatés (dates) :\n- \n\nAttendus rappelés :\n- \n\nPoint de vue du collaborateur :\n- \n\nEngagements et date de suivi :\n- ",
   },
+  ...FICHES_ET_ENTRETIENS,
 ];
 
 /**
@@ -291,6 +360,10 @@ const RH_INFO: Record<string, Partial<TeamUser>> = {
     documents: [{ id: "doc-delphine-1", nom: "Contrat de travail", type: "contrat", dateAjout: "2023-02-01" }],
     entretienPro: { prochaineDate: "2027-02-01", history: [{ date: "2025-02-01" }, { date: "2023-02-01", note: "Entretien d'embauche" }] },
     congesPayes: { prisHorsAppli: 3 },
+    primes: [
+      { id: "pr-delphine-1", date: "2025-12-20", montant: 1000, motif: "Prime de fin d'année" },
+      { id: "pr-delphine-2", date: "2026-06-30", montant: 600, motif: "Objectifs du semestre" },
+    ],
   },
   "u-sophie": {
     medecineTravail: { nextDate: "2026-09-10", periodiciteMois: 24, history: [{ date: "2024-09-10" }] },
@@ -315,7 +388,27 @@ const RH_INFO: Record<string, Partial<TeamUser>> = {
     documents: [{ id: "doc-thomas-1", nom: "Certificat radioprotection", type: "habilitation", dateAjout: "2024-02-01" }],
     entretienPro: { prochaineDate: "2026-01-08", history: [{ date: "2024-01-08", note: "Entretien d'embauche" }] },
     congesPayes: { prisHorsAppli: 0 },
+    primes: [
+      { id: "pr-thomas-1", date: "2025-12-20", montant: 400, motif: "Prime de fin d'année" },
+      { id: "pr-thomas-2", date: "2026-04-15", montant: 250, motif: "Prime exceptionnelle (remplacement bloc)" },
+    ],
+    recadrages: [{ date: "2025-05-12", note: "Retards répétés le matin. Engagement tenu depuis." }],
   },
+};
+
+/** Recadrages de la démo, pour les profils sans fiche sur mesure. */
+const RECADRAGES: Record<string, TeamUser["recadrages"]> = {
+  "u-karima": [{ date: "2026-07-03", note: "Exports comptables en retard. Point de suivi à un mois." }],
+  "u-ines": [
+    { date: "2026-03-10", note: "Tests Bowie-Dick oubliés." },
+    { date: "2026-08-24", note: "Toujours des oublis du test du lundi. Rappel de la procédure de stérilisation." },
+  ],
+};
+
+/** Primes de la démo, pour les profils sans fiche sur mesure. */
+const PRIMES: Record<string, TeamUser["primes"]> = {
+  "u-nathalie": [{ id: "pr-nathalie-1", date: "2025-12-20", montant: 300, motif: "Prime de fin d'année" }],
+  "u-manon": [{ id: "pr-manon-1", date: "2025-12-20", montant: 300, motif: "Prime de fin d'année" }],
 };
 
 /** « jsalt » : un entier déterministe dans [min, max] à partir d'une graine (même démo à chaque rechargement). */
@@ -627,13 +720,16 @@ export function buildTeamSeed(today: Date = new Date()): TeamSeed {
       weeklyHours: WEEKLY_HOURS[u.id],
       ...IDENTIFIANTS_PRATICIENS[u.id],
       ...shiftDeep(RH_INFO[u.id] ?? (u.status === "actif" ? defaultRH(u) : {}), shift.week),
+      ...(RECADRAGES[u.id] ? { recadrages: shiftDeep(RECADRAGES[u.id]!, shift.week) } : {}),
+      ...(PRIMES[u.id] ? { primes: shiftDeep(PRIMES[u.id]!, shift.week) } : {}),
       phone: TELEPHONES[u.id],
     };
-    // Missions suivies : la dernière échéance est cochée ou non selon le scénario de la démo.
-    const suivies = (MISSIONS_SUIVIES[u.id] ?? []).map(({ fait, ...m }) => {
-      const due = lastDue(m, todayIso);
-      return { ...m, faites: fait && due ? [due.key] : [] };
-    });
+    // Missions suivies : historique des 8 dernières semaines, la dernière échéance cochée ou non selon le scénario.
+    const travaille = (iso: string) => {
+      const d = toWeekday(new Date(`${iso}T12:00:00`));
+      return d !== null && base.workDays.includes(d);
+    };
+    const suivies = (MISSIONS_SUIVIES[u.id] ?? []).map((m) => missionHistory(m, todayIso, travaille));
     if (suivies.length) base.missions = [...(base.missions ?? []), ...suivies];
     // Semaine type des salariés : leurs plages habituelles, chacune avec ce qu'ils y font.
     if (!u.roleIds.includes("role-praticien") && u.status === "actif") {

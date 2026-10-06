@@ -12,14 +12,15 @@ import { useTeam } from "@/context/TeamDataContext";
 import { RoleBadges, UserAvatar, toneFor } from "@/components/team/shared";
 import { ContractHoursField, HoursEditor } from "@/components/team/WorkSchedule";
 import { usePersonRights } from "@/components/team/profile/rights";
-import { MissionEtatBadge } from "@/components/team/profile/RHSections";
+import { ETAT_LABELS, MissionEtatBadge, RateText, primes12Mois } from "@/components/team/profile/RHSections";
 import { assiduite, ASSIDUITE_NB } from "@/lib/assiduite";
 import { cpSummary, CP_PAR_AN, hasCongesPayes } from "@/lib/conges";
 import { daysFromHours, dayMinutes, effectiveHours, hoursLabel, rangesError, toMinutes, weekMinutes } from "@/lib/horaires";
-import { frequenceLabel, missionStatus, missionsOf, missionsSummary } from "@/lib/missions";
-import { fullName } from "@/lib/team";
+import { MissionEtat, TAUX_MISSIONS_NB, frequenceLabel, missionsDueOn, missionRate, missionStatus, missionsOf, missionsSummary, personMissionRate, rateTone } from "@/lib/missions";
+import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, fullName, isChairAssistant, worksOn } from "@/lib/team";
 import { PraticienProfile, TeamUser, WeekHours } from "@/types/team";
-import { WEEKDAYS, WEEKDAY_LABELS, formatShortDate, toISODate } from "@/utils/date";
+import { WEEKDAYS, WEEKDAY_LABELS, addDays, formatShortDate, fromISODate, startOfWeek, toISODate } from "@/utils/date";
+import { Weekday } from "@/types";
 import { cn } from "@/lib/utils";
 
 /** Praticien avec qui la personne travaille par défaut (rattachement, facultatif hors fauteuil). */
@@ -221,7 +222,11 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
   const ass = salarie ? assiduite(user, absences, today) : null;
   const cp = salarie ? cpSummary(user, absences, today) : null;
   const ms = missionsSummary(user, today);
+  const rate = personMissionRate(user, today, (iso) => worksOn(user, iso));
   const entretien = dernierEntretien(user);
+  const primes = salarie ? primes12Mois(user, today) : null;
+  const recadrages = [...(user.recadrages ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const RATE_TILE = { vert: "border-emerald-200 bg-emerald-50", orange: "border-amber-200 bg-amber-50", rouge: "border-rose-200 bg-rose-50" } as const;
   const tile = (label: string, value: React.ReactNode, hint?: React.ReactNode, tone?: string) => (
     <div className={cn("rounded-lg border px-3 py-2", tone ?? "bg-slate-50")}>
       <p className="text-xs text-slate-500">{label}</p>
@@ -238,14 +243,30 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
         {ms.tone &&
           tile(
             "Missions",
-            ms.tone === "rouge" ? `${ms.enRetard.length} en retard` : ms.tone === "orange" ? `${ms.aFaire.length} à faire` : "À jour",
-            `${ms.faites.length}/${ms.suivies} faites`,
-            ms.tone === "rouge" ? "border-rose-200 bg-rose-50" : ms.tone === "orange" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"
+            rate ? `${rate.taux} % réalisées` : ms.tone === "rouge" ? `${ms.enRetard.length} en retard` : "À jour",
+            [
+              ms.enRetard.length ? `${ms.enRetard.length} en retard` : ms.aFaire.length ? `${ms.aFaire.length} à faire` : "à jour",
+              ms.aControler.length ? `${ms.aControler.length} à contrôler` : null,
+              rate ? "sur 8 semaines" : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            RATE_TILE[rate ? rateTone(rate.taux) : ms.tone === "orange" ? "orange" : ms.tone]
           )}
         {user.salary && tile("Salaire brut", `${user.salary.brut.toLocaleString("fr-FR")} €`, `${(user.salary.brut * 12).toLocaleString("fr-FR")} € par an · ${user.salary.net.toLocaleString("fr-FR")} € net`)}
+        {primes && tile("Primes", `${primes.total.toLocaleString("fr-FR")} €`, primes.nombre ? `${primes.nombre} sur 12 mois` : "aucune sur 12 mois")}
+        {salarie &&
+          rights.canSeeRecadrages &&
+          tile(
+            "Recadrages",
+            recadrages.length,
+            recadrages.length ? `dernier le ${formatShortDate(recadrages[0].date)}` : "aucun",
+            recadrages.length ? "border-amber-200 bg-amber-50" : undefined
+          )}
         {entretien && tile("Dernier entretien", formatShortDate(entretien.date), entretien.label)}
       </div>
       {ass && <p className="text-[11px] leading-snug text-slate-400">NB : {ASSIDUITE_NB}</p>}
+      {rate && <p className="text-[11px] leading-snug text-slate-400">NB : {TAUX_MISSIONS_NB}</p>}
     </div>
   );
 }
@@ -265,7 +286,9 @@ export function MissionsRecap({ user }: { user: TeamUser }) {
             <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
               <span className="min-w-0">
                 <span className="block truncate">{m.titre}</span>
-                <span className="block text-xs text-slate-500">{frequenceLabel(m)}</span>
+                <span className="flex gap-2 text-xs text-slate-500">
+                  {frequenceLabel(m)} <RateText rate={missionRate(m, today, (iso) => worksOn(user, iso))} />
+                </span>
               </span>
               <MissionEtatBadge status={missionStatus(m, today)} />
             </li>
@@ -283,8 +306,37 @@ const DAY_START = 7 * 60;
 const DAY_END = 20 * 60;
 const PX_PER_MIN = 0.7;
 
-/** Emploi du temps de la semaine : une colonne par jour, une case par plage avec ce que la personne y fait. */
-export function Timetable({ hours }: { hours: WeekHours }) {
+/** Une mission posée sur l'emploi du temps : à son horaire si elle en a un, sinon sous la colonne du jour. */
+export interface TimetableMission {
+  titre: string;
+  horaire?: string;
+  etat?: MissionEtat;
+}
+
+/** Ce qui change un jour donné par rapport à la semaine type (vue « Cette semaine »). */
+export interface TimetableDay {
+  date?: string;
+  absence?: string;
+  /** Écart avec la semaine type, ex. « Avec Dr Martin au lieu de Dr Perche ». */
+  ecart?: string;
+  missions?: TimetableMission[];
+}
+
+const MISSION_TONES: Record<MissionEtat | "neutre", string> = {
+  neutre: "border-slate-300 bg-white/90 text-slate-700",
+  fait: "border-emerald-300 bg-emerald-50/95 text-emerald-800",
+  a_controler: "border-sky-300 bg-sky-50/95 text-sky-800",
+  non_conforme: "border-rose-300 bg-rose-50/95 text-rose-800",
+  a_faire: "border-amber-300 bg-amber-50/95 text-amber-900",
+  en_retard: "border-rose-300 bg-rose-50/95 text-rose-800",
+  sans_suivi: "border-slate-300 bg-white/90 text-slate-700",
+};
+
+/**
+ * Emploi du temps de la semaine : une colonne par jour, une case par plage avec ce que la personne y fait,
+ * et ses missions (à leur horaire, en pointillés). `days` ajoute la date, les absences et les écarts de la semaine en cours.
+ */
+export function Timetable({ hours, days: info }: { hours: WeekHours; days?: Partial<Record<Weekday, TimetableDay>> }) {
   const days = WEEKDAYS.filter((d) => d !== "samedi" || (hours.samedi?.length ?? 0) > 0);
   const height = (DAY_END - DAY_START) * PX_PER_MIN;
   return (
@@ -296,51 +348,154 @@ export function Timetable({ hours }: { hours: WeekHours }) {
           </span>
         ))}
       </div>
-      {days.map((d) => (
-        <div key={d} className="min-w-0 flex-1">
-          <p className="h-[22px] text-center text-xs font-medium text-slate-600">{WEEKDAY_LABELS[d].slice(0, 3)}</p>
-          <div className="relative rounded-md border bg-slate-50/60" style={{ height }}>
-            {Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => (
-              <div key={i} className="absolute inset-x-0 border-t border-slate-100" style={{ top: i * 60 * PX_PER_MIN }} />
-            ))}
-            {(hours[d] ?? []).map((r, i) => {
-              const top = (Math.max(DAY_START, toMinutes(r.start)) - DAY_START) * PX_PER_MIN;
-              const h = Math.max(18, (Math.min(DAY_END, toMinutes(r.end)) - Math.max(DAY_START, toMinutes(r.start))) * PX_PER_MIN);
-              return (
-                <div
-                  key={i}
-                  className={cn("absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight", toneFor(r.label ?? "travail"))}
-                  style={{ top, height: h }}
-                  title={`${r.start} → ${r.end}${r.label ? ` · ${r.label}` : ""}`}
-                >
-                  <p className="font-medium tabular-nums">
-                    {r.start}–{r.end}
-                  </p>
-                  {r.label && <p className="line-clamp-3">{r.label}</p>}
+      {days.map((d) => {
+        const day = info?.[d];
+        const timed = (day?.missions ?? []).filter((m) => m.horaire);
+        const untimed = (day?.missions ?? []).filter((m) => !m.horaire);
+        return (
+          <div key={d} className="min-w-0 flex-1">
+            <p className="h-[22px] text-center text-xs font-medium text-slate-600">
+              {WEEKDAY_LABELS[d].slice(0, 3)}
+              {day?.date && <span className="font-normal text-slate-400"> {fromISODate(day.date).getDate()}</span>}
+            </p>
+            <div className={cn("relative rounded-md border bg-slate-50/60", day?.ecart && "border-amber-300")} style={{ height }}>
+              {Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => (
+                <div key={i} className="absolute inset-x-0 border-t border-slate-100" style={{ top: i * 60 * PX_PER_MIN }} />
+              ))}
+              {day?.absence ? (
+                <div className="absolute inset-0.5 flex items-center justify-center rounded-md bg-[repeating-linear-gradient(135deg,#fff1f2,#fff1f2_4px,#ffe4e6_4px,#ffe4e6_8px)] px-1 text-center text-[11px] font-medium text-rose-800">
+                  {day.absence}
                 </div>
-              );
-            })}
-            {!(hours[d]?.length) && <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-slate-400">Repos</p>}
+              ) : (
+                <>
+                  {(hours[d] ?? []).map((r, i) => {
+                    const top = (Math.max(DAY_START, toMinutes(r.start)) - DAY_START) * PX_PER_MIN;
+                    const h = Math.max(18, (Math.min(DAY_END, toMinutes(r.end)) - Math.max(DAY_START, toMinutes(r.start))) * PX_PER_MIN);
+                    return (
+                      <div
+                        key={i}
+                        className={cn("absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight", toneFor(r.label ?? "travail"))}
+                        style={{ top, height: h }}
+                        title={`${r.start} → ${r.end}${r.label ? ` · ${r.label}` : ""}`}
+                      >
+                        <p className="font-medium tabular-nums">
+                          {r.start}–{r.end}
+                        </p>
+                        {r.label && <p className="line-clamp-3">{r.label}</p>}
+                      </div>
+                    );
+                  })}
+                  {timed.map((m, i) => {
+                    const [a, b] = m.horaire!.split(" → ");
+                    const top = (Math.max(DAY_START, toMinutes(a)) - DAY_START) * PX_PER_MIN;
+                    const h = Math.max(16, (Math.min(DAY_END, toMinutes(b ?? a)) - Math.max(DAY_START, toMinutes(a))) * PX_PER_MIN);
+                    return (
+                      <div
+                        key={`m-${i}`}
+                        className={cn("absolute right-0.5 left-1/3 z-10 overflow-hidden rounded border border-dashed px-1 text-[10px] leading-tight", MISSION_TONES[m.etat ?? "neutre"])}
+                        style={{ top, height: h }}
+                        title={`Mission : ${m.titre} (${m.horaire})${m.etat ? ` · ${ETAT_LABELS[m.etat].toLowerCase()}` : ""}`}
+                      >
+                        <span className="line-clamp-2">{m.titre}</span>
+                      </div>
+                    );
+                  })}
+                  {!hours[d]?.length && <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-slate-400">Repos</p>}
+                </>
+              )}
+            </div>
+            {day?.ecart && <p className="mt-1 text-[10px] leading-tight text-amber-700">{day.ecart}</p>}
+            {!day?.absence && untimed.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {untimed.map((m, i) => (
+                  <li
+                    key={i}
+                    className={cn("truncate rounded border border-dashed px-1 text-[10px] leading-4", MISSION_TONES[m.etat ?? "neutre"])}
+                    title={`Mission : ${m.titre}${m.etat ? ` · ${ETAT_LABELS[m.etat].toLowerCase()}` : ""}`}
+                  >
+                    {m.titre}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
+/** Missions de la semaine type : les quotidiennes chaque jour travaillé, les hebdomadaires leur jour. */
+function missionsSemaineType(user: TeamUser, hours: WeekHours): Partial<Record<Weekday, TimetableDay>> {
+  const suivies = missionsOf(user).filter((m) => m.frequence === "quotidienne" || m.frequence === "hebdo");
+  return Object.fromEntries(
+    WEEKDAYS.filter((d) => hours[d]?.length).map((d) => [
+      d,
+      { missions: suivies.filter((m) => m.frequence === "quotidienne" || m.jour === d).map((m) => ({ titre: m.titre, horaire: m.horaire })) },
+    ])
+  );
+}
+
 /**
- * Semaine type d'un salarié : ses horaires de chaque jour et ce qu'il y fait. Créée et modifiée par le gestionnaire
- * (ou le praticien pour son équipe) ; la personne la voit en lecture seule.
+ * La semaine en cours, comparée à la semaine type : absences posées, prêts et remplacements du planning
+ * (une assistante détachée chez un autre praticien), et les missions dues avec leur état.
+ */
+function useSemaineEnCours(user: TeamUser, hours: WeekHours) {
+  const { now, absences, profiles, users, dayOverrides, dayNeeds } = useTeam();
+  const today = toISODate(now());
+  const monday = startOfWeek(fromISODate(today));
+  const habituel = profiles.find((p) => p.id === user.defaultEnvironmentId);
+  const chair = isChairAssistant(user);
+  const out: Partial<Record<Weekday, TimetableDay>> = {};
+  const week: WeekHours = {};
+  WEEKDAYS.forEach((d, i) => {
+    const iso = toISODate(addDays(monday, i));
+    const abs = absenceOn(user.id, iso, absences);
+    const info: TimetableDay = { date: iso };
+    if (abs) info.absence = `Absent(e) · ${ABSENCE_TYPE_LABELS[abs.type].toLowerCase()}`;
+    let ranges = hours[d] ?? [];
+    if (!abs && ranges.length && chair) {
+      const st = dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds);
+      const ecarts = new Set<string>();
+      ranges = ranges.map((r) => {
+        const half = toMinutes(r.start) < 13 * 60 ? "matin" : "apres_midi";
+        const avec = st.praticiens.find((p) => p.slots.some((s) => s.assistantId === user.id && (!s.partial || s.partial === half)));
+        if (!avec) {
+          ecarts.add("Sans praticien ce jour-là");
+          return { ...r, label: "Sans praticien" };
+        }
+        const slot = avec.slots.find((s) => s.assistantId === user.id)!;
+        const nom = avec.profile.label;
+        if (avec.profile.id !== habituel?.id)
+          ecarts.add(`${slot.kind === "pret" ? "Prêté(e) à" : "En renfort avec"} ${nom}${habituel ? ` au lieu de ${habituel.label}` : ""}`);
+        return { ...r, label: `Fauteuil ${nom}` };
+      });
+      if (ecarts.size) info.ecart = [...ecarts].join(" · ");
+    }
+    week[d] = ranges;
+    info.missions = (abs ? [] : missionsDueOn(user, iso, today)).map((x) => ({ titre: x.mission.titre, horaire: x.mission.horaire, etat: x.etat === "a_faire" && iso > today ? undefined : x.etat }));
+    out[d] = info;
+  });
+  return { hours: week, days: out };
+}
+
+/**
+ * Semaine type d'un salarié : ses horaires de chaque jour, ce qu'il y fait et ses missions. Créée et modifiée
+ * par le gestionnaire (ou le praticien pour son équipe) ; la personne la voit en lecture seule. « Cette semaine »
+ * montre la semaine en cours telle que le planning l'a faite : c'est elle qui peut s'écarter de la référence.
  */
 export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
   const { updateUser, can } = useTeam();
   const rights = usePersonRights(user);
   const [open, setOpen] = useState(false);
+  const [vue, setVue] = useState<"type" | "semaine">("type");
   const current = effectiveHours(user);
+  const enCours = useSemaineEnCours(user, current);
   const [draft, setDraft] = useState<WeekHours>(current);
   const [contract, setContract] = useState<number | undefined>(user.weeklyHours);
   const total = weekMinutes(current);
   const invalid = WEEKDAYS.some((d) => rangesError(draft[d]));
+  const ecarts = WEEKDAYS.filter((d) => enCours.days[d]?.ecart || enCours.days[d]?.absence).length;
 
   function save() {
     const res = updateUser({ ...user, schedule: draft, weeklyHours: contract, ...daysFromHours(draft) });
@@ -354,18 +509,36 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div>
-          <CardTitle>Semaine type</CardTitle>
+          <CardTitle>{vue === "type" ? "Semaine type" : "Cette semaine"}</CardTitle>
           <CardDescription>
-            Horaires de chaque jour et ce que {rights.self ? "vous y faites" : `${user.firstName} y fait`}.{" "}
-            {rights.canManage ? "Créée par le gestionnaire ou le praticien." : "Créée par le gestionnaire ou votre praticien, en lecture seule."}
+            {vue === "type" ? (
+              <>
+                La référence qui revient chaque semaine : horaires, ce que {rights.self ? "vous y faites" : `${user.firstName} y fait`} et les missions (en
+                pointillés). {rights.canManage ? "Créée par le gestionnaire ou le praticien." : "Créée par le gestionnaire ou votre praticien, en lecture seule."}
+              </>
+            ) : (
+              <>La semaine en cours telle que le planning l&apos;a faite : absences, prêts à un autre praticien, missions à faire. Les écarts avec la semaine type sont en orange.</>
+            )}
           </CardDescription>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex rounded-full bg-slate-100 p-0.5 text-sm">
+            {(["type", "semaine"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setVue(v)}
+                className={cn("rounded-full px-3 py-1", vue === v ? "bg-pink-100 font-medium text-pink-900" : "text-slate-600 hover:text-slate-900")}
+              >
+                {v === "type" ? "Semaine type" : "Cette semaine"}
+                {v === "semaine" && ecarts > 0 && <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[11px] text-amber-800">{ecarts}</span>}
+              </button>
+            ))}
+          </div>
           <span className="text-sm text-slate-600">
             <span className="font-semibold tabular-nums">{hoursLabel(total)}</span> par semaine
             {user.weeklyHours !== undefined && <span className="text-slate-400"> · contrat {user.weeklyHours} h</span>}
           </span>
-          {rights.canManage && (
+          {rights.canManage && vue === "type" && (
             <Button
               variant="outline"
               size="sm"
@@ -381,7 +554,7 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
         </div>
       </CardHeader>
       <CardContent>
-        <Timetable hours={current} />
+        {vue === "type" ? <Timetable hours={current} days={missionsSemaineType(user, current)} /> : <Timetable hours={enCours.hours} days={enCours.days} />}
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
           {WEEKDAYS.filter((d) => current[d]?.length).map((d) => (
             <span key={d}>

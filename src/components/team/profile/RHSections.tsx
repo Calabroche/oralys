@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { toast } from "sonner";
-import { Briefcase, Euro, CalendarClock, FileText, GraduationCap, Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
+import { Briefcase, Check, Euro, CalendarClock, FileText, GraduationCap, Gift, ListChecks, Pencil, Plus, ShieldAlert, ShieldCheck, Trash2, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +15,24 @@ import { Label } from "@/components/ui/label";
 import { useTeam } from "@/context/TeamDataContext";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { DocumentChip, FileButton, type DocumentDraft } from "@/components/team/Justificatifs";
-import { WEEKDAYS, WEEKDAY_LABELS, diffInDays, formatShortDate, toISODate } from "@/utils/date";
+import { WEEKDAYS, WEEKDAY_LABELS, addDays, diffInDays, formatShortDate, fromISODate, toISODate } from "@/utils/date";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FREQUENCE_LABELS, MissionEtat, MissionStatus, frequenceLabel, missionStatus, missionsOf, newMissionId } from "@/lib/missions";
+import {
+  FREQUENCE_LABELS,
+  MissionEtat,
+  MissionStatus,
+  TAUX_MISSIONS_NB,
+  echeances,
+  frequenceLabel,
+  missionRate,
+  missionStatus,
+  missionsOf,
+  newMissionId,
+  personMissionRate,
+  rateTone,
+  reussie,
+} from "@/lib/missions";
+import { worksOn } from "@/lib/team";
 import { Weekday } from "@/types";
 import { CP_PAR_AN, cpSummary } from "@/lib/conges";
 import { cn } from "@/lib/utils";
@@ -48,6 +63,8 @@ import {
 const DOCUMENT_TYPE_LABELS: Record<RHDocumentType, string> = {
   contrat: "Contrat",
   avenant: "Avenant",
+  fiche_poste: "Fiche de poste",
+  entretien: "Entretien",
   diplome: "Diplôme",
   habilitation: "Habilitation",
   compte_rendu: "Compte rendu",
@@ -86,20 +103,25 @@ function RelativeDue({ iso, today }: { iso: string; today: string }) {
 
 const ETAT_STYLES: Record<MissionEtat, string> = {
   fait: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  a_controler: "border-sky-200 bg-sky-50 text-sky-800",
+  non_conforme: "border-rose-200 bg-rose-50 text-rose-700",
   a_faire: "border-amber-200 bg-amber-50 text-amber-800",
   en_retard: "border-rose-200 bg-rose-50 text-rose-700",
   sans_suivi: "border-slate-200 bg-slate-50 text-slate-500",
 };
 
+export const ETAT_LABELS: Record<MissionEtat, string> = {
+  fait: "Fait",
+  a_controler: "À contrôler",
+  non_conforme: "Non conforme",
+  a_faire: "À faire",
+  en_retard: "En retard",
+  sans_suivi: "Fiche de poste",
+};
+
 export function MissionEtatBadge({ status }: { status: MissionStatus }) {
   const label =
-    status.etat === "fait"
-      ? "Fait"
-      : status.etat === "a_faire"
-        ? "À faire aujourd'hui"
-        : status.etat === "en_retard"
-          ? `En retard de ${status.retard} j`
-          : "Fiche de poste";
+    status.etat === "a_faire" ? "À faire aujourd'hui" : status.etat === "en_retard" ? `En retard de ${status.retard} j` : ETAT_LABELS[status.etat];
   return (
     <Badge variant="outline" className={cn("shrink-0 rounded-md", ETAT_STYLES[status.etat])}>
       {label}
@@ -107,26 +129,77 @@ export function MissionEtatBadge({ status }: { status: MissionStatus }) {
   );
 }
 
+const RATE_STYLES = { vert: "text-emerald-700", orange: "text-amber-700", rouge: "text-rose-700" } as const;
+
+/** Taux de réalisation sur 8 semaines : « 7/8 · 88 % », coloré du vert au rouge. */
+export function RateText({ rate, className }: { rate: { taux: number; faites: number; dues: number } | null; className?: string }) {
+  if (!rate) return null;
+  return (
+    <span className={cn("text-xs font-medium tabular-nums", RATE_STYLES[rateTone(rate.taux)], className)} title={TAUX_MISSIONS_NB}>
+      {rate.faites}/{rate.dues} · {rate.taux} %
+    </span>
+  );
+}
+
+/** Les dernières échéances d'une mission en petites cases : vert fait, rouge pas fait ou non conforme. */
+function HistoryDots({ mission, today, travaille }: { mission: Mission; today: string; travaille: (iso: string) => boolean }) {
+  const dues = echeances(mission, today, travaille).slice(-12);
+  if (!dues.length) return null;
+  return (
+    <span className="flex items-center gap-0.5" aria-hidden>
+      {dues.map((e) => (
+        <span
+          key={e.key}
+          title={`${formatShortDate(e.date)} : ${reussie(mission, e.key) ? "fait" : mission.faites?.includes(e.key) ? "non conforme" : "pas fait"}`}
+          className={cn("size-2 rounded-[3px]", reussie(mission, e.key) ? "bg-emerald-400" : "bg-rose-400")}
+        />
+      ))}
+    </span>
+  );
+}
+
 /**
- * Missions de la personne. Le gestionnaire (ou son praticien) les crée : simple responsabilité de la fiche
- * de poste, ou mission qui revient (chaque jour, chaque semaine, chaque mois). La personne coche quand c'est fait ;
- * en retard, la mission passe au rouge, dans le profil comme dans le trombinoscope.
+ * Missions de la personne. Le gestionnaire (ou son praticien) les crée, en piochant dans les missions types du
+ * cabinet ou à la main : simple responsabilité de la fiche de poste, ou mission qui revient (chaque jour, semaine
+ * ou mois). La personne coche quand c'est fait ; une mission « à contrôler » est ensuite validée par le gestionnaire
+ * ou le praticien. Le taux sur 8 semaines dit si la personne est dedans dans la durée, pas seulement cette semaine.
  */
 export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; canManage: boolean; canCheck: boolean }) {
-  const { updateUser, now } = useTeam();
+  const { updateUser, now, missionTemplates } = useTeam();
   const today = toISODate(now());
   const missions = missionsOf(user);
+  const travaille = (iso: string) => worksOn(user, iso);
   const [titre, setTitre] = useState("");
   const [frequence, setFrequence] = useState<MissionFrequence>("aucune");
   const [jour, setJour] = useState<Weekday>("lundi");
   const [jourDuMois, setJourDuMois] = useState("1");
   const [debut, setDebut] = useState("");
   const [fin, setFin] = useState("");
+  const [aControler, setAControler] = useState(false);
+  const catalogue = [...missionTemplates].sort((a, b) => Number(!a.postes?.includes(user.poste)) - Number(!b.postes?.includes(user.poste)));
 
   function save(next: Mission[]) {
     const res = updateUser({ ...user, missions: next.length ? next : undefined });
     if (!res.ok) toast.error(res.error);
     return res.ok;
+  }
+  function reset() {
+    setTitre("");
+    setDebut("");
+    setFin("");
+    setAControler(false);
+  }
+  function pick(id: string) {
+    const t = missionTemplates.find((x) => x.id === id);
+    if (!t) return;
+    setTitre(t.titre);
+    setFrequence(t.frequence);
+    if (t.jour) setJour(t.jour);
+    if (t.jourDuMois) setJourDuMois(String(t.jourDuMois));
+    const [a, b] = t.horaire?.split(" → ") ?? ["", ""];
+    setDebut(a ?? "");
+    setFin(b ?? "");
+    setAControler(Boolean(t.aControler));
   }
   function add() {
     if (!titre.trim()) return;
@@ -136,54 +209,89 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
       frequence,
       ...(frequence === "hebdo" ? { jour } : {}),
       ...(frequence === "mensuelle" ? { jourDuMois: Math.min(28, Math.max(1, Number(jourDuMois) || 1)) } : {}),
-      ...(debut && fin ? { horaire: `${debut} → ${fin}` } : {}),
+      ...(frequence !== "aucune" && debut && fin ? { horaire: `${debut} → ${fin}` } : {}),
+      ...(frequence !== "aucune" && aControler ? { aControler: true } : {}),
     };
-    if (save([...missions, m])) {
-      setTitre("");
-      setDebut("");
-      setFin("");
-    }
+    if (save([...missions, m])) reset();
   }
   function toggle(m: Mission, key: string) {
     const faites = m.faites?.includes(key) ? m.faites.filter((k) => k !== key) : [...(m.faites ?? []), key];
-    if (save(missions.map((x) => (x.id === m.id ? { ...x, faites } : x))) && !m.faites?.includes(key)) toast.success("Mission faite", { description: m.titre });
+    if (save(missions.map((x) => (x.id === m.id ? { ...x, faites } : x))) && !m.faites?.includes(key))
+      toast.success("Mission faite", { description: m.aControler ? `${m.titre} · en attente de contrôle` : m.titre });
+  }
+  function controler(m: Mission, key: string, verdict: "ok" | "ko") {
+    if (save(missions.map((x) => (x.id === m.id ? { ...x, controles: { ...x.controles, [key]: verdict } } : x))))
+      toast.success(verdict === "ok" ? "Contrôlée : conforme" : "Contrôlée : non conforme", { description: m.titre });
   }
 
   const suivies = missions.filter((m) => m.frequence !== "aucune");
   const fiche = missions.filter((m) => m.frequence === "aucune");
+  const global = personMissionRate(user, today, travaille);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Briefcase className="size-4 text-slate-400" /> Missions
-        </CardTitle>
-        <CardDescription>
-          Ce que couvre le poste, et les missions qui reviennent (chaque jour, semaine ou mois) à cocher une fois faites.
-          {!canManage && " Créées par le gestionnaire ou le praticien."}
-        </CardDescription>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Briefcase className="size-4 text-slate-400" /> Missions
+          </CardTitle>
+          <CardDescription>
+            Ce que couvre le poste, et les missions qui reviennent (chaque jour, semaine ou mois) à cocher une fois faites.
+            {!canManage && " Créées par le gestionnaire ou le praticien."}
+          </CardDescription>
+        </div>
+        {global && (
+          <div className={cn("rounded-lg border px-3 py-1.5 text-right", rateTone(global.taux) === "vert" ? "border-emerald-200 bg-emerald-50" : rateTone(global.taux) === "orange" ? "border-amber-200 bg-amber-50" : "border-rose-200 bg-rose-50")}>
+            <p className="text-[11px] text-slate-500">Réalisées sur 8 semaines</p>
+            <p className={cn("text-lg font-semibold tabular-nums", RATE_STYLES[rateTone(global.taux)])}>{global.taux} %</p>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {suivies.length > 0 && (
           <ul className="divide-y rounded-md border">
             {suivies.map((m) => {
               const st = missionStatus(m, today);
+              const controlee = Boolean(st.due && m.controles?.[st.due.key]);
               return (
                 <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 text-sm">
                   {canCheck && st.due ? (
                     <Checkbox
-                      checked={st.etat === "fait"}
+                      checked={m.faites?.includes(st.due.key) ?? false}
+                      disabled={controlee}
                       onCheckedChange={() => toggle(m, st.due!.key)}
-                      aria-label={st.etat === "fait" ? "Marquer comme non faite" : "Marquer comme faite"}
+                      aria-label={m.faites?.includes(st.due.key) ? "Marquer comme non faite" : "Marquer comme faite"}
                     />
                   ) : (
                     <span className="size-4" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className={cn("block font-medium text-slate-800", st.etat === "fait" && "text-slate-500")}>{m.titre}</span>
-                    <span className="block text-xs text-slate-500">{frequenceLabel(m)}</span>
+                    <span className={cn("block font-medium text-slate-800", st.etat === "fait" && "text-slate-500")}>
+                      {m.titre}
+                      {m.aControler && (
+                        <span className="ml-1.5 inline-flex items-center gap-0.5 align-middle text-[11px] font-normal text-sky-700">
+                          <ShieldCheck className="size-3" /> contrôlée
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                      {frequenceLabel(m)}
+                      <HistoryDots mission={m} today={today} travaille={travaille} />
+                      <RateText rate={missionRate(m, today, travaille)} />
+                    </span>
                   </span>
-                  <MissionEtatBadge status={st} />
+                  {st.etat === "a_controler" && canManage && st.due ? (
+                    <span className="flex shrink-0 gap-1">
+                      <Button size="sm" variant="outline" className="h-7 border-emerald-200 text-emerald-700" onClick={() => controler(m, st.due!.key, "ok")}>
+                        <Check /> Conforme
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 border-rose-200 text-rose-700" onClick={() => controler(m, st.due!.key, "ko")}>
+                        <X /> Non conforme
+                      </Button>
+                    </span>
+                  ) : (
+                    <MissionEtatBadge status={st} />
+                  )}
                   {canManage && (
                     <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={() => save(missions.filter((x) => x.id !== m.id))} aria-label="Retirer la mission">
                       <Trash2 className="size-3.5" />
@@ -194,6 +302,7 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
             })}
           </ul>
         )}
+        {suivies.length > 0 && <p className="text-[11px] leading-snug text-slate-400">NB : {TAUX_MISSIONS_NB} Vert à partir de 90 %, orange de 70 à 89 %, rouge en dessous.</p>}
         {fiche.length > 0 && (
           <div>
             {suivies.length > 0 && <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">Fiche de poste</p>}
@@ -217,6 +326,21 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
         {missions.length === 0 && <p className="text-sm text-slate-400">{canManage ? "Pas encore de mission." : "Pas encore de mission définie par le gestionnaire."}</p>}
         {canManage && (
           <div className="space-y-2 rounded-lg border border-dashed p-3">
+            {catalogue.length > 0 && (
+              <Select value="" onValueChange={pick}>
+                <SelectTrigger size="sm" className="w-full sm:w-auto">
+                  <ListChecks className="size-3.5" />
+                  <SelectValue placeholder="Piocher dans les missions types" />
+                </SelectTrigger>
+                <SelectContent>
+                  {catalogue.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.titre} <span className="text-slate-400">· {frequenceLabel(t)}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <div className="flex flex-wrap gap-2">
               <Input
                 placeholder="Nouvelle mission (ex. export comptable)"
@@ -259,10 +383,15 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
               )}
             </div>
             {frequence !== "aucune" && (
-              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                Horaire (facultatif)
-                <Input type="time" className="w-28" value={debut} onChange={(e) => setDebut(e.target.value)} />→
-                <Input type="time" className="w-28" value={fin} onChange={(e) => setFin(e.target.value)} />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500">
+                <span className="flex flex-wrap items-center gap-2">
+                  Horaire (facultatif)
+                  <Input type="time" className="w-28" value={debut} onChange={(e) => setDebut(e.target.value)} />→
+                  <Input type="time" className="w-28" value={fin} onChange={(e) => setFin(e.target.value)} />
+                </span>
+                <label className="flex items-center gap-2">
+                  <Checkbox checked={aControler} onCheckedChange={(v) => setAControler(v === true)} />À contrôler par le gestionnaire ou le praticien
+                </label>
               </div>
             )}
             <Button variant="outline" size="sm" onClick={add} disabled={!titre.trim()}>
@@ -629,8 +758,101 @@ export function SalaryCard({ user, canSee, canEdit }: { user: TeamUser; canSee: 
           </div>
         )}
         {salary && salary.history.length > 0 && <SalaryHistoryList user={user} salary={salary} canEdit={canEdit} />}
+        <PrimesSection user={user} canEdit={canEdit} />
       </CardContent>
     </Card>
+  );
+}
+
+/** Total des primes des 12 derniers mois. */
+export function primes12Mois(u: TeamUser, todayIso: string): { total: number; nombre: number } {
+  const depuis = toISODate(addDays(fromISODate(todayIso), -365));
+  const recentes = (u.primes ?? []).filter((p) => p.date > depuis && p.date <= todayIso);
+  return { total: recentes.reduce((n, p) => n + p.montant, 0), nombre: recentes.length };
+}
+
+/** Historique des primes : date, montant brut, motif. Saisies par le gestionnaire ou le comptable. */
+function PrimesSection({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
+  const { updateUser, now } = useTeam();
+  const today = toISODate(now());
+  const [adding, setAdding] = useState(false);
+  const [date, setDate] = useState(today);
+  const [montant, setMontant] = useState("");
+  const [motif, setMotif] = useState("");
+  const list = [...(user.primes ?? [])].sort((a, b) => b.date.localeCompare(a.date));
+  const recap = primes12Mois(user, today);
+  if (!list.length && !canEdit) return null;
+
+  function add() {
+    const m = Number(montant);
+    if (!m) return;
+    const res = updateUser({ ...user, primes: [...(user.primes ?? []), { id: `pr-${Date.now().toString(36)}`, date, montant: m, motif: motif.trim() || undefined }] });
+    if (res.ok) {
+      toast.success("Prime enregistrée", { description: `${euros(m)} le ${formatShortDate(date)}` });
+      setMontant("");
+      setMotif("");
+      setAdding(false);
+    } else toast.error(res.error);
+  }
+
+  return (
+    <div className="space-y-1.5 border-t pt-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">
+          <Gift className="size-3.5" /> Primes
+        </p>
+        {list.length > 0 && (
+          <span className="text-xs text-slate-500 tabular-nums">
+            {euros(recap.total)} brut sur 12 mois · {recap.nombre} prime{recap.nombre > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      {list.length > 0 ? (
+        <ul className="divide-y rounded-md border text-sm">
+          {list.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 px-3 py-1.5">
+              <span className="w-24 shrink-0 text-slate-500 tabular-nums">{formatShortDate(p.date)}</span>
+              <span className="min-w-0 flex-1 truncate text-slate-700">{p.motif ?? "Prime"}</span>
+              <span className="font-medium text-slate-900 tabular-nums">{euros(p.montant)}</span>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  aria-label="Retirer la prime"
+                  onClick={() => {
+                    const res = updateUser({ ...user, primes: (user.primes ?? []).filter((x) => x.id !== p.id) });
+                    if (!res.ok) toast.error(res.error);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-400">Pas de prime versée.</p>
+      )}
+      {canEdit &&
+        (adding ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input type="date" className="w-36" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input type="number" placeholder="Montant brut" className="w-32" value={montant} onChange={(e) => setMontant(e.target.value)} />
+            <Input placeholder="Motif (ex. prime de fin d'année)" className="min-w-40 flex-1" value={motif} onChange={(e) => setMotif(e.target.value)} />
+            <Button size="sm" onClick={add} disabled={!Number(montant)}>
+              Enregistrer
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
+              Annuler
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-500" onClick={() => setAdding(true)}>
+            <Plus className="size-3" /> Ajouter une prime
+          </Button>
+        ))}
+    </div>
   );
 }
 
@@ -655,7 +877,7 @@ function RappelHistoryList({ history, canEdit, onAdd }: { history: RappelHistory
           {sorted.map((h, i) => (
             <li key={i} className="flex items-baseline gap-2 text-xs text-slate-500">
               <span className="tabular-nums text-slate-600">{formatShortDate(h.date)}</span>
-              {h.note && <span>— {h.note}</span>}
+              {h.note && <span>· {h.note}</span>}
             </li>
           ))}
         </ul>
@@ -681,7 +903,7 @@ function RappelHistoryList({ history, canEdit, onAdd }: { history: RappelHistory
           </div>
         ) : (
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-slate-500" onClick={() => setAdding(true)}>
-            <Plus className="size-3" /> Ajouter au historique
+            <Plus className="size-3" /> Ajouter à l&apos;historique
           </Button>
         ))}
     </div>
@@ -797,6 +1019,47 @@ export function RappelsCard({ user, canEdit, medecineOnly }: { user: TeamUser; c
         </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+// --- Recadrages (salariés uniquement) ----------------------------------------------
+
+/**
+ * Rendez-vous de recadrage déjà tenus : date et note, saisis par le gestionnaire. Le compte rendu se rédige
+ * depuis le modèle « Rendez-vous de recadrage » (carte Documents). Visible par la personne, son praticien
+ * et le gestionnaire, comme le reste du dossier.
+ */
+export function RecadragesCard({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
+  const { updateUser } = useTeam();
+  const list = user.recadrages ?? [];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ShieldAlert className="size-4 text-slate-400" /> Recadrages
+          <Badge variant="outline">Confidentiel</Badge>
+        </CardTitle>
+        <CardDescription>
+          {list.length
+            ? `${list.length} rendez-vous de recadrage, le dernier le ${formatShortDate([...list].sort((a, b) => b.date.localeCompare(a.date))[0].date)}.`
+            : "Aucun rendez-vous de recadrage."}{" "}
+          {canEdit ? "Le compte rendu se rédige depuis le modèle « Rendez-vous de recadrage », carte Documents." : "Saisis par le gestionnaire."}
+        </CardDescription>
+      </CardHeader>
+      {(list.length > 0 || canEdit) && (
+        <CardContent>
+          <RappelHistoryList
+            history={list}
+            canEdit={canEdit}
+            onAdd={(e) => {
+              const res = updateUser({ ...user, recadrages: [...list, e] });
+              if (res.ok) toast.success("Recadrage enregistré");
+              else toast.error(res.error);
+            }}
+          />
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -1040,7 +1303,7 @@ function FromTemplateButton({ user, onPick }: { user: TeamUser; onPick: (doc: RH
         onPick({
           id: `doc-${Date.now().toString(36)}`,
           nom: `${t.titre} · ${user.firstName} · ${formatShortDate(today)}`,
-          type: "compte_rendu",
+          type: t.type ?? "compte_rendu",
           dateAjout: today,
           addedById: sessionUserId ?? undefined,
           contenu: t.contenu,
