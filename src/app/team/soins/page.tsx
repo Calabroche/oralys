@@ -529,7 +529,6 @@ function Sterilisation() {
 
 function AgendaFerme() {
   const { absences, findUser } = useTeam();
-  const demoRange = useDemoRange();
   const { allAbsencePeriods } = useAgendaData();
   const synced = allAbsencePeriods.filter((a) => a.id.startsWith("team-"));
   const praticienAbsences = absences.filter((a) => findUser(a.userId)?.poste === "praticien" && a.status !== "refusee");
@@ -539,7 +538,7 @@ function AgendaFerme() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Absences praticiens déclarées dans Team</CardTitle>
-          <CardDescription>Une fois validées, l&apos;agenda Soins se ferme automatiquement sur la période.</CardDescription>
+          <CardDescription>Le praticien déclare, rien à valider : l&apos;agenda Soins se ferme automatiquement sur la période.</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="divide-y">
@@ -564,7 +563,7 @@ function AgendaFerme() {
         <CardContent className="space-y-3">
           {synced.length === 0 ? (
             <p className="text-sm text-slate-500">
-              Rien pour l&apos;instant. Validez la demande de congé de Dr Perche{demoRange("abs-t3", " ")} dans Planning → Demandes à valider.
+              Rien pour l&apos;instant. Dès qu&apos;un praticien déclare une absence dans Team, elle apparaît ici et ferme son agenda.
             </p>
           ) : (
             <ul className="space-y-1 text-sm">
@@ -577,7 +576,7 @@ function AgendaFerme() {
           )}
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/team/planning?tab=demandes">Demandes à valider</Link>
+              <Link href="/team/planning?tab=liste">Toutes les absences</Link>
             </Button>
             <Button size="sm" asChild>
               <Link href="/reglages/agenda#periodes-absence">

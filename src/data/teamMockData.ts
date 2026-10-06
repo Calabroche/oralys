@@ -408,7 +408,7 @@ export const COLLABORATIONS: { praticienUserId: string; assistantUserId: string;
 const ABSENCES: TeamAbsence[] = [
   { id: "abs-t1", userId: "u-thomas", type: "maladie", startDate: "2026-09-01", endDate: "2026-09-02", motif: "Arrêt maladie", status: "validee", declaredAt: "2026-09-01T07:40:00", declaredById: "u-thomas" },
   { id: "abs-t2", userId: "u-camille", type: "conge", startDate: "2026-09-14", endDate: "2026-09-18", status: "validee", declaredAt: "2026-07-10T11:02:00", declaredById: "u-camille" },
-  { id: "abs-t3", userId: "u-flore", type: "conge", startDate: "2026-09-21", endDate: "2026-09-25", motif: "Vacances", status: "demandee", declaredAt: "2026-08-31T17:20:00", declaredById: "u-flore" },
+  { id: "abs-t3", userId: "u-flore", type: "conge", startDate: "2026-09-21", endDate: "2026-09-25", motif: "Vacances", status: "validee", declaredAt: "2026-08-31T17:20:00", declaredById: "u-flore" },
   { id: "abs-t4", userId: "u-ines", type: "formation", startDate: "2026-09-08", endDate: "2026-09-08", motif: "Recyclage radioprotection", status: "validee", declaredAt: "2026-06-15T10:00:00", declaredById: "u-ines" },
   { id: "abs-t5", userId: "u-nathalie", type: "conge", startDate: "2026-09-03", endDate: "2026-09-04", status: "validee", declaredAt: "2026-07-22T09:30:00", declaredById: "u-nathalie" },
   { id: "abs-t7", userId: "u-manon", type: "formation", startDate: "2026-09-16", endDate: "2026-09-17", motif: "Hygiène et asepsie", status: "validee", declaredAt: "2026-07-01T09:00:00", declaredById: "u-manon" },
@@ -441,7 +441,7 @@ const AUDIT_LOG: AuditEntry[] = [
   { id: "a-8", at: "2026-08-20T14:12:00", actorId: "u-delphine", actorRoles: ["Gestionnaire"], action: "user.create", summary: "Création de Julie Dubois (Secrétaire), invitation envoyée", targetUserId: "u-julie" },
   { id: "a-9", at: "2026-08-25T10:30:00", actorId: "u-sophie", actorRoles: ["Praticien", "Gestionnaire"], action: "role.assign", summary: "Nathalie Roux : retrait du rôle Gestionnaire", targetUserId: "u-nathalie" },
   { id: "a-10", at: "2026-08-27T16:05:00", actorId: "u-nathalie", actorRoles: ["Secrétaire"], action: "paiement.note", summary: "Note ajoutée sur un paiement échelonné (patient C. Bernard)", workstation: "Poste accueil" },
-  { id: "a-11", at: "2026-08-31T17:20:00", actorId: "u-flore", actorRoles: ["Praticien"], action: "absence.declare", summary: "Demande de congé {long:abs-t3}", targetUserId: "u-flore" },
+  { id: "a-11", at: "2026-08-31T17:20:00", actorId: "u-flore", actorRoles: ["Praticien"], action: "absence.declare", summary: "Congé déclaré {long:abs-t3} (praticien libéral, sans validation)", targetUserId: "u-flore" },
   { id: "a-12", at: "2026-09-01T07:40:00", actorId: "u-thomas", actorRoles: ["Assistant dentaire"], action: "absence.declare", summary: "Arrêt maladie déclaré le jour même ({short:abs-t1})", targetUserId: "u-thomas" },
   { id: "a-13", at: "2026-09-01T08:05:00", actorId: "u-ines", actorRoles: ["Assistant dentaire", "Resp. stérilisation"], action: "sterilisation.cycle", summary: "Cycle de stérilisation n°1302 lancé (autoclave A)", workstation: "Poste stérilisation" },
 ];
@@ -459,10 +459,10 @@ const NOTIFICATIONS: TeamNotification[] = [
   {
     id: "n-2",
     at: "2026-08-31T17:21:00",
-    kind: "conge_request",
-    title: "Demande de congé : Dr Flore Perche",
-    body: "{Long:abs-t3}. Vérifiez la charge d'agenda avant de valider.",
-    href: "/team/planning?tab=demandes",
+    kind: "info",
+    title: "Congé de Dr Flore Perche (pour information)",
+    body: "{Long:abs-t3}. Son agenda Soins est fermé sur la période.",
+    href: "/team/planning?view=binomes&user=u-flore",
     read: false,
   },
 ];

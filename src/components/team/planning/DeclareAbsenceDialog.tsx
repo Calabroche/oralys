@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTeam } from "@/context/TeamDataContext";
 import { DocumentDraft, JustificatifPicker } from "@/components/team/Justificatifs";
-import { ABSENCE_TYPE_LABELS, displayName, isLastMinute } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, displayName, isHealthProfessional, isLastMinute } from "@/lib/team";
 import { AbsenceType } from "@/types/team";
 import { toISODate } from "@/utils/date";
 
@@ -48,7 +48,7 @@ export function DeclareAbsenceDialog({
 }
 
 function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => void }) {
-  const { users, sessionUserId, can, declareAbsence, cancelAbsence, restoreAbsence, rdvs, now, findUser } = useTeam();
+  const { users, sessionUserId, can, declareAbsence, cancelAbsence, restoreAbsence, rdvs, now, findUser, roles } = useTeam();
   const today = toISODate(now());
   const canForOthers = can("team.planning");
   const [userId, setUserId] = useState(prefill?.userId && canForOthers ? prefill.userId : sessionUserId);
@@ -65,7 +65,9 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
   const affected = invalid
     ? []
     : rdvs.filter((r) => r.date >= start && r.date <= end && (r.assistantUserId === userId || r.praticienUserId === userId));
-  const willAutoValidate = type === "maladie" || canForOthers;
+  // Praticien libéral : personne ne valide ses absences, elles sont enregistrées pour information.
+  const targetLiberal = !!target && isHealthProfessional(target, roles);
+  const willAutoValidate = type === "maladie" || canForOthers || targetLiberal;
 
   function submit() {
     if (invalid) return;
@@ -186,7 +188,11 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
           </Alert>
         )}
         <p className="text-xs text-slate-500">
-          {willAutoValidate ? "Enregistrée comme validée." : "Sera soumise à validation d'un gestionnaire."}
+          {targetLiberal
+            ? "Praticien libéral : enregistrée directement, sans validation. Le cabinet est informé et l'agenda Soins se ferme sur la période."
+            : willAutoValidate
+              ? "Enregistrée comme validée."
+              : "Sera soumise à validation d'un gestionnaire."}
         </p>
       </div>
       <DialogFooter>

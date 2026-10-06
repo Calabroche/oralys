@@ -31,6 +31,7 @@ import {
   ABSENCE_TYPE_LABELS,
   EMAIL_PATTERN,
   AM_PATTERN,
+  isHealthProfessional,
   RPPS_PATTERN,
   displayName,
   fullName,
@@ -115,6 +116,14 @@ function loadData(): PersistedTeamData {
           return { ...r, permissions: r.permissions.filter((x) => x !== "team.planning") };
         return r;
       });
+      // Absences de praticien (retour produit du 06/10) : jamais soumises à validation, les demandes en attente passent validées.
+      const praticienIds = new Set((stored.users ?? []).filter((u) => (roles ?? ROLES).some((r) => r.healthProfessional && u.roleIds.includes(r.id))).map((u) => u.id));
+      let absences = stored.absences;
+      // Historique d'absences passées (retour du 30/09), ajouté une seule fois aux démos existantes.
+      if (absences && !done.includes("absences-passees"))
+        absences = [...absences, ...seed.absences.filter((a) => a.id.startsWith("abs-p") && !absences!.some((x) => x.id === a.id))];
+      if (absences && !done.includes("praticien-sans-validation"))
+        absences = absences.map((a) => (a.status === "demandee" && praticienIds.has(a.userId) ? { ...a, status: "validee" as const } : a));
       // Rôle Infirmier(e) (retour produit du 05/10) : ajouté aux démos existantes.
       const infirmier = ROLES.find((r) => r.id === "role-infirmier");
       if (roles && infirmier && !roles.some((r) => r.id === infirmier.id)) roles.push(infirmier);
@@ -140,11 +149,8 @@ function loadData(): PersistedTeamData {
         ...(roles ? { roles } : {}),
         ...(profiles ? { profiles } : {}),
         ...(rdvs ? { rdvs } : {}),
-        // Historique d'absences passées (retour du 30/09), ajouté une seule fois aux démos existantes.
-        ...(!done.includes("absences-passees") && stored.absences
-          ? { absences: [...stored.absences, ...seed.absences.filter((a) => a.id.startsWith("abs-p") && !stored.absences!.some((x) => x.id === a.id))] }
-          : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees"])],
+        ...(absences ? { absences } : {}),
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation"])],
       };
     }
   } catch {
@@ -555,7 +561,10 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       const declarer = sessionUser;
       const target = findUser(input.userId);
       // La maladie est de fait, un gestionnaire valide directement : le reste passe en demande.
-      const autoValidate = input.type === "maladie" || perms.has("team.planning");
+      // Un praticien libéral (parfois dirigeant du cabinet) n'a personne pour valider ses absences :
+      // elles sont enregistrées d'office, le cabinet en est seulement informé.
+      const liberal = !!target && isHealthProfessional(target, data.roles);
+      const autoValidate = input.type === "maladie" || perms.has("team.planning") || liberal;
       const absence: TeamAbsence = {
         id: newId("abs"),
         ...input,
@@ -574,6 +583,16 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
           title: `Absence de dernier moment : ${label}`,
           body: `${ABSENCE_TYPE_LABELS[input.type]} du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}. Alerte envoyée au planning Soins.`,
           href: `/team/planning?tab=remplacer&absence=${absence.id}`,
+          read: false,
+        });
+      } else if (liberal && declarer?.id === target?.id) {
+        notifs.push({
+          id: newId("n"),
+          at: isoNow(),
+          kind: "info",
+          title: `${ABSENCE_TYPE_LABELS[input.type]} de ${label} (pour information)`,
+          body: `Du ${shortDate(input.startDate)} au ${shortDate(input.endDate)}. Son agenda Soins est fermé sur la période.`,
+          href: `/team/planning?view=binomes&user=${input.userId}`,
           read: false,
         });
       } else if (!autoValidate) {
