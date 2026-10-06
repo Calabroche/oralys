@@ -455,6 +455,70 @@ export function Timetable({ hours, days: info }: { hours: WeekHours; days?: Part
   );
 }
 
+/** Bascule « Semaine type / Cette semaine » et sélecteur de semaine, comme dans le planning. */
+function SemaineNav({
+  vue,
+  setVue,
+  decalage,
+  setDecalage,
+  label,
+}: {
+  vue: "type" | "semaine";
+  setVue: (v: "type" | "semaine") => void;
+  decalage: number;
+  setDecalage: (n: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex rounded-full bg-slate-100 p-0.5 text-sm">
+        {(["type", "semaine"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setVue(v)}
+            className={cn("rounded-full px-3 py-1", vue === v ? "bg-pink-100 font-medium text-pink-900" : "text-slate-600 hover:text-slate-900")}
+          >
+            {v === "type" ? "Semaine type" : "Cette semaine"}
+          </button>
+        ))}
+      </div>
+      {vue === "semaine" && (
+        <>
+          <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage - 1)} aria-label="Semaine précédente">
+            <ChevronLeft />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setDecalage(0)} disabled={decalage === 0}>
+            Aujourd&apos;hui
+          </Button>
+          <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage + 1)} aria-label="Semaine suivante">
+            <ChevronRight />
+          </Button>
+          <span className="text-sm font-medium text-slate-800 capitalize">{label}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Semaine d'un collaborateur pour le récapitulatif (trombinoscope) : la semaine type, puis semaine par semaine
+ * ce que le planning en a fait (absences, renfort chez un autre praticien, jours modifiés, missions). Lecture seule :
+ * on la modifie depuis le dossier ou Planning → Semaines types.
+ */
+export function SemaineCollaborateur({ user }: { user: TeamUser }) {
+  const [vue, setVue] = useState<"type" | "semaine">("type");
+  const [decalage, setDecalage] = useState(0);
+  const hours = effectiveHours(user);
+  const enCours = useSemaineEnCours(user, hours, decalage);
+  return (
+    <div className="space-y-3">
+      <SemaineNav vue={vue} setVue={setVue} decalage={decalage} setDecalage={setDecalage} label={enCours.label} />
+      {vue === "type" ? <Timetable hours={hours} days={missionsSemaineType(user, hours)} /> : <Timetable hours={enCours.hours} days={enCours.days} />}
+      {vue === "semaine" && <p className="text-[11px] text-slate-400">Les écarts avec la semaine type (absence, renfort, jour modifié) sont en orange ; les missions en pointillés.</p>}
+    </div>
+  );
+}
+
 /**
  * Semaine d'un praticien comme pour les salariés : la semaine type de son agenda Soins, puis semaine par semaine
  * ce que le planning en a fait (absence, qui est à ses côtés, back-up, manque). Les écarts sont en orange.
@@ -508,33 +572,7 @@ export function SemainePraticien({ profile }: { profile: PraticienProfile }) {
   if (!slots.length) return <p className="text-sm text-slate-400">Pas encore de semaine type dans l&apos;agenda Soins.</p>;
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-full bg-slate-100 p-0.5 text-sm">
-          {(["type", "semaine"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setVue(v)}
-              className={cn("rounded-full px-3 py-1", vue === v ? "bg-pink-100 font-medium text-pink-900" : "text-slate-600 hover:text-slate-900")}
-            >
-              {v === "type" ? "Semaine type" : "Cette semaine"}
-            </button>
-          ))}
-        </div>
-        {vue === "semaine" && (
-          <>
-            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage - 1)} aria-label="Semaine précédente">
-              <ChevronLeft />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setDecalage(0)} disabled={decalage === 0}>
-              Aujourd&apos;hui
-            </Button>
-            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage + 1)} aria-label="Semaine suivante">
-              <ChevronRight />
-            </Button>
-            <span className="text-sm font-medium text-slate-800 capitalize">{label}</span>
-          </>
-        )}
-      </div>
+      <SemaineNav vue={vue} setVue={setVue} decalage={decalage} setDecalage={setDecalage} label={label} />
       {vue === "type" ? <Timetable hours={typeHours} /> : <Timetable hours={week} days={days} />}
       {vue === "semaine" && <p className="text-[11px] text-slate-400">Qui est à ses côtés vient du planning d&apos;équipe ; les écarts avec l&apos;habitude (absence, back-up, prêt, manque) sont en orange.</p>}
     </div>

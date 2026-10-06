@@ -17,8 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
 import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
 import { acteLabel, displayName, fullName, isHealthProfessional, permissionsOf, roleNames, skillLabel } from "@/lib/team";
-import { MissionsRecap, RecapContent, SemainePraticien, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
-import { effectiveHours } from "@/lib/horaires";
+import { MissionsRecap, RecapContent, SemaineCollaborateur, SemainePraticien, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
 import { formatShortDate } from "@/utils/date";
 import { TeamUser } from "@/types/team";
 import { RoleBadges, StatusBadge, UserAvatar } from "@/components/team/shared";
@@ -214,14 +213,14 @@ function SheetRecap({ user }: { user: TeamUser }) {
       <RecapContent user={user} compact />
       {!liberal && (
         <div>
-          <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine type</p>
-          <Timetable hours={effectiveHours(user)} />
+          <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine</p>
+          <SemaineCollaborateur user={user} />
         </div>
       )}
       {liberal && profile && (
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
-            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine type · agenda Soins</p>
+            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine · agenda Soins</p>
             <Link href={`/reglages/agenda?praticien=${profile.id}&nom=${encodeURIComponent(displayName(user))}`} className="text-xs text-pink-700 hover:underline">
               Modifier dans Soins →
             </Link>
