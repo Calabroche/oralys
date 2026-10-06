@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Camera, DoorOpen, Mail, Pencil, Phone, Stethoscope, Trash2, UsersRound } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, DoorOpen, Mail, Pencil, Phone, Stethoscope, Trash2, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { assiduite, ASSIDUITE_NB } from "@/lib/assiduite";
 import { cpSummary, CP_PAR_AN, hasCongesPayes } from "@/lib/conges";
 import { daysFromHours, dayMinutes, effectiveHours, hoursLabel, rangesError, toMinutes, weekMinutes } from "@/lib/horaires";
 import { MissionEtat, TAUX_MISSIONS_NB, frequenceLabel, missionsDueOn, missionRate, missionStatus, missionsOf, missionsSummary, personMissionRate, rateTone } from "@/lib/missions";
-import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, fullName, isChairAssistant, worksOn } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, fullName, isChairAssistant, shortDate, worksOn } from "@/lib/team";
 import { PraticienProfile, TeamUser, WeekHours } from "@/types/team";
 import { WEEKDAYS, WEEKDAY_LABELS, addDays, formatShortDate, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 import { Weekday } from "@/types";
@@ -440,10 +440,10 @@ function missionsSemaineType(user: TeamUser, hours: WeekHours): Partial<Record<W
  * La semaine en cours, comparée à la semaine type : absences posées, prêts et remplacements du planning
  * (une assistante détachée chez un autre praticien), et les missions dues avec leur état.
  */
-function useSemaineEnCours(user: TeamUser, hours: WeekHours) {
+function useSemaineEnCours(user: TeamUser, hours: WeekHours, decalage = 0) {
   const { now, absences, profiles, users, dayOverrides, dayNeeds } = useTeam();
   const today = toISODate(now());
-  const monday = startOfWeek(fromISODate(today));
+  const monday = addDays(startOfWeek(fromISODate(today)), decalage * 7);
   const habituel = profiles.find((p) => p.id === user.defaultEnvironmentId);
   const chair = isChairAssistant(user);
   const out: Partial<Record<Weekday, TimetableDay>> = {};
@@ -476,7 +476,9 @@ function useSemaineEnCours(user: TeamUser, hours: WeekHours) {
     info.missions = (abs ? [] : missionsDueOn(user, iso, today)).map((x) => ({ titre: x.mission.titre, horaire: x.mission.horaire, etat: x.etat === "a_faire" && iso > today ? undefined : x.etat }));
     out[d] = info;
   });
-  return { hours: week, days: out };
+  const jours = WEEKDAYS.filter((d) => d !== "samedi" || (week.samedi?.length ?? 0) > 0);
+  const label = `${shortDate(toISODate(monday))} → ${shortDate(toISODate(addDays(monday, jours.length - 1)))}`;
+  return { hours: week, days: out, label };
 }
 
 /**
@@ -489,13 +491,16 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
   const rights = usePersonRights(user);
   const [open, setOpen] = useState(false);
   const [vue, setVue] = useState<"type" | "semaine">("type");
+  // Semaine affichée dans la vue « Cette semaine » : 0 = semaine en cours, -1 la précédente, +1 la suivante.
+  const [decalage, setDecalage] = useState(0);
   const current = effectiveHours(user);
-  const enCours = useSemaineEnCours(user, current);
+  const enCours = useSemaineEnCours(user, current, decalage);
+  const ecartsCetteSemaine = useSemaineEnCours(user, current, 0);
   const [draft, setDraft] = useState<WeekHours>(current);
   const [contract, setContract] = useState<number | undefined>(user.weeklyHours);
   const total = weekMinutes(current);
   const invalid = WEEKDAYS.some((d) => rangesError(draft[d]));
-  const ecarts = WEEKDAYS.filter((d) => enCours.days[d]?.ecart || enCours.days[d]?.absence).length;
+  const ecarts = WEEKDAYS.filter((d) => ecartsCetteSemaine.days[d]?.ecart || ecartsCetteSemaine.days[d]?.absence).length;
 
   function save() {
     const res = updateUser({ ...user, schedule: draft, weeklyHours: contract, ...daysFromHours(draft) });
@@ -509,7 +514,7 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div>
-          <CardTitle>{vue === "type" ? "Semaine type" : "Cette semaine"}</CardTitle>
+          <CardTitle>{vue === "type" ? "Semaine type" : decalage === 0 ? "Cette semaine" : decalage < 0 ? "Semaine passée" : "Semaine à venir"}</CardTitle>
           <CardDescription>
             {vue === "type" ? (
               <>
@@ -517,7 +522,10 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
                 pointillés). {rights.canManage ? "Créée par le gestionnaire ou le praticien." : "Créée par le gestionnaire ou votre praticien, en lecture seule."}
               </>
             ) : (
-              <>La semaine en cours telle que le planning l&apos;a faite : absences, prêts à un autre praticien, missions à faire. Les écarts avec la semaine type sont en orange.</>
+              <>
+                La semaine telle que le planning l&apos;a faite : absences, renforts chez un autre praticien, missions. Les écarts avec la semaine type sont en
+                orange.
+              </>
             )}
           </CardDescription>
         </div>
@@ -554,6 +562,20 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
         </div>
       </CardHeader>
       <CardContent>
+        {vue === "semaine" && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage - 1)} aria-label="Semaine précédente">
+              <ChevronLeft />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDecalage(0)} disabled={decalage === 0}>
+              Aujourd&apos;hui
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage + 1)} aria-label="Semaine suivante">
+              <ChevronRight />
+            </Button>
+            <span className="ml-1 text-sm font-medium text-slate-800 capitalize">{enCours.label}</span>
+          </div>
+        )}
         {vue === "type" ? <Timetable hours={current} days={missionsSemaineType(user, current)} /> : <Timetable hours={enCours.hours} days={enCours.days} />}
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
           {WEEKDAYS.filter((d) => current[d]?.length).map((d) => (
