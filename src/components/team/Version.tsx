@@ -59,7 +59,7 @@ export const VERSIONS: VersionInfo[] = [
       "Missions suivies (chaque jour, semaine ou mois) cochées par la personne, avec un rappel dans la cloche ; taux de réalisation sur 8 semaines, du vert au rouge, jusque sur la photo du trombinoscope",
       "Missions à contrôler (ex. la compta) : une fois cochées, le gestionnaire ou le praticien les juge conformes ou non",
       "Missions types du cabinet à piocher depuis chaque profil, et missions visibles dans le planning et sur la semaine type",
-      "Semaine type et « Cette semaine » côte à côte, semaine par semaine : absences, prêts à un autre praticien et missions",
+      "Semaine type et « Cette semaine » côte à côte, semaine par semaine : absences, prêts à un autre praticien et missions ; chaque semaine se modifie à part sans toucher à la semaine type, et le planning suit",
       "Planning → Semaines types : choisir une personne et voir ou modifier sa semaine en un clic, sans passer par son dossier",
       "Primes et rendez-vous de recadrage dans le dossier, repris dans le récapitulatif",
       "Modèles de documents (trame de 1:1, entretien annuel, entretien professionnel, recadrage, fiches de poste) à rédiger depuis chaque profil",

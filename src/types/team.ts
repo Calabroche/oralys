@@ -99,6 +99,11 @@ export interface TeamUser {
   halfDays?: Partial<Record<Weekday, HalfDay>>;
   /** Horaires habituels (plages par jour). Quand ils existent, les jours et demi-journées en sont déduits. */
   schedule?: WeekHours;
+  /**
+   * Horaires changés pour une date précise (semaine en cours ou à venir), par-dessus la semaine type :
+   * date ISO → plages du jour, liste vide = repos ce jour-là. Lus par le planning comme la semaine type.
+   */
+  semainesModifiees?: Record<string, TimeRange[]>;
   skills: SkillId[];
   preferredActs: ActeCategory[];
   /** Préférences relationnelles déclarées (ids d'utilisateurs). */

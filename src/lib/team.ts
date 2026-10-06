@@ -14,6 +14,7 @@ import {
 import { ACTES, COLLABORATIONS, SKILLS } from "@/data/teamMockData";
 import { fromISODate, toWeekday, WEEKDAY_LABELS } from "@/utils/date";
 import { HALVES, dayPlan, maxNeedOn, needsAnyAssistant } from "@/lib/semaine";
+import { halvesOfRanges } from "@/lib/horaires";
 
 export function fullName(u: Pick<TeamUser, "firstName" | "lastName">): string {
   return `${u.firstName} ${u.lastName}`;
@@ -98,6 +99,8 @@ export function absenceOn(userId: string, iso: string, absences: TeamAbsence[]):
 }
 
 export function worksOn(user: TeamUser, iso: string): boolean {
+  const modif = user.semainesModifiees?.[iso];
+  if (modif) return modif.length > 0;
   const day = toWeekday(fromISODate(iso));
   return day !== null && user.workDays.includes(day);
 }
@@ -106,6 +109,9 @@ export const HALF_DAY_LABELS: Record<HalfDay, string> = { matin: "matin", apres_
 
 /** Demi-journées travaillées ce jour-là : les deux pour une journée entière, aucune en repos. */
 export function halvesOn(user: TeamUser, iso: string): HalfDay[] {
+  // Horaires changés pour ce jour-là (vue « Cette semaine ») : ils priment sur la semaine type.
+  const modif = user.semainesModifiees?.[iso];
+  if (modif) return halvesOfRanges(modif);
   const day = toWeekday(fromISODate(iso));
   return day === null ? [] : halvesOnDay(user, day);
 }

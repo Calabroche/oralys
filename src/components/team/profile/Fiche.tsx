@@ -448,16 +448,25 @@ function useSemaineEnCours(user: TeamUser, hours: WeekHours, decalage = 0) {
   const chair = isChairAssistant(user);
   const out: Partial<Record<Weekday, TimetableDay>> = {};
   const week: WeekHours = {};
+  // Horaires de la semaine avant les libellés du planning : ce qu'on modifie dans « Modifier cette semaine ».
+  const base: WeekHours = {};
+  const dates: Partial<Record<Weekday, string>> = {};
   WEEKDAYS.forEach((d, i) => {
     const iso = toISODate(addDays(monday, i));
+    dates[d] = iso;
     const abs = absenceOn(user.id, iso, absences);
     const info: TimetableDay = { date: iso };
     if (abs) info.absence = `Absent(e) · ${ABSENCE_TYPE_LABELS[abs.type].toLowerCase()}`;
-    let ranges = hours[d] ?? [];
+    const modif = user.semainesModifiees?.[iso];
+    let ranges = modif ?? hours[d] ?? [];
+    base[d] = ranges;
+    const ecarts = new Set<string>();
+    if (modif) ecarts.add(modif.length ? "Horaires changés pour ce jour" : "Repos ce jour-là");
     if (!abs && ranges.length && chair) {
       const st = dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds);
-      const ecarts = new Set<string>();
       ranges = ranges.map((r) => {
+        // Une plage qui n'est pas au fauteuil (stérilisation, stock…) garde ce qu'on y a mis.
+        if (r.label && !r.label.startsWith("Fauteuil")) return r;
         const half = toMinutes(r.start) < 13 * 60 ? "matin" : "apres_midi";
         const avec = st.praticiens.find((p) => p.slots.some((s) => s.assistantId === user.id && (!s.partial || s.partial === half)));
         if (!avec) {
@@ -470,15 +479,15 @@ function useSemaineEnCours(user: TeamUser, hours: WeekHours, decalage = 0) {
           ecarts.add(`${slot.kind === "pret" ? "Prêté(e) à" : "En renfort avec"} ${nom}${habituel ? ` au lieu de ${habituel.label}` : ""}`);
         return { ...r, label: `Fauteuil ${nom}` };
       });
-      if (ecarts.size) info.ecart = [...ecarts].join(" · ");
     }
+    if (ecarts.size) info.ecart = [...ecarts].join(" · ");
     week[d] = ranges;
     info.missions = (abs ? [] : missionsDueOn(user, iso, today)).map((x) => ({ titre: x.mission.titre, horaire: x.mission.horaire, etat: x.etat === "a_faire" && iso > today ? undefined : x.etat }));
     out[d] = info;
   });
   const jours = WEEKDAYS.filter((d) => d !== "samedi" || (week.samedi?.length ?? 0) > 0);
   const label = `${shortDate(toISODate(monday))} → ${shortDate(toISODate(addDays(monday, jours.length - 1)))}`;
-  return { hours: week, days: out, label };
+  return { hours: week, days: out, label, base, dates };
 }
 
 /**
@@ -497,12 +506,37 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
   const enCours = useSemaineEnCours(user, current, decalage);
   const ecartsCetteSemaine = useSemaineEnCours(user, current, 0);
   const [draft, setDraft] = useState<WeekHours>(current);
+  // Ce que modifie la fenêtre : la semaine type (pour toutes les semaines) ou seulement la semaine affichée.
+  const [cible, setCible] = useState<"type" | "semaine">("type");
   const [contract, setContract] = useState<number | undefined>(user.weeklyHours);
   const total = weekMinutes(current);
+  const datesSemaine = WEEKDAYS.map((d) => enCours.dates[d]).filter((x): x is string => Boolean(x));
+  const semaineModifiee = datesSemaine.some((iso) => user.semainesModifiees?.[iso]);
   const invalid = WEEKDAYS.some((d) => rangesError(draft[d]));
   const ecarts = WEEKDAYS.filter((d) => ecartsCetteSemaine.days[d]?.ecart || ecartsCetteSemaine.days[d]?.absence).length;
 
+  /** Enregistre la semaine affichée : seuls les jours qui diffèrent de la semaine type sont gardés à part. */
+  function saveSemaine(hours: WeekHours | null) {
+    const next = { ...user.semainesModifiees };
+    const same = (a: WeekHours[Weekday] = [], b: WeekHours[Weekday] = []) =>
+      JSON.stringify(a.map((r) => [r.start, r.end, r.label ?? ""])) === JSON.stringify(b.map((r) => [r.start, r.end, r.label ?? ""]));
+    for (const d of WEEKDAYS) {
+      const iso = enCours.dates[d];
+      if (!iso) continue;
+      if (!hours || same(hours[d], current[d])) delete next[iso];
+      else next[iso] = hours[d] ?? [];
+    }
+    const res = updateUser({ ...user, semainesModifiees: Object.keys(next).length ? next : undefined });
+    if (res.ok) {
+      toast.success(hours ? "Semaine modifiée" : "Retour à la semaine type", {
+        description: hours ? `Seulement pour la semaine ${enCours.label}. Le planning suit.` : enCours.label,
+      });
+      setOpen(false);
+    } else toast.error(res.error);
+  }
+
   function save() {
+    if (cible === "semaine") return saveSemaine(draft);
     const res = updateUser({ ...user, schedule: draft, weeklyHours: contract, ...daysFromHours(draft) });
     if (res.ok) {
       toast.success("Semaine type enregistrée", { description: "Le planning suit les nouveaux horaires." });
@@ -543,20 +577,21 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
             ))}
           </div>
           <span className="text-sm text-slate-600">
-            <span className="font-semibold tabular-nums">{hoursLabel(total)}</span> par semaine
+            <span className="font-semibold tabular-nums">{hoursLabel(vue === "semaine" ? weekMinutes(enCours.base) : total)}</span> par semaine
             {user.weeklyHours !== undefined && <span className="text-slate-400"> · contrat {user.weeklyHours} h</span>}
           </span>
-          {rights.canManage && vue === "type" && (
+          {rights.canManage && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                setDraft(current);
+                setCible(vue);
+                setDraft(vue === "type" ? current : enCours.base);
                 setContract(user.weeklyHours);
                 setOpen(true);
               }}
             >
-              <Pencil /> Modifier
+              <Pencil /> {vue === "type" ? "Modifier" : decalage === 0 ? "Modifier cette semaine" : "Modifier cette semaine-là"}
             </Button>
           )}
         </div>
@@ -588,20 +623,33 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Semaine type de {fullName(user)}</DialogTitle>
-            <DialogDescription>Pour chaque jour : repos, matin, après-midi ou journée, puis les plages précises et ce qui y est fait.</DialogDescription>
+            <DialogTitle>{cible === "type" ? `Semaine type de ${fullName(user)}` : `${fullName(user)} · semaine ${enCours.label}`}</DialogTitle>
+            <DialogDescription>
+              {cible === "type"
+                ? "Pour chaque jour : repos, matin, après-midi ou journée, puis les plages précises et ce qui y est fait. Vaut pour toutes les semaines."
+                : "Seulement pour cette semaine-là : la semaine type ne change pas. Utile pour un échange de jour, une demi-journée en plus, une plage sur une autre mission."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <ContractHoursField value={contract} disabled={!can("param.cabinet")} onChange={setContract} />
+            {cible === "type" && <ContractHoursField value={contract} disabled={!can("param.cabinet")} onChange={setContract} />}
             <HoursEditor value={draft} onChange={setDraft} contractHours={contract} withLabels />
           </div>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-between">
+            {cible === "semaine" && semaineModifiee ? (
+              <Button variant="ghost" onClick={() => saveSemaine(null)}>
+                Revenir à la semaine type
+              </Button>
+            ) : (
+              <span />
+            )}
+            <span className="flex gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
             <Button onClick={save} disabled={invalid}>
               Enregistrer
             </Button>
+            </span>
           </DialogFooter>
         </DialogContent>
       </Dialog>
