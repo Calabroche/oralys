@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
 import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
 import { acteLabel, displayName, fullName, isHealthProfessional, permissionsOf, roleNames, skillLabel } from "@/lib/team";
-import { MissionsRecap, RecapContent, SemaineSoins, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
+import { MissionsRecap, RecapContent, SemainePraticien, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
 import { effectiveHours } from "@/lib/horaires";
 import { formatShortDate } from "@/utils/date";
 import { TeamUser } from "@/types/team";
@@ -226,7 +226,7 @@ function SheetRecap({ user }: { user: TeamUser }) {
               Modifier dans Soins →
             </Link>
           </div>
-          <SemaineSoins profile={profile} />
+          <SemainePraticien profile={profile} />
         </div>
       )}
       {!liberal && (sensitive || user.missions?.length) && (

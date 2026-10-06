@@ -18,7 +18,7 @@ import { cpSummary, CP_PAR_AN, hasCongesPayes } from "@/lib/conges";
 import { daysFromHours, dayMinutes, effectiveHours, hoursLabel, rangesError, toMinutes, weekMinutes } from "@/lib/horaires";
 import { MissionEtat, TAUX_MISSIONS_NB, frequenceLabel, missionsDueOn, missionRate, missionStatus, missionsOf, missionsSummary, personMissionRate, rateTone } from "@/lib/missions";
 import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, fullName, isChairAssistant, shortDate, worksOn } from "@/lib/team";
-import { PraticienProfile, TeamUser, WeekHours } from "@/types/team";
+import { PraticienProfile, TeamUser, TimeRange, WeekHours } from "@/types/team";
 import { WEEKDAYS, WEEKDAY_LABELS, addDays, formatShortDate, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 import { Weekday } from "@/types";
 import { activityName } from "@/lib/semaine";
@@ -307,6 +307,35 @@ const DAY_START = 7 * 60;
 const DAY_END = 20 * 60;
 const PX_PER_MIN = 0.7;
 
+/**
+ * Plages qui se chevauchent (un praticien sur deux salles en même temps) : côte à côte plutôt que l'une sur
+ * l'autre. Chaque plage reçoit une colonne et le nombre de colonnes de son groupe de chevauchement.
+ */
+function lanes(ranges: TimeRange[]): { r: TimeRange; lane: number; count: number }[] {
+  const sorted = [...ranges].sort((a, b) => a.start.localeCompare(b.start));
+  const out: { r: TimeRange; lane: number; count: number }[] = [];
+  let group: typeof out = [];
+  let groupEnd = "";
+  const flush = () => {
+    const count = Math.max(1, ...group.map((g) => g.lane + 1));
+    group.forEach((g) => (g.count = count));
+    out.push(...group);
+    group = [];
+  };
+  for (const r of sorted) {
+    if (group.length && r.start >= groupEnd) flush();
+    const ends: string[] = [];
+    group.forEach((g) => (ends[g.lane] = ends[g.lane] && ends[g.lane] > g.r.end ? ends[g.lane] : g.r.end));
+    let lane = ends.findIndex((e) => !e || e <= r.start);
+    if (lane === -1) lane = ends.length;
+    // Fin du groupe = la plus tardive de ses plages (une plage qui commence ensuite ouvre un nouveau groupe).
+    groupEnd = group.length && groupEnd > r.end ? groupEnd : r.end;
+    group.push({ r, lane, count: 1 });
+  }
+  if (group.length) flush();
+  return out;
+}
+
 /** Une mission posée sur l'emploi du temps : à son horaire si elle en a un, sinon sous la colonne du jour. */
 export interface TimetableMission {
   titre: string;
@@ -369,14 +398,14 @@ export function Timetable({ hours, days: info }: { hours: WeekHours; days?: Part
                 </div>
               ) : (
                 <>
-                  {(hours[d] ?? []).map((r, i) => {
+                  {lanes(hours[d] ?? []).map(({ r, lane, count }, i) => {
                     const top = (Math.max(DAY_START, toMinutes(r.start)) - DAY_START) * PX_PER_MIN;
                     const h = Math.max(18, (Math.min(DAY_END, toMinutes(r.end)) - Math.max(DAY_START, toMinutes(r.start))) * PX_PER_MIN);
                     return (
                       <div
                         key={i}
-                        className={cn("absolute inset-x-0.5 overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight", toneFor(r.label ?? "travail"))}
-                        style={{ top, height: h }}
+                        className={cn("absolute overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight", toneFor(r.label ?? "travail"))}
+                        style={{ top, height: h, left: `calc(${(lane / count) * 100}% + 2px)`, width: `calc(${100 / count}% - 4px)` }}
                         title={`${r.start} → ${r.end}${r.label ? ` · ${r.label}` : ""}`}
                       >
                         <p className="font-medium tabular-nums">
@@ -427,16 +456,89 @@ export function Timetable({ hours, days: info }: { hours: WeekHours; days?: Part
 }
 
 /**
- * Semaine type d'un praticien, reprise de son agenda Soins : un bloc par créneau, avec l'activité (bloc,
- * consultation…) et la salle. Même emploi du temps que pour les salariés, en lecture seule : elle se règle dans Soins.
+ * Semaine d'un praticien comme pour les salariés : la semaine type de son agenda Soins, puis semaine par semaine
+ * ce que le planning en a fait (absence, qui est à ses côtés, back-up, manque). Les écarts sont en orange.
  */
-export function SemaineSoins({ profile }: { profile: PraticienProfile }) {
-  const hours: WeekHours = {};
-  for (const slot of [...(profile.weekSlots ?? [])].sort((a, b) => a.start.localeCompare(b.start))) {
-    (hours[slot.day] ??= []).push({ start: slot.start, end: slot.end, label: `${activityName(slot.activityTypeId)}${slot.room ? ` · ${slot.room}` : ""}` });
-  }
-  if (!profile.weekSlots?.length) return <p className="text-sm text-slate-400">Pas encore de semaine type dans l&apos;agenda Soins.</p>;
-  return <Timetable hours={hours} />;
+export function SemainePraticien({ profile }: { profile: PraticienProfile }) {
+  const { now, absences, profiles, users, dayOverrides, dayNeeds, findUser } = useTeam();
+  const [vue, setVue] = useState<"type" | "semaine">("type");
+  const [decalage, setDecalage] = useState(0);
+  const today = toISODate(now());
+  const monday = addDays(startOfWeek(fromISODate(today)), decalage * 7);
+  const slots = [...(profile.weekSlots ?? [])].sort((a, b) => a.start.localeCompare(b.start));
+  const typeHours: WeekHours = {};
+  for (const slot of slots) (typeHours[slot.day] ??= []).push({ start: slot.start, end: slot.end, label: `${activityName(slot.activityTypeId)}${slot.room ? ` · ${slot.room}` : ""}` });
+
+  const week: WeekHours = {};
+  const days: Partial<Record<Weekday, TimetableDay>> = {};
+  const prenom = (id: string) => findUser(id)?.firstName ?? "?";
+  WEEKDAYS.forEach((d, i) => {
+    const iso = toISODate(addDays(monday, i));
+    const info: TimetableDay = { date: iso };
+    const abs = absenceOn(profile.praticienUserId, iso, absences);
+    if (abs) info.absence = abs.source === "soins" ? `${abs.motif?.replace(" (agenda Soins)", "") ?? "Fermé"} · agenda Soins` : `${ABSENCE_TYPE_LABELS[abs.type]} · agenda fermé`;
+    const day = slots.some((sl) => sl.day === d) && !abs ? dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds).praticiens.find((p) => p.profile.id === profile.id) : undefined;
+    const ecarts: string[] = [];
+    week[d] = slots
+      .filter((sl) => sl.day === d)
+      .map((sl) => {
+        const half = toMinutes(sl.start) < 13 * 60 ? "matin" : "apres_midi";
+        const h = day?.byHalf.find((x) => x.half === half);
+        const base = `${activityName(sl.activityTypeId)}${sl.room ? ` · ${sl.room}` : ""}`;
+        if (!h || h.need === 0) return { start: sl.start, end: sl.end, label: base };
+        const avec = h.assistants.map(prenom).join(" + ");
+        return { start: sl.start, end: sl.end, label: `${base} · ${avec || "sans assistant"}${h.missing ? ` · manque ${h.missing}` : ""}` };
+      });
+    if (day) {
+      for (const h of day.byHalf) {
+        const moment = h.half === "matin" ? "matin" : "aprèm";
+        if (h.missing) ecarts.push(`Manque ${h.missing} le ${moment}`);
+        h.occupied.forEach((o) => ecarts.push(`${prenom(o.userId)} sur ${o.label} (${moment})`));
+      }
+      day.slots.filter((x) => x.kind !== "titulaire").forEach((x) => ecarts.push(`${x.kind === "pret" ? "⇄" : "↻"} ${prenom(x.assistantId)} en ${x.kind === "pret" ? "prêt" : "back-up"}`));
+      day.absentTitulaires.forEach((id) => ecarts.push(`${prenom(id)} absent(e)`));
+      if (day.dayNeed) ecarts.push(`Besoin ${day.need} ce jour (au lieu de ${day.baseNeed})`);
+    }
+    if (ecarts.length) info.ecart = [...new Set(ecarts)].join(" · ");
+    days[d] = info;
+  });
+  const jours = WEEKDAYS.filter((d) => d !== "samedi" || (week.samedi?.length ?? 0) > 0);
+  const label = `${shortDate(toISODate(monday))} → ${shortDate(toISODate(addDays(monday, jours.length - 1)))}`;
+
+  if (!slots.length) return <p className="text-sm text-slate-400">Pas encore de semaine type dans l&apos;agenda Soins.</p>;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-full bg-slate-100 p-0.5 text-sm">
+          {(["type", "semaine"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setVue(v)}
+              className={cn("rounded-full px-3 py-1", vue === v ? "bg-pink-100 font-medium text-pink-900" : "text-slate-600 hover:text-slate-900")}
+            >
+              {v === "type" ? "Semaine type" : "Cette semaine"}
+            </button>
+          ))}
+        </div>
+        {vue === "semaine" && (
+          <>
+            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage - 1)} aria-label="Semaine précédente">
+              <ChevronLeft />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDecalage(0)} disabled={decalage === 0}>
+              Aujourd&apos;hui
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={() => setDecalage(decalage + 1)} aria-label="Semaine suivante">
+              <ChevronRight />
+            </Button>
+            <span className="text-sm font-medium text-slate-800 capitalize">{label}</span>
+          </>
+        )}
+      </div>
+      {vue === "type" ? <Timetable hours={typeHours} /> : <Timetable hours={week} days={days} />}
+      {vue === "semaine" && <p className="text-[11px] text-slate-400">Qui est à ses côtés vient du planning d&apos;équipe ; les écarts avec l&apos;habitude (absence, back-up, prêt, manque) sont en orange.</p>}
+    </div>
+  );
 }
 
 /** Missions de la semaine type : les quotidiennes chaque jour travaillé, les hebdomadaires leur jour. */
