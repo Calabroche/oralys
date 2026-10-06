@@ -21,6 +21,7 @@ import { ABSENCE_TYPE_LABELS, absenceOn, dayStaffing, fullName, isChairAssistant
 import { PraticienProfile, TeamUser, WeekHours } from "@/types/team";
 import { WEEKDAYS, WEEKDAY_LABELS, addDays, formatShortDate, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 import { Weekday } from "@/types";
+import { activityName } from "@/lib/semaine";
 import { cn } from "@/lib/utils";
 
 /** Praticien avec qui la personne travaille par défaut (rattachement, facultatif hors fauteuil). */
@@ -423,6 +424,19 @@ export function Timetable({ hours, days: info }: { hours: WeekHours; days?: Part
       })}
     </div>
   );
+}
+
+/**
+ * Semaine type d'un praticien, reprise de son agenda Soins : un bloc par créneau, avec l'activité (bloc,
+ * consultation…) et la salle. Même emploi du temps que pour les salariés, en lecture seule : elle se règle dans Soins.
+ */
+export function SemaineSoins({ profile }: { profile: PraticienProfile }) {
+  const hours: WeekHours = {};
+  for (const slot of [...(profile.weekSlots ?? [])].sort((a, b) => a.start.localeCompare(b.start))) {
+    (hours[slot.day] ??= []).push({ start: slot.start, end: slot.end, label: `${activityName(slot.activityTypeId)}${slot.room ? ` · ${slot.room}` : ""}` });
+  }
+  if (!profile.weekSlots?.length) return <p className="text-sm text-slate-400">Pas encore de semaine type dans l&apos;agenda Soins.</p>;
+  return <Timetable hours={hours} />;
 }
 
 /** Missions de la semaine type : les quotidiennes chaque jour travaillé, les hebdomadaires leur jour. */

@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
 import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
 import { acteLabel, displayName, fullName, isHealthProfessional, permissionsOf, roleNames, skillLabel } from "@/lib/team";
-import { MissionsRecap, RecapContent, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
+import { MissionsRecap, RecapContent, SemaineSoins, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
 import { effectiveHours } from "@/lib/horaires";
 import { formatShortDate } from "@/utils/date";
 import { TeamUser } from "@/types/team";
@@ -179,8 +179,16 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
 
 /** Récapitulatif rapide (ouvert depuis le trombinoscope ou n'importe quel nom) : qui, avec qui, depuis quand, sa semaine, ses missions. */
 function SheetRecap({ user }: { user: TeamUser }) {
-  const { profiles, can, sessionUserId, sessionUser, roles } = useTeam();
+  const { profiles, can, sessionUserId, sessionUser, roles, findUser } = useTeam();
   const avec = travailleAvec(user, profiles);
+  const profile = profiles.find((p) => p.praticienUserId === user.id);
+  // Praticien : « travaille avec » = ses assistants titulaires.
+  const equipe = profile?.team
+    .filter((l) => l.priority === "titulaire")
+    .sort((a, b) => a.rank - b.rank)
+    .map((l) => findUser(l.userId)?.firstName)
+    .filter(Boolean)
+    .join(", ");
   const sensitive = user.id === sessionUserId || can("param.cabinet") || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
   const liberal = user.roleIds.includes("role-praticien");
   return (
@@ -196,7 +204,7 @@ function SheetRecap({ user }: { user: TeamUser }) {
         </div>
         <div>
           <dt className="text-xs text-slate-500">Travaille avec</dt>
-          <dd className="font-medium text-slate-800">{avec ? avec.label : liberal ? "Praticien" : "Non renseigné"}</dd>
+          <dd className="font-medium text-slate-800">{avec ? avec.label : equipe || "Non renseigné"}</dd>
         </div>
         <div>
           <dt className="text-xs text-slate-500">Téléphone</dt>
@@ -208,6 +216,17 @@ function SheetRecap({ user }: { user: TeamUser }) {
         <div>
           <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine type</p>
           <Timetable hours={effectiveHours(user)} />
+        </div>
+      )}
+      {liberal && profile && (
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between gap-2">
+            <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine type · agenda Soins</p>
+            <Link href={`/reglages/agenda?praticien=${profile.id}&nom=${encodeURIComponent(displayName(user))}`} className="text-xs text-pink-700 hover:underline">
+              Modifier dans Soins →
+            </Link>
+          </div>
+          <SemaineSoins profile={profile} />
         </div>
       )}
       {!liberal && (sensitive || user.missions?.length) && (
