@@ -22,6 +22,7 @@ import { AbsencePopover, useAbsenceActions } from "@/components/team/AbsencePopo
 import { ROLE_GROUP_LABELS, ROLE_MIN_COVERAGE, ROLE_ORDER, collapseRecurring, datesBetween, dayStaffing, displayName, isAvailable, shortDate } from "@/lib/team";
 import { BinomesCalendar } from "@/components/team/planning/BinomesCalendar";
 import { DayStaffingView } from "@/components/team/planning/DayStaffingView";
+import { SemainesTypes } from "@/components/team/planning/SemainesTypes";
 import { DayCountPicker } from "@/components/shared/DayCountPicker";
 import { DocumentBadge } from "@/components/team/Justificatifs";
 import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
@@ -162,6 +163,9 @@ function Planning() {
           <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
             <TabsTrigger value="calendrier" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
               Calendrier
+            </TabsTrigger>
+            <TabsTrigger value="semaines" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+              Semaines types
             </TabsTrigger>
             <TabsTrigger value="liste" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
               Toutes les absences
@@ -339,6 +343,10 @@ function Planning() {
             </div>
           </TabsContent>
         )}
+
+        <TabsContent value="semaines" className="mt-4">
+          <SemainesTypes initialUserId={params.get("tab") === "semaines" ? highlightUserId : null} />
+        </TabsContent>
 
         <TabsContent value="liste" className="mt-4">
           <AllAbsences />
