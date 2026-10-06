@@ -66,6 +66,8 @@ export type ActeCategory =
 export interface TimeRange {
   start: string;
   end: string;
+  /** Ce que la personne fait sur cette plage (ex. « Fauteuil Dr Martin », « Stérilisation »), fixé par le gestionnaire ou le praticien. */
+  label?: string;
 }
 
 /** Horaires habituels de la semaine : les plages de chaque jour travaillé. */
@@ -113,7 +115,11 @@ export interface TeamUser {
 
   // --- Gestion RH : missions, rémunération, contrat, rappels, documents -----
   /** Missions liées au poste : liste de points, réglée par le gestionnaire. */
-  missions?: string[];
+  missions?: Mission[];
+  /** Téléphone professionnel ou personnel, affiché sur le trombinoscope et la fiche. */
+  phone?: string;
+  /** Photo de profil (data URL redimensionnée), modifiable par la personne elle-même et le gestionnaire. */
+  photo?: string;
   /** Rémunération : visible seulement par la personne et par gestionnaire/comptable. */
   salary?: SalaryInfo;
   /** Prochain entretien individuel (1:1) avec le gestionnaire. */
@@ -186,7 +192,7 @@ export interface Contrat {
   dateFinCdd?: string;
 }
 
-export type RHDocumentType = "contrat" | "avenant" | "diplome" | "habilitation" | "autre";
+export type RHDocumentType = "contrat" | "avenant" | "diplome" | "habilitation" | "compte_rendu" | "autre";
 
 export interface RHDocument {
   id: string;
@@ -199,6 +205,36 @@ export interface RHDocument {
   dataUrl?: string;
   /** Qui l'a ajouté : la personne elle-même ou le gestionnaire. Seul l'auteur (ou le gestionnaire) peut le retirer. */
   addedById?: string;
+  /** Texte du document quand il est rédigé dans Team à partir d'un modèle (ex. compte rendu de 1:1). */
+  contenu?: string;
+}
+
+/** Modèle de document créé par le gestionnaire (ex. trame de 1:1), réutilisable dans chaque profil. */
+export interface DocTemplate {
+  id: string;
+  titre: string;
+  contenu: string;
+}
+
+/**
+ * Mission d'une personne. « aucune » : une simple responsabilité de la fiche de poste, sans suivi.
+ * Sinon elle revient (chaque jour, chaque semaine un jour donné, chaque mois un jour donné) : la personne
+ * la coche quand c'est fait, et le gestionnaire ou le praticien voit si elle est à jour.
+ */
+export type MissionFrequence = "aucune" | "quotidienne" | "hebdo" | "mensuelle";
+
+export interface Mission {
+  id: string;
+  titre: string;
+  frequence: MissionFrequence;
+  /** Hebdomadaire : le jour où elle est due. */
+  jour?: Weekday;
+  /** Mensuelle : le jour du mois où elle est due (1 à 28). */
+  jourDuMois?: number;
+  /** Plage horaire indicative, ex. « 09:00 → 12:00 ». */
+  horaire?: string;
+  /** Périodes déjà faites (jour ISO, lundi de la semaine ISO, ou « AAAA-MM »). */
+  faites?: string[];
 }
 
 export interface EntretienPro {

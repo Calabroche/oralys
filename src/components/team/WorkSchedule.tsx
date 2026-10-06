@@ -82,12 +82,15 @@ export function HoursEditor({
   onChange,
   disabled,
   contractHours,
+  withLabels,
 }: {
   value: WeekHours;
   onChange: (v: WeekHours) => void;
   disabled?: boolean;
   /** Heures du contrat (V3, pointage) : on affiche l'écart avec les heures prévues. */
   contractHours?: number;
+  /** Semaine type : chaque plage porte ce que la personne y fait (ex. stérilisation). */
+  withLabels?: boolean;
 }) {
   const setDay = (d: Weekday, ranges: TimeRange[]) => {
     const next = { ...value };
@@ -114,7 +117,9 @@ export function HoursEditor({
                 variant="outline"
                 disabled={disabled}
                 value={slot}
-                onValueChange={(v) => v && setDay(d, v === "repos" ? [] : DEFAULT_RANGES[v as "journee" | "matin" | "apres_midi"])}
+                onValueChange={(v) =>
+                  v && setDay(d, v === "repos" ? [] : DEFAULT_RANGES[v as "journee" | "matin" | "apres_midi"].map((r) => ({ ...r, label: ranges[0]?.label })))
+                }
                 aria-label={`Présence le ${WEEKDAY_LABELS[d].toLowerCase()}`}
               >
                 {OPTIONS.map((o) => (
@@ -145,6 +150,17 @@ export function HoursEditor({
                       className="w-[5.5rem] bg-transparent text-xs tabular-nums outline-none"
                       aria-label={`Fin de la plage ${i + 1} du ${WEEKDAY_LABELS[d].toLowerCase()}`}
                     />
+                    {withLabels && (
+                      <input
+                        type="text"
+                        disabled={disabled}
+                        value={r.label ?? ""}
+                        placeholder="Mission (ex. stérilisation)"
+                        onChange={(e) => setDay(d, ranges.map((x, j) => (j === i ? { ...x, label: e.target.value || undefined } : x)))}
+                        className="ml-1 w-44 border-l bg-transparent pl-2 text-xs outline-none placeholder:text-slate-300"
+                        aria-label={`Mission de la plage ${i + 1} du ${WEEKDAY_LABELS[d].toLowerCase()}`}
+                      />
+                    )}
                     {!disabled && (
                       <button
                         type="button"
@@ -163,7 +179,7 @@ export function HoursEditor({
                     onClick={() => {
                       const last = ranges[ranges.length - 1];
                       const start = last.end < "13:00" ? "14:00" : last.end;
-                      setDay(d, [...ranges, { start, end: start < "18:00" ? "18:00" : "19:00" }]);
+                      setDay(d, [...ranges, { start, end: start < "18:00" ? "18:00" : "19:00", label: last.label }]);
                     }}
                     className="flex items-center gap-0.5 text-xs text-pink-700 hover:underline"
                   >

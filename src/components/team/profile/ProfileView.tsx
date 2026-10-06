@@ -1,22 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { CalendarPlus, DoorOpen, EyeOff, Stethoscope } from "lucide-react";
+import { CalendarPlus, EyeOff, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTeam } from "@/context/TeamDataContext";
-import { PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
+import { PageHeader } from "@/components/team/shared";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
-import { ContractHoursField, HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
-import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
+import { WorkScheduleEditor } from "@/components/team/WorkSchedule";
+import { rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
+import { IdentityCard, RecapContent, SemaineTypeSalarie } from "@/components/team/profile/Fiche";
+import { usePersonRights } from "@/components/team/profile/rights";
 import { CongesPayesCard, ContratCard, DocumentsCard, DpcCard, MissionsCard, RappelsCard, SalaryCard } from "@/components/team/profile/RHSections";
 import { useVersion } from "@/components/team/Version";
 import { ACTES, SKILLS } from "@/data/teamMockData";
@@ -41,7 +42,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
   const canEdit = self || manager;
   // RH : réglée par le gestionnaire (pas le planning seul) ; rémunération aussi par le comptable.
   const canEditRH = can("param.cabinet");
-  const canSeeSalary = self || can("param.cabinet") || can("compta");
+  const rights = usePersonRights(user);
+  const canSeeSalary = self || can("param.cabinet") || can("compta") || rights.viewerPraticien;
   const canEditSalary = can("param.cabinet") || can("compta");
   const profile = profiles.find((p) => p.praticienUserId === user.id);
   const full = has("profil") && self;
@@ -55,7 +57,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-8 py-8">
+    <div className="mx-auto max-w-7xl space-y-6 px-8 py-8">
       <PageHeader
         title={self ? "Mon profil" : displayName(user)}
         description={
@@ -70,7 +72,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
                 <CalendarPlus /> Déclarer une absence
               </Button>
             )}
-            {canEdit && (!profile || full) && (
+            {canEdit && ((!profile && liberal) || full) && (
               <Button
                 disabled={!dirty || WEEKDAYS.some((d) => rangesError(draft.schedule?.[d]))}
                 onClick={() => {
@@ -86,94 +88,54 @@ export function ProfileView({ user }: { user: TeamUser }) {
         }
       />
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-4">
-          <UserAvatar user={user} className="size-14 text-lg" />
-          <div className="min-w-0 flex-1">
-            <p className="flex flex-wrap items-center gap-3 text-lg font-medium">
-              {fullName(user)}
-              {profile && (
-                <span className="flex items-center gap-1 text-xs font-normal text-slate-500">
-                  <DoorOpen className="size-3.5" /> {profile.rooms.join(", ") || "Salle non définie"}
-                </span>
-              )}
-              <Link href={`/team/planning?view=${profile ? "binomes" : "personnes"}&user=${user.id}`} className="text-xs font-normal text-pink-700 hover:underline">
-                Voir dans le planning →
-              </Link>
-            </p>
-            <p className="text-sm text-slate-500">{user.email}</p>
-            {(user.rpps || user.numeroAM) && (
-              <p className="text-xs text-slate-500 tabular-nums">
-                {user.rpps && `RPPS ${user.rpps}`}
-                {user.rpps && user.numeroAM && " · "}
-                {user.numeroAM && `N° Assurance Maladie ${user.numeroAM}`}
-              </p>
-            )}
-            <div className="mt-1.5">
-              <RoleBadges user={user} />
-            </div>
-            {profile && (
-              <div className="mt-3">
-                <SpecialtyPicker
-                  value={user.specialties}
-                  disabled={!canEdit || user.status === "archive"}
-                  onChange={(specialties) => {
-                    const res = updateUser({ ...user, specialties });
-                    if (res.ok) toast.success("Spécialités sauvegardées");
-                    else toast.error(res.error);
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          {!profile && manager && isHealthProfessional(user, roles) && user.status !== "archive" && (
-            <Button variant="outline" onClick={createPraticienProfile}>
-              <Stethoscope /> Créer la fiche praticien
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      {/* Comme la fiche patient de Soins : l'identité à gauche, l'emploi du temps (semaine type) en grand à droite. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="space-y-4 lg:sticky lg:top-4">
+          <IdentityCard
+            user={user}
+            profile={profile}
+            extra={
+              <>
+                {profile && (
+                  <SpecialtyPicker
+                    value={user.specialties}
+                    disabled={!canEdit || user.status === "archive"}
+                    onChange={(specialties) => {
+                      const res = updateUser({ ...user, specialties });
+                      if (res.ok) toast.success("Spécialités sauvegardées");
+                      else toast.error(res.error);
+                    }}
+                  />
+                )}
+                {!profile && manager && isHealthProfessional(user, roles) && user.status !== "archive" && (
+                  <Button variant="outline" className="w-full" onClick={createPraticienProfile}>
+                    <Stethoscope /> Créer la fiche praticien
+                  </Button>
+                )}
+              </>
+            }
+          />
+          <RecapContent user={user} />
+        </aside>
 
-      {/* Missions : seulement pour les salariés, un praticien libéral n'a pas de fiche de poste. */}
-      {!liberal && <MissionsCard user={user} canEdit={canEditRH} />}
-
+        <div className="min-w-0 space-y-6">
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
+      {!profile && !liberal && <SemaineTypeSalarie user={user} />}
 
-      {!profile && (
+      {!profile && liberal && (
         <Card>
           <CardHeader>
-            <CardTitle>{liberal ? "Jours de présence" : "Horaires de travail habituels"}</CardTitle>
-            <CardDescription>
-              {liberal ? (
-                "Praticien libéral : pas d'horaires ni de pointage, seulement les demi-journées où il consulte."
-              ) : (
-                <>
-                  Les plages de chaque jour (ex. 08:30 → 12:30 puis 14:00 → 17:00). Elles disent au planning qui est là le matin, l&apos;après-midi ou toute
-                  la journée, et servent de référence pour les heures pointées.
-                  {!user.schedule && " Horaires proposés par défaut à partir des jours de travail : ajustez-les puis enregistrez."}
-                </>
-              )}
-            </CardDescription>
+            <CardTitle>Jours de présence</CardTitle>
+            <CardDescription>Praticien libéral : pas d&apos;horaires ni de pointage, seulement les demi-journées où il consulte.</CardDescription>
           </CardHeader>
           <CardContent>
-            {liberal ? (
-              // Praticien libéral : pas d'horaires ni de pointage, seulement ses demi-journées de présence.
-              <WorkScheduleEditor value={draft} disabled={!canEdit} onChange={(v) => setDraft({ ...draft, ...v })} />
-            ) : (
-              <div className="space-y-3">
-                {/* Le contrat est une donnée RH : seul le gestionnaire le modifie, chacun le voit. */}
-                <ContractHoursField value={draft.weeklyHours} disabled={!can("param.cabinet")} onChange={(weeklyHours) => setDraft({ ...draft, weeklyHours })} />
-                <HoursEditor
-                  value={draft.schedule ?? effectiveHours(draft)}
-                  disabled={!canEdit}
-                  contractHours={draft.weeklyHours}
-                  onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
-                />
-              </div>
-            )}
+            <WorkScheduleEditor value={draft} disabled={!canEdit} onChange={(v) => setDraft({ ...draft, ...v })} />
           </CardContent>
         </Card>
       )}
+
+      {/* Missions : seulement pour les salariés, un praticien libéral n'a pas de fiche de poste. */}
+      {!liberal && <MissionsCard user={user} canManage={rights.canManage} canCheck={self || rights.canManage} />}
 
       {profile && <EquipeCard profile={profile} canEdit={canEdit} />}
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
@@ -304,6 +266,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
           <PersonAbsences userId={user.id} types={liberal ? undefined : ["maladie", "formation", "autre"]} />
         </CardContent>
       </Card>
+        </div>
+      </div>
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={self ? undefined : { userId: user.id, date: today }} />
     </div>
   );

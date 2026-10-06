@@ -7,19 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTeam } from "@/context/TeamDataContext";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { DocumentChip, FileButton, type DocumentDraft } from "@/components/team/Justificatifs";
-import { diffInDays, formatShortDate, toISODate } from "@/utils/date";
+import { WEEKDAYS, WEEKDAY_LABELS, diffInDays, formatShortDate, toISODate } from "@/utils/date";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FREQUENCE_LABELS, MissionEtat, MissionStatus, frequenceLabel, missionStatus, missionsOf, newMissionId } from "@/lib/missions";
+import { Weekday } from "@/types";
 import { CP_PAR_AN, cpSummary } from "@/lib/conges";
 import { cn } from "@/lib/utils";
 import {
   Contrat,
   ContratType,
   EntretienPro,
+  Mission,
+  MissionFrequence,
   MedecineTravail,
   OneOnOne,
   OneOnOneFrequency,
@@ -43,6 +50,7 @@ const DOCUMENT_TYPE_LABELS: Record<RHDocumentType, string> = {
   avenant: "Avenant",
   diplome: "Diplôme",
   habilitation: "Habilitation",
+  compte_rendu: "Compte rendu",
   autre: "Autre",
 };
 
@@ -76,23 +84,73 @@ function RelativeDue({ iso, today }: { iso: string; today: string }) {
 
 // --- Missions -----------------------------------------------------------------
 
-export function MissionsCard({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
-  const { updateUser } = useTeam();
-  const missions = user.missions ?? [];
-  const [draft, setDraft] = useState("");
+const ETAT_STYLES: Record<MissionEtat, string> = {
+  fait: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  a_faire: "border-amber-200 bg-amber-50 text-amber-800",
+  en_retard: "border-rose-200 bg-rose-50 text-rose-700",
+  sans_suivi: "border-slate-200 bg-slate-50 text-slate-500",
+};
 
-  function set(next: string[]) {
+export function MissionEtatBadge({ status }: { status: MissionStatus }) {
+  const label =
+    status.etat === "fait"
+      ? "Fait"
+      : status.etat === "a_faire"
+        ? "À faire aujourd'hui"
+        : status.etat === "en_retard"
+          ? `En retard de ${status.retard} j`
+          : "Fiche de poste";
+  return (
+    <Badge variant="outline" className={cn("shrink-0 rounded-md", ETAT_STYLES[status.etat])}>
+      {label}
+    </Badge>
+  );
+}
+
+/**
+ * Missions de la personne. Le gestionnaire (ou son praticien) les crée : simple responsabilité de la fiche
+ * de poste, ou mission qui revient (chaque jour, chaque semaine, chaque mois). La personne coche quand c'est fait ;
+ * en retard, la mission passe au rouge, dans le profil comme dans le trombinoscope.
+ */
+export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; canManage: boolean; canCheck: boolean }) {
+  const { updateUser, now } = useTeam();
+  const today = toISODate(now());
+  const missions = missionsOf(user);
+  const [titre, setTitre] = useState("");
+  const [frequence, setFrequence] = useState<MissionFrequence>("aucune");
+  const [jour, setJour] = useState<Weekday>("lundi");
+  const [jourDuMois, setJourDuMois] = useState("1");
+  const [debut, setDebut] = useState("");
+  const [fin, setFin] = useState("");
+
+  function save(next: Mission[]) {
     const res = updateUser({ ...user, missions: next.length ? next : undefined });
     if (!res.ok) toast.error(res.error);
+    return res.ok;
   }
   function add() {
-    if (!draft.trim()) return;
-    set([...missions, draft.trim()]);
-    setDraft("");
+    if (!titre.trim()) return;
+    const m: Mission = {
+      id: newMissionId(),
+      titre: titre.trim(),
+      frequence,
+      ...(frequence === "hebdo" ? { jour } : {}),
+      ...(frequence === "mensuelle" ? { jourDuMois: Math.min(28, Math.max(1, Number(jourDuMois) || 1)) } : {}),
+      ...(debut && fin ? { horaire: `${debut} → ${fin}` } : {}),
+    };
+    if (save([...missions, m])) {
+      setTitre("");
+      setDebut("");
+      setFin("");
+    }
   }
-  function remove(i: number) {
-    set(missions.filter((_, idx) => idx !== i));
+  function toggle(m: Mission, key: string) {
+    const faites = m.faites?.includes(key) ? m.faites.filter((k) => k !== key) : [...(m.faites ?? []), key];
+    if (save(missions.map((x) => (x.id === m.id ? { ...x, faites } : x))) && !m.faites?.includes(key)) toast.success("Mission faite", { description: m.titre });
   }
+
+  const suivies = missions.filter((m) => m.frequence !== "aucune");
+  const fiche = missions.filter((m) => m.frequence === "aucune");
 
   return (
     <Card>
@@ -100,39 +158,115 @@ export function MissionsCard({ user, canEdit }: { user: TeamUser; canEdit: boole
         <CardTitle className="flex items-center gap-2">
           <Briefcase className="size-4 text-slate-400" /> Missions
         </CardTitle>
-        <CardDescription>Ce que couvre le poste au quotidien.{!canEdit && " Réglées par le gestionnaire."}</CardDescription>
+        <CardDescription>
+          Ce que couvre le poste, et les missions qui reviennent (chaque jour, semaine ou mois) à cocher une fois faites.
+          {!canManage && " Créées par le gestionnaire ou le praticien."}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {missions.length > 0 ? (
-          <ul className="space-y-1.5">
-            {missions.map((m, i) => (
-              <li key={i} className="flex items-start justify-between gap-2 text-sm text-slate-700">
-                <span className="flex gap-2">
-                  <span className="text-slate-400">•</span>
-                  {m}
-                </span>
-                {canEdit && (
-                  <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={() => remove(i)}>
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                )}
-              </li>
-            ))}
+      <CardContent className="space-y-4">
+        {suivies.length > 0 && (
+          <ul className="divide-y rounded-md border">
+            {suivies.map((m) => {
+              const st = missionStatus(m, today);
+              return (
+                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 text-sm">
+                  {canCheck && st.due ? (
+                    <Checkbox
+                      checked={st.etat === "fait"}
+                      onCheckedChange={() => toggle(m, st.due!.key)}
+                      aria-label={st.etat === "fait" ? "Marquer comme non faite" : "Marquer comme faite"}
+                    />
+                  ) : (
+                    <span className="size-4" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("block font-medium text-slate-800", st.etat === "fait" && "text-slate-500")}>{m.titre}</span>
+                    <span className="block text-xs text-slate-500">{frequenceLabel(m)}</span>
+                  </span>
+                  <MissionEtatBadge status={st} />
+                  {canManage && (
+                    <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={() => save(missions.filter((x) => x.id !== m.id))} aria-label="Retirer la mission">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-        ) : (
-          <p className="text-sm text-slate-400">{canEdit ? "Pas encore renseignées." : "Pas encore renseignées par le gestionnaire."}</p>
         )}
-        {canEdit && (
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ajouter une mission…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
-              className="flex-1"
-            />
-            <Button variant="outline" onClick={add} disabled={!draft.trim()}>
-              <Plus /> Ajouter
+        {fiche.length > 0 && (
+          <div>
+            {suivies.length > 0 && <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">Fiche de poste</p>}
+            <ul className="space-y-1.5">
+              {fiche.map((m) => (
+                <li key={m.id} className="flex items-start justify-between gap-2 text-sm text-slate-700">
+                  <span className="flex gap-2">
+                    <span className="text-slate-400">•</span>
+                    {m.titre}
+                  </span>
+                  {canManage && (
+                    <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={() => save(missions.filter((x) => x.id !== m.id))} aria-label="Retirer la mission">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {missions.length === 0 && <p className="text-sm text-slate-400">{canManage ? "Pas encore de mission." : "Pas encore de mission définie par le gestionnaire."}</p>}
+        {canManage && (
+          <div className="space-y-2 rounded-lg border border-dashed p-3">
+            <div className="flex flex-wrap gap-2">
+              <Input
+                placeholder="Nouvelle mission (ex. export comptable)"
+                value={titre}
+                onChange={(e) => setTitre(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
+                className="min-w-56 flex-1"
+              />
+              <Select value={frequence} onValueChange={(v) => setFrequence(v as MissionFrequence)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(FREQUENCE_LABELS).map(([id, label]) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {frequence === "hebdo" && (
+                <Select value={jour} onValueChange={(v) => setJour(v as Weekday)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEEKDAYS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {WEEKDAY_LABELS[d]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {frequence === "mensuelle" && (
+                <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                  le
+                  <Input type="number" min={1} max={28} className="w-16" value={jourDuMois} onChange={(e) => setJourDuMois(e.target.value)} />
+                </span>
+              )}
+            </div>
+            {frequence !== "aucune" && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                Horaire (facultatif)
+                <Input type="time" className="w-28" value={debut} onChange={(e) => setDebut(e.target.value)} />→
+                <Input type="time" className="w-28" value={fin} onChange={(e) => setFin(e.target.value)} />
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={add} disabled={!titre.trim()}>
+              <Plus /> Ajouter la mission
             </Button>
           </div>
         )}
@@ -756,6 +890,17 @@ export function DocumentsCard({ user, canAdd, canManage }: { user: TeamUser; can
   const [nom, setNom] = useState("");
   const [type, setType] = useState<RHDocumentType>("autre");
   const [file, setFile] = useState<DocumentDraft | null>(null);
+  // Document rédigé dans Team (depuis un modèle) : ouvert dans une fenêtre pour le lire ou le compléter.
+  const [redige, setRedige] = useState<RHDocument | null>(null);
+
+  function saveRedige(doc: RHDocument) {
+    const exists = documents.some((d) => d.id === doc.id);
+    const res = updateUser({ ...user, documents: exists ? documents.map((d) => (d.id === doc.id ? doc : d)) : [...documents, doc] });
+    if (res.ok) {
+      toast.success(exists ? "Document mis à jour" : "Document ajouté au profil", { description: doc.nom });
+      setRedige(null);
+    } else toast.error(res.error);
+  }
 
   function add() {
     if (!nom.trim()) return;
@@ -796,7 +941,11 @@ export function DocumentsCard({ user, canAdd, canManage }: { user: TeamUser; can
           <ul className="divide-y rounded-md border">
             {documents.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                {d.dataUrl || d.size ? (
+                {d.contenu !== undefined ? (
+                  <button className="min-w-0 flex-1 truncate text-left text-pink-700 hover:underline" onClick={() => setRedige(d)}>
+                    {d.nom}
+                  </button>
+                ) : d.dataUrl || d.size ? (
                   <DocumentChip doc={{ name: d.nom, mime: d.mime ?? "application/octet-stream", size: d.size ?? 0, dataUrl: d.dataUrl }} />
                 ) : (
                   <span className="min-w-0 flex-1 truncate">{d.nom}</span>
@@ -860,12 +1009,81 @@ export function DocumentsCard({ user, canAdd, canManage }: { user: TeamUser; can
               </div>
             </div>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-              <Plus /> Ajouter un document
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+                <Plus /> Ajouter un document
+              </Button>
+              {canManage && <FromTemplateButton user={user} onPick={setRedige} />}
+            </div>
           ))}
+        <Dialog open={!!redige} onOpenChange={(o) => !o && setRedige(null)}>
+          <DialogContent className="sm:max-w-2xl">
+            {redige && <RedigeForm doc={redige} editable={canManage} onSave={saveRedige} onCancel={() => setRedige(null)} />}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
+  );
+}
+
+/** Choisir un modèle de document : prépare un document pré-rempli, à compléter puis ranger dans le profil. */
+function FromTemplateButton({ user, onPick }: { user: TeamUser; onPick: (doc: RHDocument) => void }) {
+  const { docTemplates, now, sessionUserId } = useTeam();
+  if (!docTemplates.length) return null;
+  return (
+    <Select
+      value=""
+      onValueChange={(id) => {
+        const t = docTemplates.find((x) => x.id === id);
+        if (!t) return;
+        const today = toISODate(now());
+        onPick({
+          id: `doc-${Date.now().toString(36)}`,
+          nom: `${t.titre} · ${user.firstName} · ${formatShortDate(today)}`,
+          type: "compte_rendu",
+          dateAjout: today,
+          addedById: sessionUserId ?? undefined,
+          contenu: t.contenu,
+        });
+      }}
+    >
+      <SelectTrigger size="sm" className="w-auto gap-1.5">
+        <FileText className="size-3.5" />
+        <SelectValue placeholder="Rédiger depuis un modèle" />
+      </SelectTrigger>
+      <SelectContent>
+        {docTemplates.map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.titre}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function RedigeForm({ doc, editable, onSave, onCancel }: { doc: RHDocument; editable: boolean; onSave: (d: RHDocument) => void; onCancel: () => void }) {
+  const [nom, setNom] = useState(doc.nom);
+  const [contenu, setContenu] = useState(doc.contenu ?? "");
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{editable ? "Rédiger le document" : doc.nom}</DialogTitle>
+        <DialogDescription>{editable ? "Pré-rempli depuis le modèle : complétez, puis enregistrez dans le profil." : "Document rédigé par le gestionnaire."}</DialogDescription>
+      </DialogHeader>
+      {editable && <Input value={nom} onChange={(e) => setNom(e.target.value)} />}
+      <Textarea value={contenu} onChange={(e) => setContenu(e.target.value)} readOnly={!editable} rows={14} className="font-mono text-sm" />
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>
+          {editable ? "Annuler" : "Fermer"}
+        </Button>
+        {editable && (
+          <Button onClick={() => onSave({ ...doc, nom: nom.trim() || doc.nom, contenu })} disabled={!nom.trim()}>
+            Enregistrer dans le profil
+          </Button>
+        )}
+      </DialogFooter>
+    </>
   );
 }
 

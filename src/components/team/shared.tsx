@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTeam } from "@/context/TeamDataContext";
 import { PermissionId, TeamAbsence, TeamUser, UserStatus } from "@/types/team";
@@ -29,6 +29,7 @@ export function toneFor(id: string) {
 export function UserAvatar({ user, className }: { user: TeamUser; className?: string }) {
   return (
     <Avatar className={cn("size-8", className)}>
+      {user.photo && <AvatarImage src={user.photo} alt={`Photo de ${user.firstName}`} className="object-cover" />}
       <AvatarFallback className={cn("text-xs font-medium", user.status === "archive" ? "bg-slate-100 text-slate-400" : toneFor(user.id))}>
         {initials(user)}
       </AvatarFallback>

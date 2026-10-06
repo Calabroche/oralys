@@ -16,8 +16,11 @@ import {
   AbsenceDocument,
   TeamNotification,
   TeamUser,
+  DocTemplate,
+  WeekHours,
 } from "@/types/team";
-import { BESOINS_PAR_ACTIVITE, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
+import { BESOINS_PAR_ACTIVITE, DOC_TEMPLATES, PRATICIEN_PROFILES, ROLES, SEMAINES_TYPES, buildTeamSeed } from "@/data/teamMockData";
+import { missionsOf } from "@/lib/missions";
 import { scheduleFromSlots, setActivityCatalog } from "@/lib/semaine";
 import { daysFromHours } from "@/lib/horaires";
 import { addDays, fromISODate, toISODate, toWeekday } from "@/utils/date";
@@ -70,6 +73,8 @@ interface PersistedTeamData {
   dayOverrides: DayOverride[];
   dayNeeds: DayNeed[];
   punches: Punch[];
+  /** Modèles de documents (trame de 1:1, entretien…) créés par le gestionnaire. */
+  docTemplates?: DocTemplate[];
   /** Corrections appliquées une fois aux démos déjà enregistrées. */
   migrations?: string[];
 }
@@ -81,12 +86,24 @@ function initialData(): PersistedTeamData {
     profiles: PRATICIEN_PROFILES,
     sessionUserId: "u-delphine",
     workstation: null,
+    docTemplates: DOC_TEMPLATES,
     dayOverrides: [],
     dayNeeds: [],
   };
 }
 
 /** Lecture synchrone : le fournisseur n'est monté que côté client (voir AgendaDataProvider). */
+/** Garde les horaires déjà réglés, en y ajoutant la mission de la démo quand la plage n'en a pas. */
+function labelSchedule(mine: WeekHours | undefined, seed: WeekHours): WeekHours {
+  if (!mine) return seed;
+  return Object.fromEntries(
+    Object.entries(mine).map(([d, ranges]) => {
+      const label = seed[d as keyof WeekHours]?.[0]?.label ?? Object.values(seed).flat()[0]?.label;
+      return [d, (ranges ?? []).map((r) => ({ ...r, label: r.label ?? label }))];
+    })
+  );
+}
+
 function loadData(): PersistedTeamData {
   const seed = initialData();
   try {
@@ -103,6 +120,11 @@ function loadData(): PersistedTeamData {
           weeklyHours: u.weeklyHours ?? s?.weeklyHours,
           rpps: u.rpps ?? s?.rpps,
           numeroAM: u.numeroAM ?? s?.numeroAM,
+          phone: u.phone ?? s?.phone,
+          // Missions suivies (retour du 06/10) : les démos existantes reçoivent celles de la démo ; l'ancien texte libre devient « sans suivi ».
+          missions: !done.includes("missions-suivies") && s?.missions ? s.missions : missionsOf(u),
+          // Semaine type avec la mission de chaque plage (retour du 06/10).
+          ...(!done.includes("semaine-type-salaries") && s?.schedule ? { schedule: labelSchedule(u.schedule, s.schedule) } : {}),
           ...(!done.includes("demi-journees") && !u.halfDays && s?.halfDays ? { halfDays: s.halfDays } : {}),
         };
       });
@@ -150,7 +172,7 @@ function loadData(): PersistedTeamData {
         ...(profiles ? { profiles } : {}),
         ...(rdvs ? { rdvs } : {}),
         ...(absences ? { absences } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation"])],
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation", "missions-suivies", "semaine-type-salaries"])],
       };
     }
   } catch {
@@ -218,6 +240,9 @@ interface TeamDataContextValue extends PersistedTeamData {
   switchSession: (userId: string, workstation: string | null) => void;
   log: (action: AuditAction, summary: string, extra?: Partial<AuditEntry>) => void;
   markAllRead: () => void;
+  docTemplates: DocTemplate[];
+  upsertDocTemplate: (t: DocTemplate) => void;
+  deleteDocTemplate: (id: string) => void;
   resetDemo: () => void;
 }
 
@@ -910,6 +935,13 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
 
     log: (action, summary, extra) => mutate((d) => d, { action, summary, extra }),
     markAllRead: () => mutate((d) => ({ ...d, notifications: d.notifications.map((n) => ({ ...n, read: true })) })),
+    docTemplates: data.docTemplates ?? DOC_TEMPLATES,
+    upsertDocTemplate: (t) =>
+      mutate((d) => {
+        const list = d.docTemplates ?? DOC_TEMPLATES;
+        return { ...d, docTemplates: list.some((x) => x.id === t.id) ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t] };
+      }),
+    deleteDocTemplate: (id) => mutate((d) => ({ ...d, docTemplates: (d.docTemplates ?? DOC_TEMPLATES).filter((x) => x.id !== id) })),
     resetDemo: resetAllDemoData,
   };
 

@@ -39,6 +39,9 @@ import { QuickSwitchDialog } from "@/components/team/QuickSwitchDialog";
 import { PunchClock } from "@/components/team/PunchClock";
 import { UserAvatar } from "@/components/team/shared";
 import { TeamDataProvider, useTeam } from "@/context/TeamDataContext";
+import { frequenceLabel, missionsSummary } from "@/lib/missions";
+import { toISODate } from "@/utils/date";
+import { TeamNotification } from "@/types/team";
 import { PersonSheetProvider } from "@/components/team/PersonSheet";
 import {
   Feature,
@@ -64,6 +67,7 @@ const TABS: {
   // l'Administration s'ouvre depuis le menu utilisateur (pas de doublon dans la barre).
   { label: "Tableau de bord", href: "/team", exact: true, access: "tableau" },
   { label: "Planning", href: "/team/planning" },
+  { label: "Trombinoscope", href: "/team/trombinoscope" },
   { label: "Temps de travail", href: "/team/temps", feature: "pointage" },
   { label: "Aperçu Soins", href: "/team/soins" },
 ];
@@ -130,10 +134,25 @@ function PlanetSwitcher() {
 }
 
 function Notifications() {
-  const { notifications: all, markAllRead } = useTeam();
+  const { notifications: all, markAllRead, sessionUser, now } = useTeam();
   const allowed = useAccess();
+  // Rappels de missions : chacun reçoit les siennes (à faire aujourd'hui, en retard), quel que soit son rôle.
+  const today = toISODate(now());
+  const rappels: TeamNotification[] = sessionUser
+    ? missionsSummary(sessionUser, today)
+        .statuses.filter((st) => st.etat === "en_retard" || st.etat === "a_faire")
+        .map((st) => ({
+          id: `rappel-${st.mission.id}-${st.due?.key}`,
+          at: today,
+          kind: st.etat === "en_retard" ? ("rdv_risk" as const) : ("tension" as const),
+          title: st.etat === "en_retard" ? `Mission en retard de ${st.retard} j : ${st.mission.titre}` : `Mission à faire aujourd'hui : ${st.mission.titre}`,
+          body: `${frequenceLabel(st.mission)}. À cocher dans votre profil une fois faite.`,
+          href: "/team/moi",
+          read: false,
+        }))
+    : [];
   // Les alertes (dernier moment, demandes, tensions) concernent ceux qui gèrent planning et remplacements.
-  const notifications = allowed("remplacements") ? all : [];
+  const notifications = [...rappels, ...(allowed("remplacements") ? all : [])];
   const unread = notifications.filter((n) => !n.read).length;
   return (
     <Popover>
@@ -154,7 +173,7 @@ function Notifications() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between border-b px-4 py-2.5">
-          <span className="text-sm font-medium">Alertes Team → Soins</span>
+          <span className="text-sm font-medium">Alertes et rappels</span>
           <Button
             variant="ghost"
             size="xs"

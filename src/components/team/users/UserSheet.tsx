@@ -16,7 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
 import { PERMISSION_CATEGORIES, PERMISSIONS } from "@/data/teamMockData";
-import { acteLabel, displayName, fullName, permissionsOf, skillLabel } from "@/lib/team";
+import { acteLabel, displayName, fullName, isHealthProfessional, permissionsOf, roleNames, skillLabel } from "@/lib/team";
+import { MissionsRecap, RecapContent, Timetable, dateEntree, travailleAvec } from "@/components/team/profile/Fiche";
+import { effectiveHours } from "@/lib/horaires";
+import { formatShortDate } from "@/utils/date";
+import { TeamUser } from "@/types/team";
 import { RoleBadges, StatusBadge, UserAvatar } from "@/components/team/shared";
 import { AuditList } from "@/components/team/AuditList";
 import { WorkScheduleSummary } from "@/components/team/WorkSchedule";
@@ -41,7 +45,10 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                 <UserAvatar user={user} className="size-12 text-base" />
                 <div>
                   <SheetTitle className="text-lg">{displayName(user)}</SheetTitle>
-                  <SheetDescription>{user.email}</SheetDescription>
+                  <SheetDescription>
+                    {user.email}
+                    {user.phone && <span className="tabular-nums"> · {user.phone}</span>}
+                  </SheetDescription>
                 </div>
                 <div className="ml-auto">
                   <StatusBadge status={user.status} />
@@ -83,13 +90,18 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                 </p>
               )}
             </SheetHeader>
-            <Tabs defaultValue="droits" className="px-4 pb-6">
+            <Tabs defaultValue="recap" className="px-4 pb-6">
               <TabsList variant="line" className="mb-3">
+                <TabsTrigger value="recap">Récap</TabsTrigger>
                 <TabsTrigger value="droits">Rôles & droits</TabsTrigger>
                 <TabsTrigger value="profil">Dispos & compétences</TabsTrigger>
                 <TabsTrigger value="absences">Absences ({collapseRecurring(absences.filter((a) => a.userId === user.id && a.status !== "refusee"), toISODate(now())).length})</TabsTrigger>
                 <TabsTrigger value="historique">Historique ({entries.length})</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="recap" className="space-y-5 text-sm">
+                <SheetRecap user={user} />
+              </TabsContent>
 
               <TabsContent value="droits" className="space-y-5">
                 <RoleBadges user={user} />
@@ -162,6 +174,49 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
       </SheetContent>
       {user && <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={{ userId: user.id }} />}
     </Sheet>
+  );
+}
+
+/** Récapitulatif rapide (ouvert depuis le trombinoscope ou n'importe quel nom) : qui, avec qui, depuis quand, sa semaine, ses missions. */
+function SheetRecap({ user }: { user: TeamUser }) {
+  const { profiles, can, sessionUserId, sessionUser, roles } = useTeam();
+  const avec = travailleAvec(user, profiles);
+  const sensitive = user.id === sessionUserId || can("param.cabinet") || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
+  const liberal = user.roleIds.includes("role-praticien");
+  return (
+    <>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
+        <div>
+          <dt className="text-xs text-slate-500">Poste</dt>
+          <dd className="font-medium text-slate-800">{roleNames(user, roles).join(", ")}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Date d&apos;entrée</dt>
+          <dd className="font-medium text-slate-800">{formatShortDate(dateEntree(user))}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Travaille avec</dt>
+          <dd className="font-medium text-slate-800">{avec ? avec.label : liberal ? "Praticien" : "Non renseigné"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Téléphone</dt>
+          <dd className="font-medium text-slate-800 tabular-nums">{user.phone ?? "Non renseigné"}</dd>
+        </div>
+      </dl>
+      <RecapContent user={user} compact />
+      {!liberal && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine type</p>
+          <Timetable hours={effectiveHours(user)} />
+        </div>
+      )}
+      {!liberal && (sensitive || user.missions?.length) && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Missions</p>
+          <MissionsRecap user={user} />
+        </div>
+      )}
+    </>
   );
 }
 

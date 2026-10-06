@@ -111,8 +111,8 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
     setSubmitted(true);
     setError(null);
     if (!firstName.trim() || !lastName.trim() || !normalized || emailInvalid || duplicate || roleIds.length === 0 || missingPraticien || rppsError || amError) return;
-    // Sans rôle au fauteuil ni de praticien, pas d'environnement Soins par défaut.
-    const envId = env === "none" || (!needsPraticien && !isHealthPro) ? null : env;
+    // Hors fauteuil, le praticien avec qui la personne travaille reste facultatif (affiché s'il est renseigné).
+    const envId = env === "none" ? null : env;
     const ids = isHealthPro ? { rpps: rppsClean, numeroAM: amClean } : { rpps: undefined, numeroAM: undefined };
     if (editing) {
       const res = updateUser({ ...editing, firstName: firstName.trim(), lastName: lastName.trim(), email: normalized, poste, roleIds, defaultEnvironmentId: envId, ...ids });
@@ -192,9 +192,9 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
               </SelectContent>
             </Select>
           </Field>
-          {(needsPraticien || isHealthPro) && (
+          {(roleIds.length > 0 || isHealthPro) && (
           <Field
-            label={needsPraticien ? "Praticien de rattachement *" : "Environnement Soins par défaut"}
+            label={needsPraticien ? "Praticien de rattachement *" : isHealthPro ? "Environnement Soins par défaut" : "Travaille avec (facultatif)"}
             error={submitted && missingPraticien ? "Obligatoire pour un assistant, une aide dentaire ou un infirmier" : null}
           >
             <Select value={env} onValueChange={setEnv} disabled={isHealthPro && !editing}>
@@ -202,7 +202,7 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
                 <SelectValue placeholder={isHealthPro && !editing ? "Créé automatiquement" : undefined} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">{needsPraticien ? "Choisir un praticien" : "Aucun"}</SelectItem>
+                <SelectItem value="none">{needsPraticien ? "Choisir un praticien" : "Personne en particulier"}</SelectItem>
                 {activeProfiles.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.label}
