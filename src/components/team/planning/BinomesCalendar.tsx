@@ -177,6 +177,34 @@ export function BinomesCalendar({
                             </Popover>
                     );
                   };
+                  // Titulaire au cabinet mais pas au fauteuil sur ce créneau : en orange, tant qu'un back-up n'a pas pris sa place.
+                  const renderOccupied = (o: { userId: string; label: string }, half: HalfDay, key: string) => {
+                    const u = findUser(o.userId)!;
+                    return (
+                      <Popover key={key}>
+                        <PopoverTrigger asChild>
+                          <button
+                            title={`${fullName(u)} est prévu(e) en titulaire mais sur « ${o.label} » ce créneau. Cliquer pour choisir un back-up.`}
+                            className="flex flex-col items-start rounded border border-amber-300 bg-amber-50 px-1.5 py-1 text-left text-xs font-medium text-amber-900 hover:ring-1 hover:ring-amber-400"
+                          >
+                            <span className="flex items-center gap-1">
+                              {u.firstName} <span className="font-normal opacity-80">· titulaire</span>
+                            </span>
+                            <span className="line-clamp-2 text-[0.65rem] font-normal">sur {o.label}</span>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 p-4" align="start">
+                          <p className="mb-3 text-sm font-medium text-slate-900">
+                            {u.firstName} est au cabinet {half === "matin" ? "ce matin-là" : "cet après-midi-là"}, mais sur « {o.label} »
+                            <span className="mt-1 block text-xs font-normal text-slate-500">
+                              Elle reste prévue comme titulaire de {displayName(praticien)}. Choisissez un back-up : il prend sa place sur ce créneau.
+                            </span>
+                          </p>
+                          <GapActions day={day} staffing={staffing.get(iso)!} showLink />
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  };
                   const renderGap = (label: React.ReactNode) => (
                           <Popover>
                             <PopoverTrigger asChild>
@@ -260,6 +288,7 @@ export function BinomesCalendar({
                                       </div>
                                       <div className="mt-0.5 flex flex-col gap-1">
                                         {room.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${room.room}-${id}`))}
+                                        {room.missing > 0 && h.occupied.map((o) => renderOccupied(o, h.half, `${h.half}-${room.room}-occ-${o.userId}`))}
                                         {room.missing > 0 && renderGap(`Manque ${room.missing}`)}
                                       </div>
                                     </div>
@@ -268,6 +297,16 @@ export function BinomesCalendar({
                               ) : (
                                 <div className="flex flex-col gap-1">
                                   {h.assistants.map((id) => renderChip(slotOf(id), `${h.half}-${id}`))}
+                                  {/* Chaque back-up ou prêt placé prend la place d'un titulaire occupé ailleurs ; les autres restent en orange. */}
+                                  {h.occupied.map((o, i) =>
+                                    i < h.assistants.filter((id) => slotOf(id).kind !== "titulaire").length ? (
+                                      <span key={o.userId} className="truncate px-1 text-[0.65rem] text-amber-700" title={`${findUser(o.userId)?.firstName} est sur « ${o.label} » ce créneau`}>
+                                        ↻ remplace {findUser(o.userId)?.firstName} ({o.label})
+                                      </span>
+                                    ) : (
+                                      renderOccupied(o, h.half, `${h.half}-occ-${o.userId}`)
+                                    )
+                                  )}
                                   {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
                                 </div>
                               )}

@@ -61,6 +61,7 @@ export const VERSIONS: VersionInfo[] = [
       "Missions types du cabinet à piocher depuis chaque profil, et missions visibles dans le planning et sur la semaine type",
       "Semaine type et « Cette semaine » côte à côte, semaine par semaine : absences, prêts à un autre praticien et missions ; chaque semaine se modifie à part sans toucher à la semaine type, et le planning suit",
       "Planning → Semaines types : choisir une personne et voir ou modifier sa semaine en un clic, sans passer par son dossier",
+      "Titulaire au cabinet mais sur autre chose que le fauteuil (plage « FSE test », stérilisation…) : en orange chez son praticien, le manque est compté et le back-up choisi prend sa place sur ce créneau seulement",
       "Primes et rendez-vous de recadrage dans le dossier, repris dans le récapitulatif",
       "Modèles de documents (trame de 1:1, entretien annuel, entretien professionnel, recadrage, fiches de poste) à rédiger depuis chaque profil",
     ],

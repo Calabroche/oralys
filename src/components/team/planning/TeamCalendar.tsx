@@ -15,6 +15,7 @@ import {
   isChairAssistant,
   isHealthProfessional,
   isLastMinute,
+  occupationOn,
   primaryRoleId,
   worksOn,
 } from "@/lib/team";
@@ -22,7 +23,7 @@ import { missionsDueOn } from "@/lib/missions";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink } from "@/components/team/PersonSheet";
-import { TeamUser } from "@/types/team";
+import { HalfDay, TeamUser } from "@/types/team";
 import { fromISODate, toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
@@ -208,7 +209,21 @@ function PresenceLabel({ user, staffing, compact }: { user: TeamUser; staffing?:
       .map((p) => ({ p, slot: p.slots.find((s) => s.assistantId === user.id) }))
       .filter((x) => x.slot)
       .sort((a, b) => (a.slot!.partial === "apres_midi" ? 1 : 0) - (b.slot!.partial === "apres_midi" ? 1 : 0));
-    if (!withWhom.length) return <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans équipe</span>;
+    // Demi-journées au cabinet mais pas au fauteuil (plage « FSE test », stérilisation…), en orange.
+    const occupations = halvesOn(user, staffing.date)
+      .map((h) => ({ h, label: occupationOn(user, staffing.date, h) }))
+      .filter((x): x is { h: HalfDay; label: string } => Boolean(x.label));
+    const occChips = occupations.map((o) => (
+      <span key={o.h} className="max-w-28 truncate rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800" title={`${o.label} (${o.h === "matin" ? "matin" : "après-midi"})`}>
+        {o.label} <span className="font-normal opacity-70">· {o.h === "matin" ? "matin" : "aprèm"}</span>
+      </span>
+    ));
+    if (!withWhom.length)
+      return occChips.length ? (
+        <span className="flex flex-col items-center gap-0.5">{occChips}</span>
+      ) : (
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Sans équipe</span>
+      );
     return (
       <span className="flex flex-col items-center gap-0.5">
         {withWhom.map(({ p, slot }) => (
@@ -225,6 +240,7 @@ function PresenceLabel({ user, staffing, compact }: { user: TeamUser; staffing?:
             )}
           </span>
         ))}
+        {occChips}
       </span>
     );
   }
