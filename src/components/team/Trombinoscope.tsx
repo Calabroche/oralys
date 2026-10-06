@@ -37,7 +37,11 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
           </h2>
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
             {g.people
-              .sort((a, b) => a.lastName.localeCompare(b.lastName))
+              // Présents d'abord, puis absents et personnes au repos.
+              .sort((a, b) => {
+                const off = (u: TeamUser) => Number(!worksOn(u, today) || Boolean(absenceOn(u.id, today, absences)));
+                return off(a) - off(b) || a.lastName.localeCompare(b.lastName);
+              })
               .map((u) => {
                 const abs = absenceOn(u.id, today, absences);
                 const works = worksOn(u, today);

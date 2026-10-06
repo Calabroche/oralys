@@ -54,7 +54,7 @@ export const VERSIONS: VersionInfo[] = [
       "La secrétaire voit tout le planning mais ne peut rien y valider ni réaffecter : lecture seule, à part déclarer sa propre absence",
       "Dossier du personnel : la gestionnaire remplit contrat, rémunération (brut, net, brut annuel), missions, rendez-vous RH et documents depuis Administration → Dossiers du personnel ; chacun voit le sien en lecture seule sur son profil",
       "Congés payés : 25 jours fixes pour tous les salariés, jours pris et solde calculés tout seuls depuis les congés déclarés dans Team",
-      "Trombinoscope du cabinet pour tous : photo, rôle, avec qui chacun travaille, présent ou non aujourd'hui ; un clic ouvre le récapitulatif (date d'entrée, assiduité, congés, salaire et missions pour le gestionnaire et les praticiens)",
+      "Trombinoscope du cabinet dans le tableau de bord, ouvert à tous : photo, rôle, avec qui chacun travaille, présent ou non aujourd'hui ; un clic ouvre le récapitulatif (date d'entrée, assiduité, congés, salaire et missions pour le gestionnaire et les praticiens)",
       "Fiche collaborateur comme la fiche patient de Soins : identité à gauche, semaine type en emploi du temps à droite, avec ce que la personne fait sur chaque plage",
       "Missions suivies (chaque jour, semaine ou mois) cochées par la personne, en vert, orange ou rouge pour le gestionnaire, avec un rappel dans la cloche",
       "Modèles de documents (trame de 1:1, entretien, recadrage) à rédiger depuis chaque profil",

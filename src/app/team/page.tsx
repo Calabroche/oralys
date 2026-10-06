@@ -1,42 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, CalendarPlus, CheckCircle2, ListTodo, Siren, UserCheck, UserPlus, Users, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTeam } from "@/context/TeamDataContext";
 import { useAccess } from "@/components/team/Access";
-import { UserAvatar } from "@/components/team/shared";
-import { PersonLink } from "@/components/team/PersonSheet";
-import { AbsencePopover } from "@/components/team/AbsencePopover";
+import { Trombinoscope } from "@/components/team/Trombinoscope";
+import { ASSIDUITE_NB } from "@/lib/assiduite";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { useToDo } from "@/components/team/planning/ToDo";
 import { useVersion } from "@/components/team/Version";
-import { ABSENCE_TYPE_LABELS, ROLE_GROUP_LABELS, ROLE_ORDER, absenceOn, primaryRoleId, worksOn } from "@/lib/team";
+import { absenceOn, isHealthProfessional, worksOn } from "@/lib/team";
 import { toISODate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 
 /**
- * Tableau de bord : un résumé de la journée, pour les gestionnaires et aussi pour les praticiens (leur propre
- * résumé). Le détail (et les actions) est dans le planning, pour ne pas avoir la même information à deux endroits.
- * Les profils sans ce droit (assistants, aides…) arrivent directement sur le planning.
+ * Tableau de bord : un résumé de la journée et le trombinoscope de l'équipe (qui est là aujourd'hui).
+ * Gestionnaires et praticiens y voient aussi les compteurs et ce qui est à traiter ; les autres profils
+ * (assistants, aides, secrétaires…) n'y voient que l'équipe. Le détail et les actions restent dans le planning.
  */
 export default function TeamDashboard() {
-  const allowed = useAccess();
-  const router = useRouter();
-  const ok = allowed("tableau");
-  useEffect(() => {
-    if (!ok) router.replace("/team/planning");
-  }, [ok, router]);
-  return ok ? <Dashboard /> : null;
-}
-
-function Dashboard() {
-  const { users, absences, sessionUser, now, hydrated, can } = useTeam();
+  const { users, absences, sessionUser, now, hydrated, can, roles } = useTeam();
+  const full = useAccess()("tableau");
   const isManager = can("param.cabinet");
+  const sensitive = isManager || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
   const { has } = useVersion();
   const [declareOpen, setDeclareOpen] = useState(false);
   const todo = useToDo();
@@ -85,6 +75,8 @@ function Dashboard() {
         </div>
       </div>
 
+      {full && (
+      <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {kpis.map((k) => (
           <Link key={k.label} href={k.href}>
@@ -101,8 +93,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>À traiter</CardTitle>
             <CardDescription>Le détail et les actions sont dans le planning, onglets « Demandes à valider » et « Manques à couvrir ».</CardDescription>
@@ -135,60 +126,24 @@ function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Qui est là aujourd&apos;hui</CardTitle>
-            <CardAction>
-              <Badge variant="secondary">
-                {presentCount}/{active.length} présents
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {ROLE_ORDER.map((p) => {
-              // Tout le monde, présents d'abord ; les personnes au repos ou absentes restent visibles, barrées, avec la raison.
-              const list = active
-                .filter((u) => primaryRoleId(u) === p)
-                .sort((a, b) => Number(!worksOn(a, today) || Boolean(absenceOn(a.id, today, absences))) - Number(!worksOn(b, today) || Boolean(absenceOn(b.id, today, absences))));
-              if (!list.length) return null;
-              return (
-                <div key={p}>
-                  <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">{ROLE_GROUP_LABELS[p]}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {list.map((u) => {
-                      const abs = absenceOn(u.id, today, absences);
-                      const off = !abs && !worksOn(u, today);
-                      const chip = (
-                        <span
-                          className={cn(
-                            "flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-0.5 text-xs",
-                            abs ? "cursor-pointer border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" : off ? "border-slate-200 bg-slate-50 text-slate-400" : "bg-white"
-                          )}
-                        >
-                          <UserAvatar user={u} className={cn("size-5 text-[0.55rem]", off && "opacity-50")} />
-                          <span className={cn((abs || off) && "line-through")}>{u.firstName}</span>
-                          {abs && <span className="text-[0.65rem] font-medium">{ABSENCE_TYPE_LABELS[abs.type].toLowerCase()}</span>}
-                          {off && <span className="text-[0.65rem]">repos</span>}
-                        </span>
-                      );
-                      return abs ? (
-                        <AbsencePopover key={u.id} absence={abs} date={today}>
-                          <button title="Absent(e) aujourd'hui. Cliquer pour annuler l'absence.">{chip}</button>
-                        </AbsencePopover>
-                      ) : (
-                        <PersonLink key={u.id} userId={u.id} className="no-underline hover:no-underline">
-                          {chip}
-                        </PersonLink>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Le trombinoscope remplace l'ancien « Qui est là » : tout le monde le voit, un clic ouvre le récapitulatif de la personne. */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">L&apos;équipe aujourd&apos;hui</h2>
+          <Badge variant="secondary">
+            {presentCount}/{active.length} présents
+          </Badge>
+        </div>
+        <Trombinoscope />
+        {sensitive && (
+          <p className="text-[11px] text-slate-400">
+            Pastille sur la photo : rouge = mission en retard, orange = à faire aujourd&apos;hui, vert = missions à jour. NB : {ASSIDUITE_NB}
+          </p>
+        )}
+      </section>
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} />
     </div>
   );

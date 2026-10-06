@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Trombinoscope } from "@/components/team/Trombinoscope";
 import { missionsSummary } from "@/lib/missions";
 import { assiduite, ASSIDUITE_NB } from "@/lib/assiduite";
 import { Button } from "@/components/ui/button";
@@ -62,12 +61,8 @@ function Dossiers() {
       <Tabs defaultValue="liste">
         <TabsList variant="line">
           <TabsTrigger value="liste">Liste</TabsTrigger>
-          <TabsTrigger value="trombi">Trombinoscope</TabsTrigger>
           <TabsTrigger value="modeles">Modèles de documents</TabsTrigger>
         </TabsList>
-        <TabsContent value="trombi" className="mt-5">
-          <Trombinoscope />
-        </TabsContent>
         <TabsContent value="modeles" className="mt-5">
           <ModelesDocuments />
         </TabsContent>
