@@ -46,7 +46,8 @@ export const VERSIONS: VersionInfo[] = [
       "Voir qui est présent chaque jour et avec qui travaille chaque praticien, par personne ou par équipe ; un manque est signalé, sans action possible (le combler arrive en V1)",
       "Se mettre sur son profil en quelques secondes (changer d'utilisateur par code PIN), avec son nom affiché en haut de l'écran",
       "Voir le planning sur un nombre de jours au choix (2, 3, 5, 10 ou 15), en plus de Jour / Semaine / Mois — même sélecteur dans l'agenda Soins",
-      "Tableau de bord : présents aujourd'hui, utilisateurs actifs, et le trombinoscope du cabinet",
+      "Tableau de bord : présents aujourd'hui, absences de dernier moment, utilisateurs actifs, et le trombinoscope du cabinet",
+      "Être alerté d'une absence de dernier moment (sirène, compteur sur le tableau de bord), et fermer l'agenda Soins d'un praticien absent",
       "La secrétaire voit tout le planning mais ne peut rien y valider : lecture seule, à part déclarer sa propre absence",
       "Trombinoscope ouvert à tous ; un clic ouvre le récap : poste, date d'entrée, avec qui la personne travaille, téléphone, missions de la fiche de poste, et pour le gestionnaire et les praticiens assiduité, congés et salaire",
       "Dossier du personnel (Administration → Dossiers du personnel) : contrat, rémunération (brut, net, brut annuel), missions de la fiche de poste, rappels RH, documents ; chacun voit le sien en lecture seule",
@@ -62,7 +63,6 @@ export const VERSIONS: VersionInfo[] = [
     pitch: "Des remplaçants mieux choisis, des droits sur mesure et une trace de chaque action.",
     problem: "Les remplacements fonctionnent : il faut les rendre plus justes et savoir qui a fait quoi.",
     canDo: [
-      "Être alerté d'une absence de dernier moment (sirène, compteur sur le tableau de bord) et fermer l'agenda Soins d'un praticien absent",
       "Remplir les horaires habituels (plages par jour), par le gestionnaire ou le praticien ; en MVP, le planning prend les jours de travail par défaut",
       "Primes dans la rémunération (date, montant brut, motif), reprises dans le récapitulatif",
       "Combler un manque depuis le planning : affecter un assistant, déplacer depuis un autre praticien, récupérer un prêt, retirer une absence ou confirmer qu'un assistant de moins suffit ; onglet « Manques à couvrir »",
@@ -146,7 +146,7 @@ export const FEATURES = {
   missionsSuivies: "v1",
   recadrages: "v1",
   /** Absences de dernier moment (alerte, compteur) et fermeture de l'agenda Soins d'un praticien absent. */
-  dernierMoment: "v1",
+  dernierMoment: "mvp",
   /** Remplir ses horaires habituels (carte Horaires du profil). En MVP, le planning prend les jours de travail par défaut. */
   horaires: "v1",
   primes: "v1",

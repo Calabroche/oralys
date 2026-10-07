@@ -172,7 +172,7 @@ function Notifications() {
       }))
     );
   // Les alertes (dernier moment, demandes, tensions) concernent ceux qui gèrent planning et remplacements.
-  // Alertes de dernier moment : V1.
+  // Alertes de dernier moment : selon la version (fonction « dernierMoment »).
   const notifications = [...rappels, ...controles, ...(allowed("remplacements") ? all.filter((n) => has("dernierMoment") || n.kind !== "absence_last_minute") : [])];
   const unread = notifications.filter((n) => !n.read).length;
   return (
@@ -409,9 +409,9 @@ function Header() {
 }
 
 /**
- * Les absences validées de chaque praticien ferment son agenda Soins (V1) : Team recalcule les périodes « team-… »
+ * Les absences validées de chaque praticien ferment son agenda Soins : Team recalcule les périodes « team-… »
  * à chaque changement (validation, annulation, jour retiré…), sans toucher aux fermetures posées dans Soins.
- * En MVP, aucune période n'est envoyée : l'agenda Soins reste tel quel.
+ * Si la version de la démo n'a pas la fonction « dernierMoment », aucune période n'est envoyée.
  */
 function SoinsSync() {
   const { absences, profiles } = useTeam();

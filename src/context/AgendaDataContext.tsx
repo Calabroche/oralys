@@ -130,7 +130,7 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     let teamPeriods: AbsencePeriod[] = [];
     try {
       const team = JSON.parse(window.localStorage.getItem(TEAM_STORAGE_KEY) ?? "null");
-      // Fermeture de l'agenda par Team : V1 (version de la démo enregistrée dans le navigateur).
+      // Fermeture de l'agenda par Team, selon la version de la démo enregistrée dans le navigateur.
       if (storedVersionHas("dernierMoment") && team?.absences && team?.profiles) teamPeriods = teamAbsencePeriods(team.absences, team.profiles);
     } catch {
       // Pas de données Team : rien à reporter.

@@ -35,7 +35,7 @@ export function useToDo() {
     );
     const toReassign = risks.filter((r) => r.reason !== "praticien").map((r) => r.rdv);
     const pending = absences.filter((a) => a.status === "demandee");
-    // Dernier moment : V1.
+    // Dernier moment : selon la version de la démo.
     const lastMinute = absences
       .filter((a) => dernierMoment && a.status !== "refusee" && isLastMinute(a) && a.endDate >= today)
       .map((absence) => ({
