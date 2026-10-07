@@ -58,7 +58,9 @@ export function TeamCalendar({
 }) {
   const { absences, now, findUser, roles, sessionUser, can } = useTeam();
   // Missions du jour : chacun voit les siennes ; gestionnaire, praticiens et comptable voient celles de tous.
-  const suivi = useVersion().has("missionsSuivies");
+  const { has } = useVersion();
+  const suivi = has("missionsSuivies");
+  const suiviDernierMoment = has("dernierMoment");
   const seesAllMissions = can("param.cabinet") || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
   const today = toISODate(now());
   const compact = dates.length > 10;
@@ -141,10 +143,10 @@ export function TeamCalendar({
                                   "flex h-full w-full items-center justify-center gap-1 rounded-md border text-xs font-medium",
                                   absenceTone(abs.type),
                                   abs.status === "demandee" && "border-2 border-dashed bg-white",
-                                  isLastMinute(abs) && "ring-2 ring-rose-400"
+                                  suiviDernierMoment && isLastMinute(abs) && "ring-2 ring-rose-400"
                                 )}
                               >
-                                {isLastMinute(abs) && <Siren className="size-3" />}
+                                {suiviDernierMoment && isLastMinute(abs) && <Siren className="size-3" />}
                                 {!compact && ABSENCE_TYPE_LABELS[abs.type]}
                                 {!compact && abs.status === "demandee" && <span className="font-normal opacity-70">· à valider</span>}
                               </button>

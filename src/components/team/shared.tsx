@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useTeam } from "@/context/TeamDataContext";
 import { PermissionId, TeamAbsence, TeamUser, UserStatus } from "@/types/team";
 import { ABSENCE_TYPE_LABELS, initials, isLastMinute } from "@/lib/team";
+import { useVersion } from "@/components/team/Version";
 import { PERMISSIONS } from "@/data/teamMockData";
 import { cn } from "@/lib/utils";
 
@@ -81,13 +82,14 @@ export function absenceTone(type: TeamAbsence["type"]) {
 }
 
 export function AbsenceBadge({ absence, compact }: { absence: TeamAbsence; compact?: boolean }) {
+  const dernierMoment = useVersion().has("dernierMoment");
   return (
     <span className="inline-flex items-center gap-1">
       <Badge variant="outline" className={cn("rounded-md", absenceTone(absence.type), absence.status === "demandee" && "border-dashed")}>
         {ABSENCE_TYPE_LABELS[absence.type]}
         {absence.status === "demandee" && !compact && " · à valider"}
       </Badge>
-      {isLastMinute(absence) && !compact && (
+      {dernierMoment && isLastMinute(absence) && !compact && (
         <Badge variant="destructive" className="rounded-md">
           Dernier moment
         </Badge>

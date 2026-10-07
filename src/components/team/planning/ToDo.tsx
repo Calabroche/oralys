@@ -23,6 +23,7 @@ const HORIZON = 14;
 /** Tout ce qui demande une action sur les absences, calculé une fois pour le planning et le tableau de bord. */
 export function useToDo() {
   const { absences, rdvs, profiles, users, dayOverrides, dayNeeds, now } = useTeam();
+  const dernierMoment = useVersion().has("dernierMoment");
   const today = toISODate(now());
   const until = toISODate(addDays(now(), HORIZON));
   return useMemo(() => {
@@ -34,8 +35,9 @@ export function useToDo() {
     );
     const toReassign = risks.filter((r) => r.reason !== "praticien").map((r) => r.rdv);
     const pending = absences.filter((a) => a.status === "demandee");
+    // Dernier moment : V1.
     const lastMinute = absences
-      .filter((a) => a.status !== "refusee" && isLastMinute(a) && a.endDate >= today)
+      .filter((a) => dernierMoment && a.status !== "refusee" && isLastMinute(a) && a.endDate >= today)
       .map((absence) => ({
         absence,
         open: toReassign.filter((r) => r.date >= absence.startDate && r.date <= absence.endDate && r.assistantUserId === absence.userId).length,
@@ -55,7 +57,7 @@ export function useToDo() {
     );
     const count = pending.length + lastMinute.filter((x) => x.open > 0).length + gaps.length + coverage.length;
     return { pending, lastMinute, gaps, coverage, toReassign, count };
-  }, [absences, rdvs, profiles, users, dayOverrides, dayNeeds, today, until]);
+  }, [absences, rdvs, profiles, users, dayOverrides, dayNeeds, today, until, dernierMoment]);
 }
 
 function halvesLabel(day: PraticienDay) {

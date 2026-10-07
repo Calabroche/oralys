@@ -258,7 +258,7 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
             RATE_TILE[rate ? rateTone(rate.taux) : ms.tone === "orange" ? "orange" : ms.tone]
           )}
         {user.salary && tile("Salaire brut", `${user.salary.brut.toLocaleString("fr-FR")} €`, `${(user.salary.brut * 12).toLocaleString("fr-FR")} € par an · ${user.salary.net.toLocaleString("fr-FR")} € net`)}
-        {primes && tile("Primes", `${primes.total.toLocaleString("fr-FR")} €`, primes.nombre ? `${primes.nombre} sur 12 mois` : "aucune sur 12 mois")}
+        {primes && has("primes") && tile("Primes", `${primes.total.toLocaleString("fr-FR")} €`, primes.nombre ? `${primes.nombre} sur 12 mois` : "aucune sur 12 mois")}
         {salarie &&
           rights.canSeeRecadrages &&
           has("recadrages") &&

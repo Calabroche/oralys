@@ -778,6 +778,7 @@ export function primes12Mois(u: TeamUser, todayIso: string): { total: number; no
 /** Historique des primes : date, montant brut, motif. Saisies par le gestionnaire ou le comptable. */
 function PrimesSection({ user, canEdit }: { user: TeamUser; canEdit: boolean }) {
   const { updateUser, now } = useTeam();
+  const primesActives = useVersion().has("primes");
   const today = toISODate(now());
   const [adding, setAdding] = useState(false);
   const [date, setDate] = useState(today);
@@ -785,7 +786,8 @@ function PrimesSection({ user, canEdit }: { user: TeamUser; canEdit: boolean }) 
   const [motif, setMotif] = useState("");
   const list = [...(user.primes ?? [])].sort((a, b) => b.date.localeCompare(a.date));
   const recap = primes12Mois(user, today);
-  if (!list.length && !canEdit) return null;
+  // Primes : V1.
+  if (!primesActives || (!list.length && !canEdit)) return null;
 
   function add() {
     const m = Number(montant);

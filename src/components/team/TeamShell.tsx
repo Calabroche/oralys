@@ -1,7 +1,9 @@
 "use client";
 
 import { AccessKey, useAccess } from "@/components/team/Access";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { useAgendaData } from "@/context/AgendaDataContext";
+import { teamAbsencePeriods } from "@/lib/soinsSync";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -170,7 +172,8 @@ function Notifications() {
       }))
     );
   // Les alertes (dernier moment, demandes, tensions) concernent ceux qui gèrent planning et remplacements.
-  const notifications = [...rappels, ...controles, ...(allowed("remplacements") ? all : [])];
+  // Alertes de dernier moment : V1.
+  const notifications = [...rappels, ...controles, ...(allowed("remplacements") ? all.filter((n) => has("dernierMoment") || n.kind !== "absence_last_minute") : [])];
   const unread = notifications.filter((n) => !n.read).length;
   return (
     <Popover>
@@ -405,10 +408,26 @@ function Header() {
   );
 }
 
+/**
+ * Les absences validées de chaque praticien ferment son agenda Soins (V1) : Team recalcule les périodes « team-… »
+ * à chaque changement (validation, annulation, jour retiré…), sans toucher aux fermetures posées dans Soins.
+ * En MVP, aucune période n'est envoyée : l'agenda Soins reste tel quel.
+ */
+function SoinsSync() {
+  const { absences, profiles } = useTeam();
+  const { syncTeamPeriods } = useAgendaData();
+  const ferme = useVersion().has("dernierMoment");
+  useEffect(() => {
+    syncTeamPeriods(ferme ? teamAbsencePeriods(absences, profiles) : []);
+  }, [absences, profiles, syncTeamPeriods, ferme]);
+  return null;
+}
+
 export function TeamShell({ children }: { children: ReactNode }) {
   return (
     <TeamDataProvider>
       <VersionProvider>
+        <SoinsSync />
         <TooltipProvider delayDuration={200}>
           <PersonSheetProvider>
             <div className="flex min-h-screen flex-col bg-white">

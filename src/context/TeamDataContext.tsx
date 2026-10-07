@@ -28,7 +28,6 @@ import { addDays, fromISODate, toISODate, toWeekday } from "@/utils/date";
 import { describeRecurrence, expandRecurrence } from "@/utils/recurrence";
 import { resetAllDemoData } from "@/lib/persist";
 import { PUNCH_LABELS, timeOf } from "@/lib/time";
-import { teamAbsencePeriods } from "@/lib/soinsSync";
 import { TEAM_STORAGE_KEY } from "@/lib/storageKeys";
 import { slotOwner, useAgendaData } from "@/context/AgendaDataContext";
 import {
@@ -402,12 +401,7 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
     [data.users]
   );
 
-  // Les absences validées de chaque praticien ferment son agenda Soins : Team recalcule les périodes « team-… »
-  // à chaque changement (validation, annulation, jour retiré…), sans rien toucher aux fermetures posées dans Soins.
-  const { syncTeamPeriods } = agenda;
-  useEffect(() => {
-    syncTeamPeriods(teamAbsencePeriods(data.absences, data.profiles));
-  }, [data.absences, data.profiles, syncTeamPeriods]);
+  // La fermeture de l'agenda Soins (absences validées des praticiens) dépend de la version de la démo : voir SoinsSync (TeamShell).
 
   const value: TeamDataContextValue = {
     ...data,

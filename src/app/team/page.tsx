@@ -44,9 +44,11 @@ export default function TeamDashboard() {
     { label: "Présents aujourd'hui", value: `${presentCount}/${active.length}`, icon: UserCheck, href: "/team/planning" },
     pilotage
       ? { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=demandes", alert: todo.count > 0 }
-      : { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=demandes", alert: openLastMinute > 0 },
+      : has("dernierMoment")
+        ? { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=demandes", alert: openLastMinute > 0 }
+        : null,
     ...(isManager ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
-  ];
+  ].filter((k): k is NonNullable<typeof k> => k !== null);
 
   // Une ligne par catégorie : le compte et un lien vers l'onglet du planning qui permet d'agir.
   const summary = [

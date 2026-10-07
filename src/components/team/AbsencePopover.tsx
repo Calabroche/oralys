@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useTeam } from "@/context/TeamDataContext";
 import { usePersonSheet } from "@/components/team/PersonSheet";
 import { ABSENCE_TYPE_LABELS, displayName, isLastMinute, shortDate } from "@/lib/team";
+import { useVersion } from "@/components/team/Version";
 import { TeamAbsence } from "@/types/team";
 import { AbsenceBadge } from "@/components/team/shared";
 
@@ -48,6 +49,7 @@ export function useAbsenceActions() {
 /** Clic sur une absence (planning, binômes) : détails + retour arrière total ou pour un jour. */
 export function AbsencePopover({ absence, date, children }: { absence: TeamAbsence; date?: string; children: ReactNode }) {
   const { findUser, can, sessionUserId, validateAbsence, refuseAbsence, profiles } = useTeam();
+  const { has } = useVersion();
   const { open: openPerson } = usePersonSheet();
   const { cancelWithUndo, removeDayWithUndo } = useAbsenceActions();
   const [open, setOpen] = useState(false);
@@ -79,7 +81,7 @@ export function AbsencePopover({ absence, date, children }: { absence: TeamAbsen
               ) : (
                 <>Déclarée par {by?.firstName ?? "?"} le {new Date(absence.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</>
               )}
-              {!fromSoins && isLastMinute(absence) && (
+              {!fromSoins && has("dernierMoment") && isLastMinute(absence) && (
                 <span className="ml-1 inline-flex items-center gap-0.5 text-rose-600">
                   <Siren className="size-3" /> dernier moment
                 </span>

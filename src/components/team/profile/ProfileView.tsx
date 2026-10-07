@@ -72,7 +72,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
                 <CalendarPlus /> Déclarer une absence
               </Button>
             )}
-            {canEdit && ((!profile && liberal) || full || (!liberal && !has("semaineType"))) && (
+            {canEdit && ((!profile && liberal) || full || (!liberal && has("horaires") && !has("semaineType"))) && (
               <Button
                 disabled={!dirty || WEEKDAYS.some((d) => rangesError(draft.schedule?.[d]))}
                 onClick={() => {
@@ -122,7 +122,8 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
       {/* V1 : semaine type en emploi du temps, « Cette semaine », semaines modifiées. MVP : les horaires habituels, tout simplement. */}
       {!profile && !liberal && has("semaineType") && <SemaineTypeSalarie user={user} />}
-      {!profile && !liberal && !has("semaineType") && (
+      {/* Remplir ses horaires : V1. En MVP, le planning prend les jours de travail par défaut. */}
+      {!profile && !liberal && has("horaires") && !has("semaineType") && (
         <Card>
           <CardHeader>
             <CardTitle>Horaires de travail habituels</CardTitle>

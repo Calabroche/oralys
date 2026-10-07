@@ -21,6 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTeam } from "@/context/TeamDataContext";
 import { DocumentDraft, JustificatifPicker } from "@/components/team/Justificatifs";
 import { ABSENCE_TYPE_LABELS, displayName, isHealthProfessional, isLastMinute } from "@/lib/team";
+import { useVersion } from "@/components/team/Version";
 import { AbsenceType } from "@/types/team";
 import { toISODate } from "@/utils/date";
 
@@ -49,6 +50,7 @@ export function DeclareAbsenceDialog({
 
 function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => void }) {
   const { users, sessionUserId, can, declareAbsence, cancelAbsence, restoreAbsence, rdvs, now, findUser, roles } = useTeam();
+  const { has } = useVersion();
   const today = toISODate(now());
   const canForOthers = can("team.planning");
   const [userId, setUserId] = useState(prefill?.userId && canForOthers ? prefill.userId : sessionUserId);
@@ -81,7 +83,7 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
       documents: type === "maladie" && documents.length ? documents.map((d, i) => ({ ...d, id: `doc-${Date.now().toString(36)}-${i}`, uploadedAt, uploadedById: sessionUserId })) : undefined,
     });
     toast.success(abs.status === "validee" ? "Absence enregistrée" : "Demande envoyée au gestionnaire", {
-      description: isLastMinute(abs)
+      description: has("dernierMoment") && isLastMinute(abs)
         ? "Absence de dernier moment : alerte immédiate envoyée au planning Soins."
         : affected.length
           ? `${affected.length} RDV Soins signalés au gestionnaire.`
@@ -169,7 +171,7 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
           </div>
         )}
 
-        {lastMinute && (
+        {lastMinute && has("dernierMoment") && (
           <Alert variant="destructive">
             <Siren />
             <AlertTitle>Absence de dernier moment</AlertTitle>

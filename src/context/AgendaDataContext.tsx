@@ -4,6 +4,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from "react
 import { AbsencePeriod, ActivityType, Appointment, SpecialSlot, WeekSlot } from "@/types";
 import { teamAbsencePeriods } from "@/lib/soinsSync";
 import { TEAM_STORAGE_KEY } from "@/lib/storageKeys";
+import { storedVersionHas } from "@/components/team/Version";
 import {
   ASSISTANT_NEEDS,
   DEFAULT_SOINS_PRATICIEN,
@@ -129,12 +130,13 @@ export function AgendaDataProvider({ children }: { children: ReactNode }) {
     let teamPeriods: AbsencePeriod[] = [];
     try {
       const team = JSON.parse(window.localStorage.getItem(TEAM_STORAGE_KEY) ?? "null");
-      if (team?.absences && team?.profiles) teamPeriods = teamAbsencePeriods(team.absences, team.profiles);
+      // Fermeture de l'agenda par Team : V1 (version de la démo enregistrée dans le navigateur).
+      if (storedVersionHas("dernierMoment") && team?.absences && team?.profiles) teamPeriods = teamAbsencePeriods(team.absences, team.profiles);
     } catch {
       // Pas de données Team : rien à reporter.
     }
     const periods = parsed.absencePeriods ?? seed.absencePeriods;
-    setAbsencePeriods(teamPeriods.length ? [...periods.filter((a) => !a.id.startsWith("team-")), ...teamPeriods] : periods);
+    setAbsencePeriods([...periods.filter((a) => !a.id.startsWith("team-")), ...teamPeriods]);
     setAppointments(parsed.appointments ?? seed.appointments);
     setHydrated(true);
     /* eslint-enable react-hooks/set-state-in-effect */
