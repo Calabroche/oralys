@@ -14,17 +14,17 @@ import { ROLE_GROUP_LABELS, ROLE_ORDER, fullName, isHealthProfessional, primaryR
  * Semaines types de l'équipe, au même endroit : on choisit une personne et son calendrier s'affiche
  * (semaine type, cette semaine, les autres semaines), avec « Modifier » pour qui en a le droit.
  * Évite de passer par Administration → Dossiers du personnel → Ouvrir le dossier.
- * Gestionnaire : tous les salariés. Praticien : son équipe rattachée. Les autres : leur propre semaine.
+ * Gestionnaire : tous les salariés. Praticien : les assistants et aides dentaires. Les autres : leur propre semaine, en lecture seule.
  */
 export function SemainesTypes({ initialUserId }: { initialUserId?: string | null }) {
-  const { users, profiles, roles, can, sessionUser, sessionUserId } = useTeam();
+  const { users, roles, can, sessionUser, sessionUserId } = useTeam();
   const gestion = can("param.cabinet");
   const praticien = !!sessionUser && isHealthProfessional(sessionUser, roles);
-  const equipe = new Set(profiles.filter((p) => p.praticienUserId === sessionUserId).flatMap((p) => p.team.map((l) => l.userId)));
   // Praticiens libéraux exclus : leur semaine type est celle de leur agenda Soins.
   const people = users
     .filter((u) => u.status === "actif" && !u.roleIds.includes("role-praticien"))
-    .filter((u) => gestion || u.id === sessionUserId || (praticien && equipe.has(u.id)))
+    // Gestionnaire : tout le monde. Praticien : les assistants et aides dentaires (il remplit leurs horaires). Les autres : eux-mêmes.
+    .filter((u) => gestion || u.id === sessionUserId || (praticien && u.roleIds.some((r) => r === "role-assistant" || r === "role-aide")))
     .sort((a, b) => ROLE_ORDER.indexOf(primaryRoleId(a)) - ROLE_ORDER.indexOf(primaryRoleId(b)) || a.lastName.localeCompare(b.lastName));
   const [stored, setStored] = usePersistentState<string | null>("planning-semaine-user", null, initialUserId ?? null);
   const selected = people.find((u) => u.id === stored) ?? people.find((u) => u.id === sessionUserId) ?? people[0];

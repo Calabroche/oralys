@@ -726,7 +726,7 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
             {vue === "type" ? (
               <>
                 La référence qui revient chaque semaine : horaires, ce que {rights.self ? "vous y faites" : `${user.firstName} y fait`} et les missions (en
-                pointillés). {rights.canManage ? "Créée par le gestionnaire ou le praticien." : "Créée par le gestionnaire ou votre praticien, en lecture seule."}
+                pointillés). {rights.canManageHours ? "Remplie par le gestionnaire, ou le praticien pour les assistants et aides dentaires." : "Remplie par le gestionnaire (ou le praticien pour les assistants et aides dentaires), en lecture seule."}
               </>
             ) : (
               <>
@@ -753,7 +753,7 @@ export function SemaineTypeSalarie({ user }: { user: TeamUser }) {
             <span className="font-semibold tabular-nums">{hoursLabel(vue === "semaine" ? weekMinutes(enCours.base) : total)}</span> par semaine
             {user.weeklyHours !== undefined && <span className="text-slate-400"> · contrat {user.weeklyHours} h</span>}
           </span>
-          {rights.canManage && (
+          {rights.canManageHours && (
             <Button
               variant="outline"
               size="sm"

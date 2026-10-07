@@ -67,6 +67,7 @@ export const VERSIONS: VersionInfo[] = [
       "Réaffecter les RDV d'un assistant absent (onglet « À remplacer »), reprogrammer un RDV ou le maintenir sans assistant",
       "Tableau de bord complet : « À traiter », manques d'assistants et RDV patients à réaffecter",
       "Semaine type et « Cette semaine » des collaborateurs, semaine par semaine (fiche, récap du trombinoscope, Planning → Semaines types), avec les jours modifiés à part",
+      "Horaires et semaine type remplis par le gestionnaire, ou par le praticien pour les assistants et aides dentaires (secrétaire et comptable : le gestionnaire seulement) ; la personne les voit en lecture seule",
       "Titulaire au cabinet mais sur autre chose que le fauteuil (plage « FSE test », stérilisation…) : en orange chez son praticien, le back-up choisi prend sa place sur ce créneau",
       "Missions suivies (chaque jour, semaine ou mois), à contrôler, taux sur 8 semaines du vert au rouge jusque sur le trombinoscope, missions types, rappels dans la cloche et dans le planning",
       "Recadrages et modèles de documents (1:1, entretien annuel, entretien professionnel, recadrage, fiches de poste) dans le dossier",
