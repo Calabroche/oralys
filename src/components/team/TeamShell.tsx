@@ -136,9 +136,12 @@ function PlanetSwitcher() {
 function Notifications() {
   const { notifications: all, markAllRead, sessionUser, now, users, profiles, can } = useTeam();
   const allowed = useAccess();
+  const { has } = useVersion();
   // Rappels de missions : chacun reçoit les siennes (à faire aujourd'hui, en retard), quel que soit son rôle.
   const today = toISODate(now());
-  const rappels: TeamNotification[] = sessionUser
+  // Rappels et contrôles de missions : V1 (suivi des missions).
+  const suivi = has("missionsSuivies");
+  const rappels: TeamNotification[] = sessionUser && suivi
     ? missionsSummary(sessionUser, today)
         .statuses.filter((st) => st.etat === "en_retard" || st.etat === "a_faire")
         .map((st) => ({
@@ -154,7 +157,7 @@ function Notifications() {
   // Missions à contrôler : pour le gestionnaire (tout le cabinet) et le praticien (son équipe rattachée).
   const equipe = new Set(profiles.filter((p) => p.praticienUserId === sessionUser?.id).flatMap((p) => p.team.map((l) => l.userId)));
   const controles: TeamNotification[] = users
-    .filter((u) => u.status === "actif" && u.id !== sessionUser?.id && (can("param.cabinet") || equipe.has(u.id)))
+    .filter((u) => suivi && u.status === "actif" && u.id !== sessionUser?.id && (can("param.cabinet") || equipe.has(u.id)))
     .flatMap((u) =>
       missionsSummary(u, today).aControler.map((st) => ({
         id: `controle-${st.mission.id}-${st.due?.key}`,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAccess } from "@/components/team/Access";
+import { useVersion } from "@/components/team/Version";
 import { useState } from "react";
 import Link from "next/link";
 import { CalendarDays, CalendarPlus, Check, History, Lock, Minus, Pencil, Stethoscope, UserRound, UserRoundSearch } from "lucide-react";
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 export function UserSheet({ userId, onClose }: { userId: string | null; onClose: () => void }) {
   const { findUser, roles, audit, profiles, absences, can, now, sessionUserId } = useTeam();
+  const { has } = useVersion();
   const [declareOpen, setDeclareOpen] = useState(false);
   const user = findUser(userId);
   const perms = user ? permissionsOf({ ...user, status: "actif" }, roles) : new Set();
@@ -58,7 +60,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                 onNavigate={onClose}
                 onDeclare={() => setDeclareOpen(true)}
                 profileId={profiles.find((x) => x.praticienUserId === user.id)?.id}
-                canAudit={can("team.audit")}
+                canAudit={can("team.audit") && has("journal")}
                 canEdit={can("param.cabinet")}
                 canOpenProfile={user.id === sessionUserId || can("team.planning")}
                 active={user.status === "actif"}
@@ -95,7 +97,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
                 <TabsTrigger value="droits">Rôles & droits</TabsTrigger>
                 <TabsTrigger value="profil">Dispos & compétences</TabsTrigger>
                 <TabsTrigger value="absences">Absences ({collapseRecurring(absences.filter((a) => a.userId === user.id && a.status !== "refusee"), toISODate(now())).length})</TabsTrigger>
-                <TabsTrigger value="historique">Historique ({entries.length})</TabsTrigger>
+                {has("journal") && <TabsTrigger value="historique">Historique ({entries.length})</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="recap" className="space-y-5 text-sm">
@@ -179,6 +181,7 @@ export function UserSheet({ userId, onClose }: { userId: string | null; onClose:
 /** Récapitulatif rapide (ouvert depuis le trombinoscope ou n'importe quel nom) : qui, avec qui, depuis quand, sa semaine, ses missions. */
 function SheetRecap({ user }: { user: TeamUser }) {
   const { profiles, can, sessionUserId, sessionUser, roles, findUser } = useTeam();
+  const { has } = useVersion();
   const avec = travailleAvec(user, profiles);
   const profile = profiles.find((p) => p.praticienUserId === user.id);
   // Praticien : « travaille avec » = ses assistants titulaires.
@@ -211,13 +214,13 @@ function SheetRecap({ user }: { user: TeamUser }) {
         </div>
       </dl>
       <RecapContent user={user} compact />
-      {!liberal && (
+      {!liberal && has("semaineType") && (
         <div>
           <p className="mb-1.5 text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine</p>
           <SemaineCollaborateur user={user} />
         </div>
       )}
-      {liberal && profile && (
+      {liberal && profile && has("semaineType") && (
         <div>
           <div className="mb-1.5 flex items-baseline justify-between gap-2">
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">Semaine · agenda Soins</p>
@@ -278,6 +281,7 @@ function QuickLinks({
   active: boolean;
 }) {
   const allowed = useAccess();
+  const { has } = useVersion();
   const link = (href: string, icon: React.ReactNode, label: string) => (
     <Button variant="outline" size="xs" asChild>
       <Link href={href} onClick={onNavigate}>
@@ -294,7 +298,7 @@ function QuickLinks({
       )}
       {(canOpenProfile || allowed("utilisateurs")) && link(`/team/profil/${userId}`, profileId ? <Stethoscope /> : <UserRound />, canEdit ? "Profil et dossier RH" : profileId ? "Profil et équipe" : "Profil")}
       {link(`/team/planning?view=personnes&user=${userId}`, <CalendarDays />, "Planning")}
-      {allowed("remplacements") && link(`/team/planning?tab=remplacer&user=${userId}`, <UserRoundSearch />, "Remplacements")}
+      {allowed("remplacements") && has("remplacements") && link(`/team/planning?tab=remplacer&user=${userId}`, <UserRoundSearch />, "Remplacements")}
       {canAudit && link(`/team/reglages/journal?user=${userId}`, <History />, "Journal")}
       {canEdit && link(`/team/reglages/utilisateurs?edit=${userId}`, <Pencil />, "Modifier")}
     </div>

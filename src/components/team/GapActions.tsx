@@ -32,6 +32,7 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
   const members = teamMembersOn(day, staffing, users, absences, dayOverrides).filter((m) => m.state !== "autre_jour");
   const present = day.slots.length;
   const { has } = useVersion();
+  const combler = has("remplacements");
   // Assistants présents ce jour-là sur au moins une demi-journée du praticien : d'abord les libres,
   // puis ceux déjà avec un autre praticien (les déplacer crée un manque chez lui, on le dit).
   const candidates = users
@@ -89,7 +90,7 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
               <li key={m.user.id} className="flex items-center gap-2 text-sm">
                 <span className={cn("size-2 shrink-0 rounded-full", DOT[m.state])} />
                 <span className={cn("min-w-0 flex-1", m.state === "present" ? "text-slate-900" : "text-slate-600")}>{m.label}</span>
-                {m.loan && (
+                {m.loan && combler && (
                   <Button
                     size="xs"
                     variant="outline"
@@ -107,7 +108,7 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
                     <Undo2 /> Récupérer
                   </Button>
                 )}
-                {m.free && day.missing > 0 && candidates.some((c) => c.user.id === m.user.id) && (
+                {combler && m.free && day.missing > 0 && candidates.some((c) => c.user.id === m.user.id) && (
                   <Button size="xs" variant="outline" disabled={!canEdit} onClick={() => assign(m.user.id)}>
                     <UserPlus /> Affecter
                   </Button>
@@ -125,6 +126,14 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
         )}
       </div>
 
+      {/* MVP : on voit le manque et pourquoi, mais le combler (affecter, déplacer, réduire le besoin, remplacer) arrive en V1. */}
+      {!combler && day.missing > 0 && (
+        <p className="rounded-lg border border-dashed bg-slate-50 p-3 text-sm text-slate-500">
+          Combler ce manque (affecter un assistant, en déplacer un, réduire le besoin du jour) : disponible ultérieurement, en V1.
+        </p>
+      )}
+      {combler && (
+        <>
       {day.missing > 0 && (
         <div className="rounded-lg border p-3">
           <p className="text-sm font-medium text-slate-900">Affecter un assistant pour la journée</p>
@@ -185,6 +194,8 @@ export function GapActions({ day, staffing, showLink = false }: { day: Praticien
         >
           Chercher un prêt d&apos;assistant pour la journée <ArrowRight className="size-3.5" />
         </Link>
+      )}
+        </>
       )}
     </div>
   );

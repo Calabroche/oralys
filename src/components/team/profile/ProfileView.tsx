@@ -11,8 +11,8 @@ import { useTeam } from "@/context/TeamDataContext";
 import { PageHeader } from "@/components/team/shared";
 import { DeclareAbsenceDialog } from "@/components/team/planning/DeclareAbsenceDialog";
 import { SpecialtyPicker } from "@/components/team/SpecialtyPicker";
-import { WorkScheduleEditor } from "@/components/team/WorkSchedule";
-import { rangesError } from "@/lib/horaires";
+import { ContractHoursField, HoursEditor, WorkScheduleEditor } from "@/components/team/WorkSchedule";
+import { daysFromHours, effectiveHours, rangesError } from "@/lib/horaires";
 import { WEEKDAYS } from "@/utils/date";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { AffinitesCard, EquipeCard, SemaineTypeCard } from "@/components/team/praticien/PraticienSections";
@@ -72,7 +72,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
                 <CalendarPlus /> Déclarer une absence
               </Button>
             )}
-            {canEdit && ((!profile && liberal) || full) && (
+            {canEdit && ((!profile && liberal) || full || (!liberal && !has("semaineType"))) && (
               <Button
                 disabled={!dirty || WEEKDAYS.some((d) => rangesError(draft.schedule?.[d]))}
                 onClick={() => {
@@ -120,7 +120,27 @@ export function ProfileView({ user }: { user: TeamUser }) {
 
         <div className="min-w-0 space-y-6">
       {profile && <SemaineTypeCard profile={profile} canEdit={canEdit} />}
-      {!profile && !liberal && <SemaineTypeSalarie user={user} />}
+      {/* V1 : semaine type en emploi du temps, « Cette semaine », semaines modifiées. MVP : les horaires habituels, tout simplement. */}
+      {!profile && !liberal && has("semaineType") && <SemaineTypeSalarie user={user} />}
+      {!profile && !liberal && !has("semaineType") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Horaires de travail habituels</CardTitle>
+            <CardDescription>
+              Les plages de chaque jour (ex. 08:30 → 12:30 puis 14:00 → 17:00). Elles disent au planning qui est là le matin, l&apos;après-midi ou toute la journée.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ContractHoursField value={draft.weeklyHours} disabled={!can("param.cabinet")} onChange={(weeklyHours) => setDraft({ ...draft, weeklyHours })} />
+            <HoursEditor
+              value={draft.schedule ?? effectiveHours(draft)}
+              disabled={!canEdit}
+              contractHours={draft.weeklyHours}
+              onChange={(schedule) => setDraft({ ...draft, schedule, ...daysFromHours(schedule) })}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {!profile && liberal && (
         <Card>
@@ -135,7 +155,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
       )}
 
       {/* Missions : seulement pour les salariés, un praticien libéral n'a pas de fiche de poste. */}
-      {!liberal && <MissionsCard user={user} canManage={rights.canManage} canCheck={self || rights.canManage} />}
+      {!liberal && <MissionsCard user={user} canManage={rights.canManage} canCheck={self || rights.canManage} simple={!has("missionsSuivies")} />}
 
       {profile && <EquipeCard profile={profile} canEdit={canEdit} />}
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
@@ -143,7 +163,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {/* Praticien libéral : pas de salaire versé par le cabinet. */}
       {!liberal && <SalaryCard user={user} canSee={canSeeSalary} canEdit={canEditSalary} />}
       <RappelsCard user={user} canEdit={canEditRH} medecineOnly={liberal} />
-      {!liberal && rights.canSeeRecadrages && <RecadragesCard user={user} canEdit={canEditRH} />}
+      {!liberal && rights.canSeeRecadrages && has("recadrages") && <RecadragesCard user={user} canEdit={canEditRH} />}
       {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
       {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
       {profile && <DpcCard user={user} canEdit={canEditRH} />}

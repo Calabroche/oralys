@@ -10,6 +10,7 @@ import { RemplacementsPanel } from "@/components/team/remplacements/Remplacement
 import { CalendarPlus, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,7 +51,15 @@ function Planning() {
   // Onglets, façon Hub Patient : des pastilles groupées avec compteur plutôt qu'un seul "À traiter".
   // Demandes à valider (dont dernier moment), Manques à couvrir, Calendrier, À remplacer (RDV), Toutes les absences.
   const [storedTab, setTab] = useState(() => params.get("tab") ?? "calendrier");
-  const tab = (!canSeeToDo && (storedTab === "demandes" || storedTab === "manques")) || (!canReplace && storedTab === "remplacer") ? "calendrier" : storedTab;
+  // MVP : « Manques à couvrir », « À remplacer » et « Semaines types » arrivent en V1 (les deux premiers restent visibles, grisés).
+  const combler = has("remplacements");
+  const tab =
+    (!canSeeToDo && (storedTab === "demandes" || storedTab === "manques")) ||
+    (!canReplace && storedTab === "remplacer") ||
+    (!combler && storedTab === "manques") ||
+    (!has("semaineType") && storedTab === "semaines")
+      ? "calendrier"
+      : storedTab;
   const todo = useToDo();
   const demandesCount = todo.pending.length + todo.lastMinute.filter((x) => x.open > 0).length;
   const manquesCount = todo.gaps.length + todo.coverage.length;
@@ -164,9 +173,11 @@ function Planning() {
             <TabsTrigger value="calendrier" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
               Calendrier
             </TabsTrigger>
-            <TabsTrigger value="semaines" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
-              Semaines types
-            </TabsTrigger>
+            {has("semaineType") && (
+              <TabsTrigger value="semaines" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+                Semaines types
+              </TabsTrigger>
+            )}
             <TabsTrigger value="liste" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
               Toutes les absences
             </TabsTrigger>
@@ -177,11 +188,20 @@ function Planning() {
                 Demandes à valider
                 {demandesCount > 0 && <Badge className="ml-1 h-4 bg-pink-500 px-1.5 text-[0.65rem]">{demandesCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="manques" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
-                Manques à couvrir
-                {manquesCount > 0 && <Badge className="ml-1 h-4 bg-amber-500 px-1.5 text-[0.65rem]">{manquesCount}</Badge>}
-              </TabsTrigger>
+              {combler ? (
+                <TabsTrigger value="manques" className="rounded-full px-3 py-1.5 data-active:bg-pink-100 data-active:text-pink-900 data-active:shadow-none">
+                  Manques à couvrir
+                  {manquesCount > 0 && <Badge className="ml-1 h-4 bg-amber-500 px-1.5 text-[0.65rem]">{manquesCount}</Badge>}
+                </TabsTrigger>
+              ) : (
+                <BientotV1 label="Manques à couvrir" />
+              )}
             </TabsList>
+          )}
+          {!canReplace && allowed("remplacements") && (
+            <span className="rounded-full bg-slate-100 p-0.5">
+              <BientotV1 label="À remplacer" />
+            </span>
           )}
           {canReplace && (
             <TabsList className="h-auto gap-0.5 rounded-full bg-slate-100 p-0.5">
@@ -355,6 +375,20 @@ function Planning() {
 
       <DeclareAbsenceDialog open={declareOpen} onOpenChange={setDeclareOpen} prefill={prefill} />
     </div>
+  );
+}
+
+/** Onglet grisé : la fonction existe dans la démo à partir de la V1. */
+function BientotV1({ label }: { label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0} className="inline-flex cursor-not-allowed items-center rounded-full px-3 py-1.5 text-sm font-medium text-slate-400 select-none">
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>Disponible ultérieurement, en V1</TooltipContent>
+    </Tooltip>
   );
 }
 

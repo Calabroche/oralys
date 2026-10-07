@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AccessGate } from "@/components/team/Access";
+import { useVersion } from "@/components/team/Version";
 import { PageHeader, RoleBadges, UserAvatar } from "@/components/team/shared";
 import { useTeam } from "@/context/TeamDataContext";
 import { CP_PAR_AN, cpSummary, hasCongesPayes } from "@/lib/conges";
@@ -53,6 +54,7 @@ function nextRendezVous(u: TeamUser): { label: string; date: string } | null {
 
 function Dossiers() {
   const { users, absences, now } = useTeam();
+  const { has } = useVersion();
   const today = toISODate(now());
   const actifs = users.filter((u) => u.status === "actif").sort((a, b) => a.lastName.localeCompare(b.lastName));
 
@@ -65,8 +67,8 @@ function Dossiers() {
       <Tabs defaultValue="liste">
         <TabsList variant="line">
           <TabsTrigger value="liste">Liste</TabsTrigger>
-          <TabsTrigger value="missions">Missions types</TabsTrigger>
-          <TabsTrigger value="modeles">Modèles de documents</TabsTrigger>
+          {has("missionsSuivies") && <TabsTrigger value="missions">Missions types</TabsTrigger>}
+          {has("modeles") && <TabsTrigger value="modeles">Modèles de documents</TabsTrigger>}
         </TabsList>
         <TabsContent value="missions" className="mt-5">
           <MissionsTypes />
@@ -83,7 +85,7 @@ function Dossiers() {
               <TableHead>Contrat</TableHead>
               <TableHead>Congés payés</TableHead>
               <TableHead>Prochain rendez-vous</TableHead>
-              <TableHead>Missions</TableHead>
+              {has("missionsSuivies") && <TableHead>Missions</TableHead>}
               <TableHead>Assiduité</TableHead>
               <TableHead>À compléter</TableHead>
               <TableHead className="w-36" />
@@ -144,6 +146,7 @@ function Dossiers() {
                       <span className="text-slate-400">—</span>
                     )}
                   </TableCell>
+                  {has("missionsSuivies") && (
                   <TableCell className="text-sm">
                     {ms.tone ? (
                       <span className="flex flex-col">
@@ -161,6 +164,7 @@ function Dossiers() {
                       <span className="text-slate-400">—</span>
                     )}
                   </TableCell>
+                  )}
                   <TableCell className="text-sm tabular-nums">
                     {ass ? (
                       <span>
@@ -194,7 +198,7 @@ function Dossiers() {
         </Table>
       </div>
       <p className="text-[11px] text-slate-400">NB : {ASSIDUITE_NB}</p>
-      <p className="text-[11px] text-slate-400">NB : {TAUX_MISSIONS_NB}</p>
+      {has("missionsSuivies") && <p className="text-[11px] text-slate-400">NB : {TAUX_MISSIONS_NB}</p>}
         </TabsContent>
       </Tabs>
     </div>

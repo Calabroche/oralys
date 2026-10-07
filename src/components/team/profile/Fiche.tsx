@@ -12,6 +12,7 @@ import { useTeam } from "@/context/TeamDataContext";
 import { RoleBadges, UserAvatar, toneFor } from "@/components/team/shared";
 import { ContractHoursField, HoursEditor } from "@/components/team/WorkSchedule";
 import { usePersonRights } from "@/components/team/profile/rights";
+import { useVersion } from "@/components/team/Version";
 import { ETAT_LABELS, MissionEtatBadge, RateText, primes12Mois } from "@/components/team/profile/RHSections";
 import { assiduite, ASSIDUITE_NB } from "@/lib/assiduite";
 import { cpSummary, CP_PAR_AN, hasCongesPayes } from "@/lib/conges";
@@ -217,6 +218,7 @@ function Row({ icon, label, children }: { icon?: React.ReactNode; label: string;
  */
 export function RecapContent({ user, compact }: { user: TeamUser; compact?: boolean }) {
   const { absences, now } = useTeam();
+  const { has } = useVersion();
   const rights = usePersonRights(user);
   const today = toISODate(now());
   const salarie = hasCongesPayes(user);
@@ -242,6 +244,7 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
         {ass && tile("Assiduité", `${ass.taux.toLocaleString("fr-FR")} %`, `${ass.absents} j d'absence sur 12 mois`)}
         {cp && tile("Congés payés", `${cp.solde} j`, `restants sur ${CP_PAR_AN} · ${cp.horsAppli + cp.pris} pris`)}
         {ms.tone &&
+          has("missionsSuivies") &&
           tile(
             "Missions",
             rate ? `${rate.taux} % réalisées` : ms.tone === "rouge" ? `${ms.enRetard.length} en retard` : "À jour",
@@ -258,6 +261,7 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
         {primes && tile("Primes", `${primes.total.toLocaleString("fr-FR")} €`, primes.nombre ? `${primes.nombre} sur 12 mois` : "aucune sur 12 mois")}
         {salarie &&
           rights.canSeeRecadrages &&
+          has("recadrages") &&
           tile(
             "Recadrages",
             recadrages.length,
@@ -267,7 +271,7 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
         {entretien && tile("Dernier entretien", formatShortDate(entretien.date), entretien.label)}
       </div>
       {ass && <p className="text-[11px] leading-snug text-slate-400">NB : {ASSIDUITE_NB}</p>}
-      {rate && <p className="text-[11px] leading-snug text-slate-400">NB : {TAUX_MISSIONS_NB}</p>}
+      {rate && has("missionsSuivies") && <p className="text-[11px] leading-snug text-slate-400">NB : {TAUX_MISSIONS_NB}</p>}
     </div>
   );
 }
@@ -276,6 +280,21 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
 export function MissionsRecap({ user }: { user: TeamUser }) {
   const { now } = useTeam();
   const today = toISODate(now());
+  // MVP : la simple liste des missions de la fiche de poste. Le suivi (état, taux) arrive en V1.
+  if (!useVersion().has("missionsSuivies")) {
+    const all = missionsOf(user);
+    if (!all.length) return <p className="text-sm text-slate-400">Pas de mission.</p>;
+    return (
+      <ul className="space-y-1 text-sm text-slate-700">
+        {all.map((m) => (
+          <li key={m.id} className="flex gap-2">
+            <span className="text-slate-400">•</span>
+            {m.titre}
+          </li>
+        ))}
+      </ul>
+    );
+  }
   const suivies = missionsOf(user).filter((m) => m.frequence !== "aucune");
   const fiche = missionsOf(user).filter((m) => m.frequence === "aucune");
   if (!suivies.length && !fiche.length) return <p className="text-sm text-slate-400">Pas de mission.</p>;

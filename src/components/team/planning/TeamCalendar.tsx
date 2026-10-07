@@ -20,6 +20,7 @@ import {
   worksOn,
 } from "@/lib/team";
 import { missionsDueOn } from "@/lib/missions";
+import { useVersion } from "@/components/team/Version";
 import { UserAvatar, absenceTone } from "@/components/team/shared";
 import { AbsencePopover } from "@/components/team/AbsencePopover";
 import { PersonLink } from "@/components/team/PersonSheet";
@@ -57,6 +58,7 @@ export function TeamCalendar({
 }) {
   const { absences, now, findUser, roles, sessionUser, can } = useTeam();
   // Missions du jour : chacun voit les siennes ; gestionnaire, praticiens et comptable voient celles de tous.
+  const suivi = useVersion().has("missionsSuivies");
   const seesAllMissions = can("param.cabinet") || can("compta") || (!!sessionUser && isHealthProfessional(sessionUser, roles));
   const today = toISODate(now());
   const compact = dates.length > 10;
@@ -158,7 +160,7 @@ export function TeamCalendar({
                               {!compact && !isChairAssistant(u) && halvesOn(u, iso).length === 1 && (
                                 <span className="text-[0.62rem] leading-tight text-slate-500">{halvesOn(u, iso)[0] === "matin" ? "matin" : "après-midi"}</span>
                               )}
-                              {!compact && (seesAllMissions || u.id === sessionUser?.id) && <DayMissions user={u} iso={iso} today={today} />}
+                              {!compact && suivi && (seesAllMissions || u.id === sessionUser?.id) && <DayMissions user={u} iso={iso} today={today} />}
                             </span>
                             <span className="hidden text-xs text-slate-400 group-hover:inline">+ absence</span>
                           </button>

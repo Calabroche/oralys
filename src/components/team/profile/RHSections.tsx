@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTeam } from "@/context/TeamDataContext";
+import { useVersion } from "@/components/team/Version";
 import { PersonAbsences } from "@/components/team/PersonAbsences";
 import { DocumentChip, FileButton, type DocumentDraft } from "@/components/team/Justificatifs";
 import { WEEKDAYS, WEEKDAY_LABELS, addDays, diffInDays, formatShortDate, fromISODate, toISODate } from "@/utils/date";
@@ -164,7 +165,7 @@ function HistoryDots({ mission, today, travaille }: { mission: Mission; today: s
  * ou mois). La personne coche quand c'est fait ; une mission « à contrôler » est ensuite validée par le gestionnaire
  * ou le praticien. Le taux sur 8 semaines dit si la personne est dedans dans la durée, pas seulement cette semaine.
  */
-export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; canManage: boolean; canCheck: boolean }) {
+export function MissionsCard({ user, canManage, canCheck, simple }: { user: TeamUser; canManage: boolean; canCheck: boolean; simple?: boolean }) {
   const { updateUser, now, missionTemplates } = useTeam();
   const today = toISODate(now());
   const missions = missionsOf(user);
@@ -224,9 +225,10 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
       toast.success(verdict === "ok" ? "Contrôlée : conforme" : "Contrôlée : non conforme", { description: m.titre });
   }
 
-  const suivies = missions.filter((m) => m.frequence !== "aucune");
-  const fiche = missions.filter((m) => m.frequence === "aucune");
-  const global = personMissionRate(user, today, travaille);
+  // MVP (simple) : une liste de missions de la fiche de poste, sans fréquence ni suivi. Le suivi arrive en V1.
+  const suivies = simple ? [] : missions.filter((m) => m.frequence !== "aucune");
+  const fiche = simple ? missions : missions.filter((m) => m.frequence === "aucune");
+  const global = simple ? null : personMissionRate(user, today, travaille);
 
   return (
     <Card>
@@ -236,7 +238,7 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
             <Briefcase className="size-4 text-slate-400" /> Missions
           </CardTitle>
           <CardDescription>
-            Ce que couvre le poste, et les missions qui reviennent (chaque jour, semaine ou mois) à cocher une fois faites.
+            {simple ? "Ce que couvre le poste." : "Ce que couvre le poste, et les missions qui reviennent (chaque jour, semaine ou mois) à cocher une fois faites."}
             {!canManage && " Créées par le gestionnaire ou le praticien."}
           </CardDescription>
         </div>
@@ -326,7 +328,7 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
         {missions.length === 0 && <p className="text-sm text-slate-400">{canManage ? "Pas encore de mission." : "Pas encore de mission définie par le gestionnaire."}</p>}
         {canManage && (
           <div className="space-y-2 rounded-lg border border-dashed p-3">
-            {catalogue.length > 0 && (
+            {!simple && catalogue.length > 0 && (
               <Select value="" onValueChange={pick}>
                 <SelectTrigger size="sm" className="w-full sm:w-auto">
                   <ListChecks className="size-3.5" />
@@ -349,6 +351,7 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
                 className="min-w-56 flex-1"
               />
+              {!simple && (
               <Select value={frequence} onValueChange={(v) => setFrequence(v as MissionFrequence)}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
@@ -361,6 +364,7 @@ export function MissionsCard({ user, canManage, canCheck }: { user: TeamUser; ca
                   ))}
                 </SelectContent>
               </Select>
+              )}
               {frequence === "hebdo" && (
                 <Select value={jour} onValueChange={(v) => setJour(v as Weekday)}>
                   <SelectTrigger className="w-32">
@@ -1292,7 +1296,9 @@ export function DocumentsCard({ user, canAdd, canManage }: { user: TeamUser; can
 /** Choisir un modèle de document : prépare un document pré-rempli, à compléter puis ranger dans le profil. */
 function FromTemplateButton({ user, onPick }: { user: TeamUser; onPick: (doc: RHDocument) => void }) {
   const { docTemplates, now, sessionUserId } = useTeam();
-  if (!docTemplates.length) return null;
+  // Modèles de documents : V1.
+  const { has } = useVersion();
+  if (!docTemplates.length || !has("modeles")) return null;
   return (
     <Select
       value=""

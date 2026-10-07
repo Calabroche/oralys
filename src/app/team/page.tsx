@@ -38,9 +38,13 @@ export default function TeamDashboard() {
   const presentCount = working.length - absentToday.length;
   const openLastMinute = todo.lastMinute.filter((x) => x.open > 0).length;
 
+  // MVP : présents, absences de dernier moment, utilisateurs actifs. V1 : « À traiter » (manques, RDV à réaffecter).
+  const pilotage = has("pilotage");
   const kpis = [
     { label: "Présents aujourd'hui", value: `${presentCount}/${active.length}`, icon: UserCheck, href: "/team/planning" },
-    { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=demandes", alert: todo.count > 0 },
+    pilotage
+      ? { label: "À traiter", value: todo.count, icon: ListTodo, href: "/team/planning?tab=demandes", alert: todo.count > 0 }
+      : { label: "Absences de dernier moment", value: openLastMinute, icon: Siren, href: "/team/planning?tab=demandes", alert: openLastMinute > 0 },
     ...(isManager ? [{ label: "Utilisateurs actifs", value: active.length, icon: Users, href: "/team/reglages/utilisateurs" }] : []),
   ];
 
@@ -93,6 +97,7 @@ export default function TeamDashboard() {
         ))}
       </div>
 
+        {pilotage && (
         <Card>
           <CardHeader>
             <CardTitle>À traiter</CardTitle>
@@ -126,6 +131,7 @@ export default function TeamDashboard() {
             )}
           </CardContent>
         </Card>
+        )}
       </>
       )}
 
@@ -140,7 +146,8 @@ export default function TeamDashboard() {
         <Trombinoscope />
         {sensitive && (
           <p className="text-[11px] text-slate-400">
-            Pastille sur la photo : la part des missions faites sur les 8 dernières semaines, du vert (toujours faites) au rouge (souvent oubliées). NB : {ASSIDUITE_NB}
+            {has("missionsSuivies") && "Pastille sur la photo : la part des missions faites sur les 8 dernières semaines, du vert (toujours faites) au rouge (souvent oubliées). "}
+            NB : {ASSIDUITE_NB}
           </p>
         )}
       </section>

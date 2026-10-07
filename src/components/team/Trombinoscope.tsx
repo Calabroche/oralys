@@ -5,6 +5,7 @@ import { useTeam } from "@/context/TeamDataContext";
 import { RoleBadges, UserAvatar } from "@/components/team/shared";
 import { usePersonSheet } from "@/components/team/PersonSheet";
 import { travailleAvec } from "@/components/team/profile/Fiche";
+import { useVersion } from "@/components/team/Version";
 import { assiduite } from "@/lib/assiduite";
 import { hasCongesPayes } from "@/lib/conges";
 import { missionsSummary, personMissionRate, rateColor, rateTone } from "@/lib/missions";
@@ -21,6 +22,8 @@ import { cn } from "@/lib/utils";
 export function Trombinoscope({ users }: { users?: TeamUser[] }) {
   const { users: all, profiles, absences, now, can, sessionUser, roles } = useTeam();
   const { open } = usePersonSheet();
+  // Suivi des missions (pastille, taux) : V1.
+  const suivi = useVersion().has("missionsSuivies");
   const today = toISODate(now());
   const sensitive = can("param.cabinet") || (!!sessionUser && isHealthProfessional(sessionUser, roles)) || can("compta");
   const actifs = (users ?? all).filter((u) => u.status === "actif");
@@ -46,9 +49,9 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
                 const abs = absenceOn(u.id, today, absences);
                 const works = worksOn(u, today);
                 const avec = travailleAvec(u, profiles);
-                const ms = sensitive ? missionsSummary(u, today) : null;
+                const ms = sensitive && suivi ? missionsSummary(u, today) : null;
                 // Pastille : la couleur suit le taux de réalisation sur 8 semaines, du rouge au vert.
-                const rate = sensitive ? personMissionRate(u, today, (iso) => worksOn(u, iso)) : null;
+                const rate = sensitive && suivi ? personMissionRate(u, today, (iso) => worksOn(u, iso)) : null;
                 const ass = sensitive && hasCongesPayes(u) ? assiduite(u, absences, today) : null;
                 return (
                   <li key={u.id}>

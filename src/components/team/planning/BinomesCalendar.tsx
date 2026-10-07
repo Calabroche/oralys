@@ -184,7 +184,7 @@ export function BinomesCalendar({
                       <Popover key={key}>
                         <PopoverTrigger asChild>
                           <button
-                            title={`${fullName(u)} est prévu(e) en titulaire mais sur « ${o.label} » ce créneau. Cliquer pour choisir un back-up.`}
+                            title={`${fullName(u)} est prévu(e) en titulaire mais sur « ${o.label} » ce créneau.`}
                             className="flex flex-col items-start rounded border border-amber-300 bg-amber-50 px-1.5 py-1 text-left text-xs font-medium text-amber-900 hover:ring-1 hover:ring-amber-400"
                           >
                             <span className="flex items-center gap-1">
@@ -197,7 +197,8 @@ export function BinomesCalendar({
                           <p className="mb-3 text-sm font-medium text-slate-900">
                             {u.firstName} est au cabinet {half === "matin" ? "ce matin-là" : "cet après-midi-là"}, mais sur « {o.label} »
                             <span className="mt-1 block text-xs font-normal text-slate-500">
-                              Elle reste prévue comme titulaire de {displayName(praticien)}. Choisissez un back-up : il prend sa place sur ce créneau.
+                              Elle reste prévue comme titulaire de {displayName(praticien)}.
+                              {has("remplacements") && " Choisissez un back-up : il prend sa place sur ce créneau."}
                             </span>
                           </p>
                           <GapActions day={day} staffing={staffing.get(iso)!} showLink />
@@ -209,7 +210,7 @@ export function BinomesCalendar({
                           <Popover>
                             <PopoverTrigger asChild>
                               <button
-                                title="Voir pourquoi et agir"
+                                title={has("remplacements") ? "Voir pourquoi et agir" : "Voir pourquoi (le combler arrive en V1)"}
                                 className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-1 text-left text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
                                 <UserX className="size-3 shrink-0" />
