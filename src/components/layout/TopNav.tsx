@@ -4,13 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CABINET_NAME } from "@/data/mockData";
+import { itemsStock, useDossiers } from "@/context/DossiersContext";
 
 const NAV_ITEMS = [
   { label: "Activité", href: "/activite", enabled: true },
-  { label: "Patients", href: "/patients", enabled: false },
+  { label: "Patients", href: "/patients", enabled: true },
   { label: "Agenda", href: "/agenda", match: ["/agenda", "/reglages"], enabled: true },
   { label: "Téléconsultation", href: "/teleconsultation", enabled: false },
   { label: "Stérilisation", href: "/sterilisation", enabled: false },
+  { label: "Stock", href: "/stock", enabled: true },
   { label: "Comptabilité", href: "/comptabilite", enabled: false },
 ];
 
@@ -18,6 +20,8 @@ export function TopNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [planetOpen, setPlanetOpen] = useState(false);
+  const { patients } = useDossiers();
+  const aCommander = itemsStock(patients).filter((l) => l.commande.statut === "a-commander").length;
 
   // La planète Team a son propre en-tête (liseré rose).
   if (pathname.startsWith("/team")) return null;
@@ -77,9 +81,14 @@ export function TopNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"}
+                  className={`flex items-center gap-1.5 ${isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"}`}
                 >
                   {item.label}
+                  {item.href === "/stock" && aCommander > 0 && (
+                    <span className="rounded-full bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800" title={`${aCommander} à commander`}>
+                      {aCommander}
+                    </span>
+                  )}
                 </Link>
               );
             })}

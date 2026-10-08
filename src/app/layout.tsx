@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TopNav } from "@/components/layout/TopNav";
 import { AgendaDataProvider } from "@/context/AgendaDataContext";
+import { DossiersProvider } from "@/context/DossiersContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,8 +29,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* Certaines extensions (ex. pipette de couleurs) ajoutent des attributs au body : on ne le signale pas comme une erreur. */}
       <body className="flex min-h-full flex-col bg-slate-50 text-slate-900" suppressHydrationWarning>
         <AgendaDataProvider>
-          <TopNav />
-          <main className="flex-1">{children}</main>
+          <DossiersProvider>
+            <TopNav />
+            <main className="flex-1">{children}</main>
+          </DossiersProvider>
         </AgendaDataProvider>
       </body>
     </html>

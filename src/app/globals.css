@@ -131,3 +131,20 @@
     @apply font-sans;
   }
 }
+/* Dossier patient : « Enregistré » apparaît puis s'efface après chaque modification. */
+@keyframes saved-flash {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.saved-flash {
+  animation: saved-flash 1.6s ease forwards;
+}
+
+@keyframes saved-toast {
+  0% { opacity: 0; transform: translateY(-6px); }
+  10%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.saved-toast {
+  animation: saved-toast 2.2s ease forwards;
+}
