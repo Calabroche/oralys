@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTeam } from "@/context/TeamDataContext";
+import { useProfilsPlanning } from "@/components/team/useProfilsPlanning";
 import { AbsenceBadge, PageHeader, PillFilter } from "@/components/team/shared";
 import { TeamCalendar } from "@/components/team/planning/TeamCalendar";
 import { DeclareAbsenceDialog, DeclarePrefill } from "@/components/team/planning/DeclareAbsenceDialog";
@@ -26,7 +27,7 @@ import { DayStaffingView } from "@/components/team/planning/DayStaffingView";
 import { SemainesTypes } from "@/components/team/planning/SemainesTypes";
 import { DayCountPicker } from "@/components/shared/DayCountPicker";
 import { DocumentBadge } from "@/components/team/Justificatifs";
-import { addDays, fromISODate, startOfWeek, toISODate } from "@/utils/date";
+import { addDays, addMonths, fromISODate, startOfWeek, toISODate } from "@/utils/date";
 
 export default function PlanningPage() {
   return (
@@ -61,7 +62,7 @@ function Planning() {
       ? "calendrier"
       : storedTab;
   const todo = useToDo();
-  const demandesCount = todo.pending.length + todo.lastMinute.filter((x) => x.open > 0).length;
+  const demandesCount = todo.pending.length + todo.lastMinute.filter((x) => x.aTraiter).length;
   const manquesCount = todo.gaps.length + todo.coverage.length;
   const [mode, setMode] = usePersistentState<"jour" | "semaine" | "jours" | "mois">("planning-mode", "semaine");
   const [customDays, setCustomDays] = usePersistentState("planning-custom-days", 5);
@@ -108,7 +109,12 @@ function Planning() {
   const active = users.filter((u) => u.status === "actif");
   const people = active.filter((u) => roleFilter === "tous" || u.roleIds.includes(roleFilter));
 
-  const staffing = useMemo(() => new Map(dates.map((iso) => [iso, dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds)])), [dates, profiles, users, absences, dayOverrides, dayNeeds]);
+  // En MVP, pas d'équipes rattachées : le planning part vide et se remplit à la main (voir useProfilsPlanning).
+  const profilsPlanning = useProfilsPlanning();
+  const staffing = useMemo(
+    () => new Map(dates.map((iso) => [iso, dayStaffing(iso, profilsPlanning, users, absences, dayOverrides, dayNeeds)])),
+    [dates, profilsPlanning, users, absences, dayOverrides, dayNeeds]
+  );
   // Tension = un praticien qui consulte n'a pas tous les assistants dont il a besoin.
   const tensions = useMemo(
     () =>
@@ -334,7 +340,7 @@ function Planning() {
                   }}
                 />
               )}
-              <BinomesLegend />
+              <BinomesLegend equipes={has("equipes")} />
             </>
           ) : (
             <>
@@ -392,21 +398,34 @@ function BientotV1({ label }: { label: string }) {
   );
 }
 
-function BinomesLegend() {
+function BinomesLegend({ equipes }: { equipes: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-      <span className="flex items-center gap-1.5">
-        <span className="rounded bg-emerald-100 px-1.5 text-emerald-900">Prénom</span> Titulaire
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="rounded border border-dashed border-sky-300 bg-sky-50 px-1.5 text-sky-900">↻ Prénom</span> Back-up (remplace ou complète)
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="rounded border border-violet-300 bg-violet-50 px-1.5 text-violet-900">⇄ Prénom</span> Prêté(e) pour la journée
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="rounded border border-dashed border-rose-300 px-1.5 text-rose-700">Manque 1</span> Besoin non couvert
-      </span>
+      {equipes ? (
+        <>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded bg-emerald-100 px-1.5 text-emerald-900">Prénom</span> Titulaire
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded border border-dashed border-sky-300 bg-sky-50 px-1.5 text-sky-900">↻ Prénom</span> Back-up (remplace ou complète)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded border border-violet-300 bg-violet-50 px-1.5 text-violet-900">⇄ Prénom</span> Prêté(e) pour la journée
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded border border-dashed border-rose-300 px-1.5 text-rose-700">Manque 1</span> Besoin non couvert
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded bg-emerald-100 px-1.5 text-emerald-900">Prénom</span> Placé(e) par le gestionnaire
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="rounded border border-dashed border-rose-300 px-1.5 text-rose-600">+ Assistant</span> Place à remplir (une par assistant nécessaire)
+          </span>
+        </>
+      )}
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-5 rounded bg-[repeating-linear-gradient(135deg,#e2e8f0,#e2e8f0_2px,transparent_2px,transparent_5px)]" /> Ne consulte pas
       </span>
@@ -449,67 +468,77 @@ function Legend() {
 function AllAbsences() {
   const { absences, findUser, can, sessionUserId, now } = useTeam();
   const { cancelWithUndo } = useAbsenceActions();
-  const sorted = collapseRecurring(absences, toISODate(now())).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  // Seulement ce qui touche la période utile : un mois en arrière, un mois en avant.
+  const depuis = toISODate(addMonths(now(), -1));
+  const jusqua = toISODate(addMonths(now(), 1));
+  const sorted = collapseRecurring(absences, toISODate(now()))
+    .filter((a) => a.endDate >= depuis && a.startDate <= jusqua)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="text-xs uppercase">
-          <TableHead>Collaborateur</TableHead>
-          <TableHead>Période</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Statut</TableHead>
-          <TableHead>Déclarée</TableHead>
-          <TableHead className="w-10" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sorted.map((a) => {
-          const u = findUser(a.userId);
-          const by = findUser(a.declaredById);
-          return (
-            <TableRow key={a.id}>
-              <TableCell className="font-medium">{u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</TableCell>
-              <TableCell>
-                {shortDate(a.startDate)} → {shortDate(a.endDate)}
-                {a.recurrence && <span className="ml-1.5 text-xs text-slate-500">{a.recurrence.toLowerCase()}</span>}
-              </TableCell>
-              <TableCell>
-                <span className="flex items-center gap-1.5">
-                  <AbsencePopover absence={a}>
-                    <button className="rounded hover:ring-1 hover:ring-slate-300">
-                      <AbsenceBadge absence={a} compact />
-                    </button>
-                  </AbsencePopover>
-                  {(can("team.planning") || a.userId === sessionUserId) && <DocumentBadge absence={a} />}
-                </span>
-              </TableCell>
-              <TableCell className="text-sm">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "À valider" : "Refusée"}</TableCell>
-              <TableCell className="text-xs text-slate-500">
-                {a.source === "soins" ? (
-                  "Agenda Soins"
-                ) : (
-                  <>
-                    {new Date(a.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                    {by ? ` par ${by.firstName}` : ""}
-                  </>
-                )}
-              </TableCell>
-              <TableCell>
-                {a.source !== "soins" && (can("team.planning") || a.userId === sessionUserId) && (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Annuler l'absence"
-                    onClick={() => cancelWithUndo(a.id)}
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <>
+      <p className="mb-2 text-xs text-slate-500">
+        Absences du {shortDate(depuis)} au {shortDate(jusqua)} : le mois écoulé et le mois à venir.
+      </p>
+      <Table>
+        <TableHeader>
+          <TableRow className="text-xs uppercase">
+            <TableHead>Collaborateur</TableHead>
+            <TableHead>Période</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Statut</TableHead>
+            <TableHead>Déclarée</TableHead>
+            <TableHead className="w-10" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((a) => {
+            const u = findUser(a.userId);
+            const by = findUser(a.declaredById);
+            return (
+              <TableRow key={a.id}>
+                <TableCell className="font-medium">{u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</TableCell>
+                <TableCell>
+                  {shortDate(a.startDate)} → {shortDate(a.endDate)}
+                  {a.recurrence && <span className="ml-1.5 text-xs text-slate-500">{a.recurrence.toLowerCase()}</span>}
+                </TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-1.5">
+                    <AbsencePopover absence={a}>
+                      <button className="rounded hover:ring-1 hover:ring-slate-300">
+                        <AbsenceBadge absence={a} compact />
+                      </button>
+                    </AbsencePopover>
+                    {(can("team.planning") || a.userId === sessionUserId) && <DocumentBadge absence={a} />}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm">{a.status === "validee" ? "Validée" : a.status === "demandee" ? "À valider" : "Refusée"}</TableCell>
+                <TableCell className="text-xs text-slate-500">
+                  {a.source === "soins" ? (
+                    "Agenda Soins"
+                  ) : (
+                    <>
+                      {new Date(a.declaredAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                      {by ? ` par ${by.firstName}` : ""}
+                    </>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {a.source !== "soins" && (can("team.planning") || a.userId === sessionUserId) && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Annuler l'absence"
+                      onClick={() => cancelWithUndo(a.id)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </>
   );
 }

@@ -2,11 +2,12 @@
 
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, Siren, UserX } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, Info, Siren, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTeam } from "@/context/TeamDataContext";
+import { useProfilsPlanning } from "@/components/team/useProfilsPlanning";
 import { AbsenceBadge, Gate, UserAvatar } from "@/components/team/shared";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { useVersion } from "@/components/team/Version";
@@ -23,6 +24,7 @@ const HORIZON = 14;
 /** Tout ce qui demande une action sur les absences, calculé une fois pour le planning et le tableau de bord. */
 export function useToDo() {
   const { absences, rdvs, profiles, users, dayOverrides, dayNeeds, now } = useTeam();
+  const profilsPlanning = useProfilsPlanning();
   const dernierMoment = useVersion().has("dernierMoment");
   const today = toISODate(now());
   const until = toISODate(addDays(now(), HORIZON));
@@ -36,15 +38,48 @@ export function useToDo() {
     const toReassign = risks.filter((r) => r.reason !== "praticien").map((r) => r.rdv);
     const pending = absences.filter((a) => a.status === "demandee");
     // Dernier moment : selon la version de la démo.
+    const dates = datesBetween(today, until).filter((iso) => fromISODate(iso).getDay() !== 0);
+    const staffingOf = new Map(dates.map((iso) => [iso, dayStaffing(iso, profilsPlanning, users, absences, dayOverrides, dayNeeds)]));
     const lastMinute = absences
       .filter((a) => dernierMoment && a.status !== "refusee" && isLastMinute(a) && a.endDate >= today)
-      .map((absence) => ({
-        absence,
-        open: toReassign.filter((r) => r.date >= absence.startDate && r.date <= absence.endDate && r.assistantUserId === absence.userId).length,
-      }));
-    const dates = datesBetween(today, until).filter((iso) => fromISODate(iso).getDay() !== 0);
+      .map((absence) => {
+        const u = users.find((x) => x.id === absence.userId);
+        const dans = (iso: string) => iso >= absence.startDate && iso <= absence.endDate;
+        // Le message dépend du poste : un praticien a des RDV, un assistant ou une aide tient un fauteuil,
+        // la secrétaire, le comptable ou le gestionnaire n'ont pas de RDV patients.
+        const kind: "praticien" | "fauteuil" | "autre" = u?.roleIds.includes("role-praticien")
+          ? "praticien"
+          : u?.roleIds.some((r) => r === "role-assistant" || r === "role-aide")
+            ? "fauteuil"
+            : "autre";
+        const open = toReassign.filter((r) => dans(r.date) && r.assistantUserId === absence.userId).length;
+        const rdvPraticien = risks.filter((r) => r.reason === "praticien" && r.rdv.praticienUserId === absence.userId && dans(r.rdv.date)).length;
+        // Praticiens laissés sans assistant à cause de l'absence : il était prévu avec eux (équipe en V1, placé à la main en MVP).
+        const manques = [...staffingOf]
+          .filter(([iso]) => dans(iso))
+          .flatMap(([iso, st]) =>
+            st.praticiens
+              .filter(
+                (p) =>
+                  p.missing > 0 &&
+                  (p.absentTitulaires.includes(absence.userId) ||
+                    dayOverrides.some((o) => o.date === iso && o.assistantId === absence.userId && o.praticienId === p.praticien.id))
+              )
+              .map((p) => ({ iso, praticien: p.praticien }))
+          );
+        // Assistant ou aide absent(e) : un assistant en moins pour chaque praticien touché, avec ses RDV sur la période
+        // (ceux où il/elle était prévu(e), et les praticiens laissés sans assistant d'après le planning).
+        const rdvsPerdus = rdvs.filter((r) => r.date >= today && dans(r.date) && r.assistantUserId === absence.userId);
+        const touches = new Map<string, number>();
+        rdvsPerdus.forEach((r) => touches.set(r.praticienUserId, (touches.get(r.praticienUserId) ?? 0) + 1));
+        manques.forEach((m) => touches.set(m.praticien.id, touches.get(m.praticien.id) ?? 0));
+        const praticiensTouches = [...touches].map(([praticienId, nbRdv]) => ({ praticien: users.find((x) => x.id === praticienId)!, nbRdv })).filter((x) => x.praticien);
+        const aTraiter = kind === "praticien" ? rdvPraticien > 0 : kind === "fauteuil" ? praticiensTouches.length > 0 : false;
+        return { absence, kind, open, rdvPraticien, manques, praticiensTouches, aTraiter };
+      });
     const gaps = dates.flatMap((iso) =>
-      dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds)
+      staffingOf
+        .get(iso)!
         .praticiens.filter((p) => p.missing > 0)
         .map((day) => ({ iso, day }))
     );
@@ -55,9 +90,9 @@ export function useToDo() {
         .filter((iso) => active.filter((u) => u.roleIds.includes(roleId) && isAvailable(u, iso, absences)).length < rule.min)
         .map((iso) => ({ label: rule.label, iso }))
     );
-    const count = pending.length + lastMinute.filter((x) => x.open > 0).length + gaps.length + coverage.length;
+    const count = pending.length + lastMinute.filter((x) => x.aTraiter).length + gaps.length + coverage.length;
     return { pending, lastMinute, gaps, coverage, toReassign, count };
-  }, [absences, rdvs, profiles, users, dayOverrides, dayNeeds, today, until, dernierMoment]);
+  }, [absences, rdvs, profiles, profilsPlanning, users, dayOverrides, dayNeeds, today, until, dernierMoment]);
 }
 
 function halvesLabel(day: PraticienDay) {
@@ -84,8 +119,8 @@ export function ToDoPanel({
   const { findUser } = useTeam();
   const { has } = useVersion();
   const todo = useToDo();
-  const openLastMinute = todo.lastMinute.filter((x) => x.open > 0);
-  const handledLastMinute = todo.lastMinute.filter((x) => x.open === 0);
+  const openLastMinute = todo.lastMinute.filter((x) => x.aTraiter);
+  const handledLastMinute = todo.lastMinute.filter((x) => !x.aTraiter);
   const showDemandes = only !== "manques";
   const showManques = only !== "demandes";
 
@@ -109,27 +144,49 @@ export function ToDoPanel({
     <div className="space-y-6">
       {showDemandes && (openLastMinute.length > 0 || handledLastMinute.length > 0) && (
         <Section title="Absences de dernier moment" count={openLastMinute.length}>
-          {openLastMinute.map(({ absence: a, open }) => {
+          {openLastMinute.map(({ absence: a, kind, open, rdvPraticien, praticiensTouches }) => {
             const u = findUser(a.userId);
+            // « un assistant en moins pour Dr Sophie Martin (5 RDV sur la période) ».
+            const parPraticien = praticiensTouches.map(
+              ({ praticien, nbRdv }) => `${displayName(praticien)} (${nbRdv ? `${nbRdv} RDV sur la période` : "pas de RDV sur la période"})`
+            );
             return (
               <Row key={a.id} tone="rose" icon={<Siren className="size-5 text-rose-600" />}>
-                <p className="font-medium text-rose-900">{u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</p>
-                <p className="text-rose-800">
-                  {shortDate(a.startDate)} → {shortDate(a.endDate)} · {open} RDV à réaffecter
+                <p className="font-medium text-rose-900">
+                  {u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"} absent(e)
                 </p>
-                <Button size="sm" onClick={() => onReplace(a.id)} className="ml-auto">
-                  Trouver un remplaçant
-                </Button>
+                <p className="text-rose-800">
+                  {shortDate(a.startDate)} → {shortDate(a.endDate)}
+                  {kind === "praticien" && ` · ${rdvPraticien} RDV patient${rdvPraticien > 1 ? "s" : ""} à reporter (agenda Soins fermé)`}
+                  {kind === "fauteuil" && parPraticien.length > 0 && ` · un assistant en moins pour ${parPraticien.join(", ")}`}
+                </p>
+                {kind === "fauteuil" && open > 0 && has("remplacements") && (
+                  <Button size="sm" onClick={() => onReplace(a.id)} className="ml-auto">
+                    Trouver un remplaçant
+                  </Button>
+                )}
               </Row>
             );
           })}
-          {handledLastMinute.map(({ absence: a }) => {
+          {handledLastMinute.map(({ absence: a, kind }) => {
             const u = findUser(a.userId);
+            const nom = u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?";
+            // Secrétaire, comptable, gestionnaire : pas de RDV patients, on informe sans parler de couverture.
+            if (kind === "autre") {
+              return (
+                <Row key={a.id} tone="slate" icon={<Info className="size-5 text-slate-400" />}>
+                  <p className="font-medium text-slate-800">{nom} absent(e)</p>
+                  <p className="text-slate-500">
+                    {shortDate(a.startDate)} → {shortDate(a.endDate)} · pas de RDV patients
+                  </p>
+                </Row>
+              );
+            }
             return (
               <Row key={a.id} tone="emerald" icon={<CheckCircle2 className="size-5 text-emerald-600" />}>
-                <p className="font-medium text-emerald-900">Gérée : {u ? <PersonLink userId={u.id}>{displayName(u)}</PersonLink> : "?"}</p>
+                <p className="font-medium text-emerald-900">{nom} absent(e)</p>
                 <p className="text-emerald-800">
-                  {shortDate(a.startDate)} → {shortDate(a.endDate)} · tous les RDV sont couverts
+                  {shortDate(a.startDate)} → {shortDate(a.endDate)} · {kind === "praticien" ? "tous les RDV sont couverts" : "aucun praticien sans assistant"}
                 </p>
               </Row>
             );

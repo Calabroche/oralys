@@ -17,6 +17,8 @@ import {
   Menu,
   NotebookPen,
   Pencil,
+  Pin,
+  PinOff,
   Plus,
   RefreshCw,
   FolderOpen,
@@ -26,10 +28,12 @@ import {
 } from "lucide-react";
 import { TYPES_RDV, type ItemChecklist, type NotePrivee, type Rdv } from "@/data/dossierPatient";
 import { allRdvs, useDossiers } from "@/context/DossiersContext";
-import { NotesEpinglees, NotesModalActuelle, NotesPopover, ToastEnregistre } from "@/components/patients/NotesPrivees";
+import { NotesApercu, NotesModalActuelle, NotesPopover, ToastEnregistre } from "@/components/patients/NotesPrivees";
 import { ARCADE_INF, ARCADE_SUP, QUADRANTS, SEXTANTS } from "@/lib/dents";
 import { Odontogramme } from "@/components/patients/Odontogramme";
 import { IconeIA, ResumeIAPopover } from "@/components/patients/ResumeIA";
+import { NouveauRdvPopover } from "@/components/patients/NouveauRdv";
+import { DevisRdv } from "@/components/patients/DevisRdv";
 import { RdvCard } from "@/components/patients/RdvCard";
 import { Checklist } from "@/components/patients/Checklist";
 import { DocsBarre, DocsHistorique, DocsOralys } from "@/components/patients/DocumentsPatient";
@@ -48,7 +52,8 @@ export default function PatientsPage() {
   const [notesDiscretes, setNotesDiscretes] = useState(true);
   const [notesOpen, setNotesOpen] = useState(false);
   const [iaOpen, setIaOpen] = useState(false);
-  const [notesMasquees, setNotesMasquees] = useState(false);
+  const [nouveauRdv, setNouveauRdv] = useState(false);
+  const [notesSurvol, setNotesSurvol] = useState(false);
   const [toastCount, setToastCount] = useState(0);
   const [devisOpen, setDevisOpen] = useState(true);
   const [saveCount, setSaveCount] = useState(0);
@@ -66,6 +71,17 @@ export default function PatientsPage() {
     updateRdvCtx(patientId, id, fn);
     setSaveCount((c) => c + 1);
   };
+
+  // Nouveau RDV : ajouté au dossier (plus récent en haut) et ouvert tout de suite pour compléter dents, actes, checklist.
+  const creerRdv = (r: Rdv) => {
+    setPatients((ps) =>
+      ps.map((p) => (p.id === patientId ? { ...p, rdvs: [r, ...p.rdvs].sort((a, b) => (b.date ?? "9999").localeCompare(a.date ?? "9999")) } : p))
+    );
+    setSelectedId(r.id);
+    setNouveauRdv(false);
+    setSaveCount((c) => c + 1);
+  };
+  const praticiens = [...new Set(allRdvs(patient).map((r) => r.praticien))];
 
   const setNotes = (notes: NotePrivee[]) => setPatients((ps) => ps.map((p) => (p.id === patientId ? { ...p, notes } : p)));
   const notesProps = {
@@ -160,27 +176,41 @@ export default function PatientsPage() {
             <span className="flex h-8 w-8 items-center justify-center hover:bg-slate-50">
               <User className="h-4 w-4" />
             </span>
-            <button
-              onClick={() => setNotesOpen((v) => !v)}
-              className={`relative flex h-8 w-8 items-center justify-center hover:bg-slate-50 ${notesOpen ? "bg-lime-100 text-slate-900" : ""}`}
-              aria-label="Notes privées"
-              title="Notes privées"
-            >
-              <NotebookPen className="h-4 w-4" />
-              {patient.notes.length > 0 &&
-                (notesDiscretes ? (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-700 px-1 text-[10px] font-semibold text-white">
-                    {patient.notes.length}
-                  </span>
-                ) : (
-                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
-                ))}
-            </button>
+            <span className="relative flex" onMouseEnter={() => setNotesSurvol(true)} onMouseLeave={() => setNotesSurvol(false)}>
+              <button
+                onClick={() => {
+                  setNotesOpen((v) => !v);
+                  setNotesSurvol(false);
+                }}
+                className={`relative flex h-8 w-8 items-center justify-center hover:bg-slate-50 ${notesOpen ? "bg-lime-100 text-slate-900" : ""}`}
+                aria-label="Notes du patient"
+                title={notesDiscretes ? undefined : "Notes"}
+              >
+                <NotebookPen className="h-4 w-4" />
+                {patient.notes.length > 0 &&
+                  (notesDiscretes ? (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-700 px-1 text-[10px] font-semibold text-white">
+                      {patient.notes.length}
+                    </span>
+                  ) : (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                  ))}
+              </button>
+              {notesSurvol && !notesOpen && notesDiscretes && (
+                <NotesApercu
+                  notes={patient.notes}
+                  onOpen={() => {
+                    setNotesOpen(true);
+                    setNotesSurvol(false);
+                  }}
+                />
+              )}
+            </span>
             <span className="flex h-8 w-8 items-center justify-center hover:bg-slate-50">
               <Menu className="h-4 w-4" />
             </span>
             {iaOpen && <ResumeIAPopover patient={patient} onClose={() => setIaOpen(false)} />}
-            {notesOpen && notesDiscretes && <NotesPopover {...notesProps} masque={notesMasquees} onMasque={setNotesMasquees} />}
+            {notesOpen && notesDiscretes && <NotesPopover {...notesProps} />}
           </div>
         </div>
         <p className="mt-1 text-[13px] text-slate-700">
@@ -203,7 +233,6 @@ export default function PatientsPage() {
           <CircleAlert className="h-3.5 w-3.5" />
           {patient.alertes.length ? patient.alertes.join(" · ") : "Aucune donnée médicale"}
         </div>
-        {notesDiscretes && <NotesEpinglees notes={patient.notes} masque={notesMasquees} onOpen={() => setNotesOpen(true)} />}
         {patient.antecedents.length > 0 && (
           <div className="mt-2 inline-flex rounded-md bg-slate-100 px-2.5 py-1 text-[13px] text-slate-700">{patient.antecedents.join(" · ")}</div>
         )}
@@ -230,13 +259,24 @@ export default function PatientsPage() {
             >
               <FolderOpen className="h-4 w-4" />
             </button>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5">
               {[ClipboardList, CalendarClock, AtSign, CalendarDays].map((Icon, i) => (
-                <span key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1 text-[15px] font-medium">
+                <span key={i} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 text-[15px] font-medium">
                   <Icon className="h-4 w-4 text-slate-600" />
                   {patient.compteurs[i]}
                 </span>
               ))}
+              <span className="relative">
+                <button
+                  onClick={() => setNouveauRdv((v) => !v)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-white ${nouveauRdv ? "bg-slate-600" : "bg-slate-800 hover:bg-slate-700"}`}
+                  aria-label="Nouveau rendez-vous"
+                  title="Nouveau rendez-vous"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                {nouveauRdv && <NouveauRdvPopover praticiens={praticiens} onCreate={creerRdv} onClose={() => setNouveauRdv(false)} />}
+              </span>
             </div>
           </div>
         )}
@@ -336,8 +376,18 @@ export default function PatientsPage() {
           key={selected.id}
           rdv={selected}
           saveCount={saveCount}
-          onAddObservation={(o) => updateRdv(selected.id, (r) => ({ ...r, observations: [...(r.observations ?? []), o] }))}
+          onAddObservation={(o, epingler) =>
+            updateRdv(selected.id, (r) => {
+              const observations = [...(r.observations ?? []), o];
+              return { ...r, observations, observationEpinglee: epingler ? observations.length - 1 : r.observationEpinglee };
+            })
+          }
+          onEpingler={(i) => updateRdv(selected.id, (r) => ({ ...r, observationEpinglee: r.observationEpinglee === i ? undefined : i }))}
           onChecklist={(checklist) => updateRdv(selected.id, (r) => ({ ...r, checklist }))}
+          nomPatient={patient.nom}
+          devisExistant={patient.devis?.etapes.some((e) => e.id === selected.id) ? { id: patient.devis.id, praticien: patient.devis.praticien } : undefined}
+          onDevis={(devisLie, note) => updateRdv(selected.id, (r) => ({ ...r, devisLie, note: note || r.note }))}
+          onNote={(note) => updateRdv(selected.id, (r) => ({ ...r, note: note || undefined }))}
         />
         </>
         )}
@@ -363,7 +413,7 @@ export default function PatientsPage() {
         </div>
         {[
           { label: "Carte RDV", value: avecDents, set: setAvecDents, options: ["Actuelle", "Dents + motif"] },
-          { label: "Notes privées", value: notesDiscretes, set: setNotesDiscretes, options: ["Actuelle", "Discrètes + épingles"] },
+          { label: "Notes privées", value: notesDiscretes, set: setNotesDiscretes, options: ["Actuelle", "Survol + panneau"] },
         ].map((row) => (
           <div key={row.label} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 p-1 pl-3 shadow-lg backdrop-blur">
             <Workflow className="h-3.5 w-3.5 text-pink-500" />
@@ -393,13 +443,28 @@ export default function PatientsPage() {
 interface DetailProps {
   rdv: Rdv;
   saveCount: number;
-  onAddObservation: (o: string) => void;
+  onAddObservation: (o: string, epingler: boolean) => void;
+  /** Épingle (ou désépingle) une observation : une seule à la fois. */
+  onEpingler: (index: number) => void;
   onChecklist: (items: ItemChecklist[]) => void;
+  nomPatient: string;
+  devisExistant?: { id: string; praticien: string };
+  onDevis: (devis: NonNullable<Rdv["devisLie"]>, note: string) => void;
+  onNote: (note: string) => void;
 }
 
-function RdvDetail({ rdv, saveCount, onAddObservation, onChecklist }: DetailProps) {
+function RdvDetail({ rdv, saveCount, onAddObservation, onEpingler, onChecklist, nomPatient, devisExistant, onDevis, onNote }: DetailProps) {
   const type = TYPES_RDV[rdv.type];
   const [obsDraft, setObsDraft] = useState<string | null>(null);
+  const [obsPin, setObsPin] = useState(false);
+  // Observation épinglée en tête, les autres dans l'ordre de saisie.
+  const observations = (rdv.observations ?? []).map((texte, i) => ({ texte, i })).sort((a, b) => Number(b.i === rdv.observationEpinglee) - Number(a.i === rdv.observationEpinglee));
+  const enregistrerObs = () => {
+    if (!obsDraft?.trim()) return;
+    onAddObservation(obsDraft.trim(), obsPin);
+    setObsDraft(null);
+    setObsPin(false);
+  };
   const total = rdv.actes.reduce((s, a) => s + a.prix, 0);
 
   const date = rdv.date ? formatDateLongue(rdv.date) : null;
@@ -451,33 +516,52 @@ function RdvDetail({ rdv, saveCount, onAddObservation, onChecklist }: DetailProp
             </button>
           </div>
         </div>
-        {(rdv.observations?.length ?? 0) > 0 && (
-          <ul className="mt-2 space-y-1">
-            {rdv.observations!.map((o, i) => (
-              <li key={i} className="flex gap-2 text-[13px] text-slate-700">
-                <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
-                {o}
-              </li>
-            ))}
+        {observations.length > 0 && (
+          <ul className="mt-2 space-y-0.5">
+            {observations.map(({ texte, i }) => {
+              const epinglee = i === rdv.observationEpinglee;
+              return (
+                <li key={i} className={`group flex items-start gap-2 rounded-md px-1.5 py-1 text-[13px] text-slate-700 ${epinglee ? "bg-amber-50/60" : "hover:bg-slate-50"}`}>
+                  {epinglee ? <Pin className="mt-0.5 h-3 w-3 shrink-0 fill-amber-400 text-amber-500" /> : <Pencil className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />}
+                  <span className="flex-1">{texte}</span>
+                  <button
+                    onClick={() => onEpingler(i)}
+                    className={`shrink-0 rounded p-0.5 text-slate-400 hover:text-amber-600 ${epinglee ? "" : "opacity-0 group-hover:opacity-100"}`}
+                    title={epinglee ? "Désépingler" : "Épingler : affichée sur la carte du RDV"}
+                  >
+                    {epinglee ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
         {obsDraft !== null && (
-          <textarea
-            autoFocus
-            value={obsDraft}
-            onChange={(e) => setObsDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && obsDraft.trim()) {
-                e.preventDefault();
-                onAddObservation(obsDraft.trim());
-                setObsDraft(null);
-              }
-              if (e.key === "Escape") setObsDraft(null);
-            }}
-            placeholder="Observation… (Entrée pour valider)"
-            className="mt-2 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-[13px] outline-none focus:border-sky-400"
-            rows={2}
-          />
+          <div className="mt-2 flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 focus-within:border-sky-400">
+            <textarea
+              autoFocus
+              value={obsDraft}
+              onChange={(e) => setObsDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  enregistrerObs();
+                }
+                if (e.key === "Escape") setObsDraft(null);
+              }}
+              placeholder="Observation… (Entrée pour valider)"
+              className="min-w-0 flex-1 resize-none bg-transparent text-[13px] outline-none"
+              rows={2}
+            />
+            {/* Épingler avant d'enregistrer : elle passe en tête et s'affiche sur la carte du RDV. */}
+            <button
+              onClick={() => setObsPin((v) => !v)}
+              className={`flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] transition-colors ${obsPin ? "bg-amber-100 text-amber-800" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
+              title={obsPin ? "Sera épinglée et affichée sur la carte" : "Épingler : affichée sur la carte du RDV"}
+            >
+              <Pin className={`h-3.5 w-3.5 ${obsPin ? "fill-amber-400" : ""}`} /> {obsPin ? "Épinglée" : "Épingler"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -530,6 +614,8 @@ function RdvDetail({ rdv, saveCount, onAddObservation, onChecklist }: DetailProp
           </>
         )}
       </div>
+
+      <DevisRdv key={rdv.id} rdv={rdv} nomPatient={nomPatient} devisExistant={devisExistant} onCreate={onDevis} onNote={onNote} />
 
       <Checklist items={rdv.checklist ?? []} onChange={onChecklist} />
     </div>

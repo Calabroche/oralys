@@ -10,7 +10,7 @@ import { FEATURES, Feature, useVersion, versionOf } from "@/components/team/Vers
 // Même ordre que la barre latérale de la prod ; les entrées marquées "team" sont les ajouts proposés par Oralys Team.
 const GROUPS: { label: string; icon: typeof Users; href: string | null; team?: boolean; feature?: Feature; access?: AccessKey }[] = [
   { label: "Fiche du cabinet", icon: Building2, href: null },
-  { label: "Équipes et disponibilités", icon: Users, href: "/team/reglages/equipes", access: "planning" },
+  { label: "Équipes et disponibilités", icon: Users, href: "/team/reglages/equipes", feature: "equipes", access: "planning" },
   { label: "Utilisateurs", icon: UserCog, href: "/team/reglages/utilisateurs", access: "utilisateurs" },
   { label: "Dossiers du personnel", icon: FolderOpen, href: "/team/reglages/dossiers", team: true, access: "utilisateurs" },
   { label: "Rôles & droits", icon: ShieldCheck, href: "/team/reglages/roles", team: true, feature: "roles", access: "utilisateurs" },

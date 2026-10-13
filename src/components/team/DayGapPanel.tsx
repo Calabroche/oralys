@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTeam } from "@/context/TeamDataContext";
+import { useProfilsPlanning } from "@/components/team/useProfilsPlanning";
 import { PersonLink } from "@/components/team/PersonSheet";
 import { UserAvatar } from "@/components/team/shared";
 import { dayStaffing, displayName, fullName, isAvailable, isChairAssistant, shortDate } from "@/lib/team";
@@ -17,8 +18,9 @@ import { dayStaffing, displayName, fullName, isAvailable, isChairAssistant, shor
  * On explique pourquoi (qui est absent, qui est pris ailleurs) et on propose de rattacher un assistant libre.
  */
 export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; praticienId: string; hasRdvs?: boolean }) {
-  const { users, profiles, absences, findUser, upsertProfile, can, dayOverrides, dayNeeds, lendAssistant, removeLoan } = useTeam();
-  const staffing = dayStaffing(date, profiles, users, absences, dayOverrides, dayNeeds);
+  const { users, absences, findUser, upsertProfile, can, dayOverrides, dayNeeds, lendAssistant, removeLoan } = useTeam();
+  const profilsPlanning = useProfilsPlanning();
+  const staffing = dayStaffing(date, profilsPlanning, users, absences, dayOverrides, dayNeeds);
   const day = staffing.praticiens.find((p) => p.praticien.id === praticienId);
   const praticien = findUser(praticienId);
   if (!day || !praticien) return <p className="py-16 text-center text-sm text-slate-400">Praticien introuvable.</p>;
@@ -34,7 +36,7 @@ export function DayGapPanel({ date, praticienId, hasRdvs }: { date: string; prat
     .map((u) => {
       const after = dayStaffing(
         date,
-        profiles,
+        profilsPlanning,
         users,
         absences,
         [...dayOverrides, { id: "simulation", date, assistantId: u.id, praticienId }],

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { OralysLogo } from "@/components/team/OralysLogo";
 import { usePathname } from "next/navigation";
 import { CABINET_NAME } from "@/data/mockData";
-import { itemsStock, useDossiers } from "@/context/DossiersContext";
+import { lignesStock, useDossiers } from "@/context/DossiersContext";
 
 const NAV_ITEMS = [
   { label: "Activité", href: "/activite", enabled: true },
@@ -20,8 +21,8 @@ export function TopNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [planetOpen, setPlanetOpen] = useState(false);
-  const { patients } = useDossiers();
-  const aCommander = itemsStock(patients).filter((l) => l.commande.statut === "a-commander").length;
+  const { patients, commandesCabinet } = useDossiers();
+  const aCommander = lignesStock(patients, commandesCabinet).filter((l) => l.statut === "a-commander").length;
 
   // La planète Team a son propre en-tête (liseré rose).
   if (pathname.startsWith("/team")) return null;
@@ -30,9 +31,8 @@ export function TopNav() {
     <header className="border-b-[3px] border-lime-300 bg-white">
       <div className="relative flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-8">
-          <Link href="/agenda" className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
-            <span className="text-sky-600">●</span>
-            oralys
+          <Link href="/agenda" className="flex items-center">
+            <OralysLogo />
           </Link>
           <div className="relative">
             <button

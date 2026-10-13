@@ -36,7 +36,7 @@ export default function TeamDashboard() {
   const absentToday = working.filter((u) => absenceOn(u.id, today, absences));
   // Présents sur l'ensemble des collaborateurs actifs : ceux au repos ou absents comptent dans le total.
   const presentCount = working.length - absentToday.length;
-  const openLastMinute = todo.lastMinute.filter((x) => x.open > 0).length;
+  const openLastMinute = todo.lastMinute.filter((x) => x.aTraiter).length;
 
   // MVP : présents, absences de dernier moment, utilisateurs actifs. V1 : « À traiter » (manques, RDV à réaffecter).
   const pilotage = has("pilotage");

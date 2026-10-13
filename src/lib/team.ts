@@ -85,11 +85,25 @@ export function collapseRecurring(absences: TeamAbsence[], today: string): TeamA
   return [...out, ...keep.values()];
 }
 
-/** Une absence est "de dernier moment" si elle commence moins de 48h après sa déclaration. */
+/**
+ * Une absence est "de dernier moment" si elle commence moins de 48 h ouvrées après sa déclaration :
+ * le week-end ne compte pas (un congé posé le vendredi après-midi pour le lundi est du dernier moment).
+ */
 export function isLastMinute(absence: TeamAbsence): boolean {
-  const declared = new Date(absence.declaredAt).getTime();
-  const start = fromISODate(absence.startDate).getTime();
-  return start - declared < 48 * 3600 * 1000;
+  const declared = new Date(absence.declaredAt);
+  const start = fromISODate(absence.startDate);
+  if (start.getTime() <= declared.getTime()) return true;
+  let ouvre = 0;
+  const cursor = new Date(declared);
+  while (cursor < start && ouvre < 48 * 3600 * 1000) {
+    // On avance jusqu'à minuit (ou jusqu'au début de l'absence) et on ne compte que les jours de semaine.
+    const minuit = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+    const fin = minuit < start ? minuit : start;
+    const jour = cursor.getDay();
+    if (jour !== 0 && jour !== 6) ouvre += fin.getTime() - cursor.getTime();
+    cursor.setTime(fin.getTime());
+  }
+  return ouvre < 48 * 3600 * 1000;
 }
 
 export function absenceOn(userId: string, iso: string, absences: TeamAbsence[]): TeamAbsence | undefined {
@@ -547,8 +561,17 @@ export function dayStaffing(
 
     // Les prêts du jour passent avant tout : c'est une décision explicite du gestionnaire, visant la
     // salle la plus demandeuse du praticien prêté (celle qui a le plus de chances d'en manquer).
-    for (const o of overrides.filter((x) => x.date === date)) {
+    for (const o of overrides.filter((x) => x.date === date && (!x.half || x.half === half))) {
       const r = rows.filter((x) => x.p.praticien.id === o.praticienId).sort((a, b) => b.room.need - a.room.need)[0];
+      // Placé à la main sur cette demi-journée : il occupe la place, comme un titulaire, là où il manque encore
+      // le plus de monde (activités en parallèle : bloc 2 + hors bloc 1 = 3 places, à remplir toutes les trois).
+      if (o.half) {
+        const cible = rows
+          .filter((x) => x.p.praticien.id === o.praticienId)
+          .sort((a, b) => b.room.need - b.room.assistants.length - (a.room.need - a.room.assistants.length))[0];
+        if (cible && free(o.assistantId)) place(cible, o.assistantId, "titulaire");
+        continue;
+      }
       // Sur une demi-journée où ses titulaires suffisent déjà (ex. le matin, quand le titulaire n'est pris que
       // l'après-midi par autre chose), le prêt ne les déloge pas : le back-up ne prend la place que là où elle manque.
       const titulairesLibres = r ? r.p.profile.team.filter((l) => l.priority === "titulaire" && applies(l) && l.userId !== o.assistantId && free(l.userId)).length : 0;

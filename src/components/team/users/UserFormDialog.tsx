@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useTeam } from "@/context/TeamDataContext";
+import { useVersion } from "@/components/team/Version";
 import { AM_PATTERN, CHAIR_ROLE_IDS, EMAIL_PATTERN, RPPS_PATTERN, fullName, normalizeEmail } from "@/lib/team";
 import { Poste, TeamUser } from "@/types/team";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,8 @@ export function UserFormDialog({
 
 function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () => void }) {
   const { roles, profiles, users, createUser, updateUser, emailTaken, findUser } = useTeam();
+  // Rattacher un assistant à un praticien arrive en V1 : en MVP, ni champ ni obligation.
+  const rattachement = useVersion().has("equipes");
   const [firstName, setFirstName] = useState(editing?.firstName ?? "");
   const [lastName, setLastName] = useState(editing?.lastName ?? "");
   const [email, setEmail] = useState(editing?.email ?? "");
@@ -97,7 +100,7 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
   const activeProfiles = profiles.filter((p) => findUser(p.praticienUserId)?.status !== "archive");
   // Au fauteuil (assistant, aide dentaire, infirmier) : un praticien de rattachement est obligatoire (modifiable ensuite).
   // Secrétaire, comptable, gestionnaire : pas d'environnement Soins à choisir, le champ n'apparaît pas.
-  const needsPraticien = !isHealthPro && roleIds.some((r) => CHAIR_ROLE_IDS.includes(r));
+  const needsPraticien = rattachement && !isHealthPro && roleIds.some((r) => CHAIR_ROLE_IDS.includes(r));
   const missingPraticien = needsPraticien && env === "none";
   // Praticien : RPPS et n° Assurance Maladie obligatoires.
   const rppsClean = rpps.replace(/\s/g, "");
@@ -192,7 +195,7 @@ function UserForm({ editing, onDone }: { editing: TeamUser | null; onDone: () =>
               </SelectContent>
             </Select>
           </Field>
-          {(roleIds.length > 0 || isHealthPro) && (
+          {(isHealthPro || (rattachement && roleIds.length > 0)) && (
           <Field
             label={needsPraticien ? "Praticien de rattachement *" : isHealthPro ? "Environnement Soins par défaut" : "Travaille avec (facultatif)"}
             error={submitted && missingPraticien ? "Obligatoire pour un assistant, une aide dentaire ou un infirmier" : null}

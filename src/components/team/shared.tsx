@@ -27,10 +27,39 @@ export function toneFor(id: string) {
   return AVATAR_TONES[h % AVATAR_TONES.length];
 }
 
+/**
+ * Photos par défaut de l'équipe de démo (portraits libres de randomuser.me), pour que le trombinoscope et
+ * le planning ressemblent à un vrai cabinet. Une photo ajoutée par la personne passe toujours devant ;
+ * un compte créé pendant la démo garde ses initiales tant qu'il n'a pas de photo.
+ */
+const PHOTOS_DEMO: Record<string, string> = {
+  "u-delphine": "women/44",
+  "u-sophie": "women/68",
+  "u-flore": "women/65",
+  "u-dray": "men/32",
+  "u-thomas": "men/45",
+  "u-ines": "women/12",
+  "u-camille": "women/26",
+  "u-lea": "women/90",
+  "u-manon": "women/57",
+  "u-karima": "women/79",
+  "u-nathalie": "women/50",
+  "u-julie": "women/33",
+  "u-hugo": "men/75",
+  "u-michel": "men/62",
+};
+
+/** Photo affichée : celle de la personne, sinon celle de la démo. */
+export function photoDe(user: TeamUser): string | undefined {
+  const demo = PHOTOS_DEMO[user.id];
+  return user.photo ?? (demo ? `https://randomuser.me/api/portraits/${demo}.jpg` : undefined);
+}
+
 export function UserAvatar({ user, className }: { user: TeamUser; className?: string }) {
+  const photo = photoDe(user);
   return (
     <Avatar className={cn("size-8", className)}>
-      {user.photo && <AvatarImage src={user.photo} alt={`Photo de ${user.firstName}`} className="object-cover" />}
+      {photo && <AvatarImage src={photo} alt={`Photo de ${user.firstName}`} className={cn("object-cover", user.status === "archive" && "grayscale opacity-60")} />}
       <AvatarFallback className={cn("text-xs font-medium", user.status === "archive" ? "bg-slate-100 text-slate-400" : toneFor(user.id))}>
         {initials(user)}
       </AvatarFallback>

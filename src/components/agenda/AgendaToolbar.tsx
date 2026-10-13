@@ -22,9 +22,11 @@ interface Props {
   onToday: () => void;
   onPrev: () => void;
   onNext: () => void;
+  /** Bouton « + » au bout de la barre, comme dans la prod. */
+  onNew: () => void;
 }
 
-export function AgendaToolbar({ label, viewMode, onViewModeChange, customDays, onCustomDaysChange, onToday, onPrev, onNext }: Props) {
+export function AgendaToolbar({ label, viewMode, onViewModeChange, customDays, onCustomDaysChange, onToday, onPrev, onNext, onNew }: Props) {
   // Un agenda par praticien : on bascule de l'un à l'autre (créneaux, RDV et absences Team suivent).
   const { agendaPraticienId, setAgendaPraticienId } = useAgendaData();
   return (
@@ -96,6 +98,13 @@ export function AgendaToolbar({ label, viewMode, onViewModeChange, customDays, o
         <span className="text-slate-400" aria-hidden>
           ⋯
         </span>
+        <button
+          onClick={onNew}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-lg text-white shadow-md hover:bg-slate-800"
+          aria-label="Nouveau rendez-vous"
+        >
+          +
+        </button>
       </div>
     </div>
   );

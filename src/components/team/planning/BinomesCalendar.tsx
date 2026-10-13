@@ -1,9 +1,9 @@
 "use client";
 
-import { RefreshCw, UserX } from "lucide-react";
+import { Plus, RefreshCw, UserMinus, UserX } from "lucide-react";
 import { GapActions } from "@/components/team/GapActions";
 import { useTeam } from "@/context/TeamDataContext";
-import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, isChairAssistant, teamMembersOn } from "@/lib/team";
+import { ABSENCE_TYPE_LABELS, DayStaffing, absenceOn, displayName, fullName, halvesOn, isChairAssistant, teamMembersOn } from "@/lib/team";
 import { activityName, activityType, needSummary } from "@/lib/semaine";
 import { ACTIVITY_COLOR_CLASSES } from "@/utils/colors";
 import { HalfDay } from "@/types/team";
@@ -42,10 +42,16 @@ export function BinomesCalendar({
   editablePraticienId?: string;
   onDeclare: (userId: string, date: string) => void;
 }) {
-  const { findUser, users, absences, now, dayOverrides, removeLoan } = useTeam();
+  const { findUser, users, absences, now, dayOverrides, removeLoan, placerAssistant, can } = useTeam();
   const { open: openPerson } = usePersonSheet();
   const { has } = useVersion();
   const showRooms = has("multiSalles");
+  // MVP : pas d'équipes rattachées, chaque place se remplit à la main par le gestionnaire, semaine après semaine.
+  const equipes = has("equipes");
+  // Le gestionnaire place sur toutes les lignes ; chaque praticien s'affecte lui-même ses assistants, sur sa ligne.
+  const peutPlacer = (praticienId: string) => (!readOnly && can("team.planning")) || praticienId === editablePraticienId;
+  const placementManuel = (iso: string, half: HalfDay | undefined, id: string) =>
+    dayOverrides.find((o) => o.date === iso && o.half && (!half || o.half === half) && o.assistantId === id);
   const today = toISODate(now());
   const compact = dates.length > 10;
   const first = staffing.get(dates[0]);
@@ -90,18 +96,20 @@ export function BinomesCalendar({
                       <span className="inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.68rem] text-slate-600">{needSummary(profile)}</span>
                     </div>
                   </div>
-                  <div className="mt-2.5 space-y-1 text-[0.7rem] leading-snug">
-                    <p className="flex gap-1">
-                      <span className="shrink-0 font-medium text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} :</span>
-                      <span className="text-slate-600">
-                        {titulaires.map((l) => `${name(l.userId)}${l.days.length ? ` (${l.days.map((d) => d.slice(0, 3)).join(", ")})` : ""}`).join(", ") || "aucun"}
-                      </span>
-                    </p>
-                    <p className="flex gap-1">
-                      <span className="shrink-0 font-medium text-sky-700">Back-up :</span>
-                      <span className="text-slate-600">{backups.map((l) => name(l.userId)).join(", ") || "aucun"}</span>
-                    </p>
-                  </div>
+                  {equipes && (
+                    <div className="mt-2.5 space-y-1 text-[0.7rem] leading-snug">
+                      <p className="flex gap-1">
+                        <span className="shrink-0 font-medium text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} :</span>
+                        <span className="text-slate-600">
+                          {titulaires.map((l) => `${name(l.userId)}${l.days.length ? ` (${l.days.map((d) => d.slice(0, 3)).join(", ")})` : ""}`).join(", ") || "aucun"}
+                        </span>
+                      </p>
+                      <p className="flex gap-1">
+                        <span className="shrink-0 font-medium text-sky-700">Back-up :</span>
+                        <span className="text-slate-600">{backups.map((l) => name(l.userId)).join(", ") || "aucun"}</span>
+                      </p>
+                    </div>
+                  )}
                 </td>
                 {dates.map((iso) => {
                   const day = staffing.get(iso)?.praticiens.find((p) => p.profile.id === profile.id);
@@ -152,6 +160,21 @@ export function BinomesCalendar({
                                 <p className="px-2 pt-1 pb-2 text-xs text-slate-500">
                                   {fullName(u)} · {KIND_LABEL[s.kind]} avec {displayName(praticien)} le {fromISODate(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
                                 </p>
+                                {placementManuel(iso, undefined, u.id) && peutPlacer(praticien.id) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full justify-start text-rose-700"
+                                    onClick={() => {
+                                      // Retire toutes ses places du jour chez ce praticien (matin et/ou après-midi selon la case).
+                                      dayOverrides
+                                        .filter((o) => o.date === iso && o.half && o.assistantId === u.id && o.praticienId === praticien.id)
+                                        .forEach((o) => removeLoan(o.id));
+                                    }}
+                                  >
+                                    <UserMinus /> Retirer de ce jour
+                                  </Button>
+                                )}
                                 {s.kind === "pret" && (
                                   <Button
                                     variant="ghost"
@@ -235,6 +258,53 @@ export function BinomesCalendar({
                             </PopoverContent>
                           </Popover>
                   );
+                  // Place vide (MVP) : le gestionnaire choisit qui vient, parmi les assistants là ce créneau-là.
+                  // La clé suit le nombre de placés : après un choix, la case remplie disparaît et le menu se referme.
+                  const renderVide = (half: HalfDay, key: string) => {
+                    if (!peutPlacer(praticien.id)) {
+                      return (
+                        <span key={key} className="rounded border border-dashed border-rose-200 px-1.5 py-1 text-xs text-rose-400">
+                          À placer
+                        </span>
+                      );
+                    }
+                    const st = staffing.get(iso)!;
+                    const placeChez = (id: string) => st.praticiens.find((p) => p.byHalf.some((h) => h.half === half && h.assistants.includes(id)));
+                    const candidats = users
+                      .filter((u) => u.status === "actif" && isChairAssistant(u) && !absenceOn(u.id, iso, absences) && halvesOn(u, iso).includes(half))
+                      .map((u) => ({ u, ailleurs: placeChez(u.id) }))
+                      .sort((a, b) => Number(Boolean(a.ailleurs)) - Number(Boolean(b.ailleurs)) || a.u.firstName.localeCompare(b.u.firstName));
+                    return (
+                      <Popover key={key}>
+                        <PopoverTrigger asChild>
+                          <button
+                            title="Choisir l'assistant de ce créneau"
+                            className="flex items-center gap-1 rounded border border-dashed border-rose-300 bg-white px-1.5 py-1 text-left text-xs font-medium text-rose-600 hover:border-rose-400 hover:bg-rose-50"
+                          >
+                            <Plus className="size-3 shrink-0" /> Assistant
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-1.5" align="start">
+                          <p className="px-2 pt-1 pb-1.5 text-xs text-slate-500">
+                            Avec {displayName(praticien)}, {fromISODate(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric" })} {half === "matin" ? "matin" : "après-midi"}
+                          </p>
+                          {candidats.length === 0 && <p className="px-2 py-2 text-xs text-slate-400">Aucun assistant au cabinet sur ce créneau.</p>}
+                          {candidats.map(({ u, ailleurs }) => (
+                            <button
+                              key={u.id}
+                              disabled={Boolean(ailleurs)}
+                              onClick={() => placerAssistant(iso, half, u.id, praticien.id)}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                            >
+                              <UserAvatar user={u} className="size-5 text-[0.55rem]" />
+                              <span className="flex-1 truncate">{fullName(u)}</span>
+                              {ailleurs && <span className="text-[0.65rem] text-slate-400">avec {displayName(ailleurs.praticien)}</span>}
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  };
                   // Le statut du jour (manque ou complet) se lit à l'accent de bordure des cartes, pas sur
                   // tout le fond de la cellule : moins de couleur au repos, pour que le manque ressorte.
                   const footnotes = !compact
@@ -257,7 +327,7 @@ export function BinomesCalendar({
                               key={h.half}
                               className={cn(
                                 "rounded-md border-l-[3px] border-y border-r border-slate-100 bg-white p-1.5",
-                                h.missing > 0 ? "border-l-rose-400" : "border-l-emerald-300"
+                                (equipes ? h.missing > 0 : h.assistants.length < h.need) ? "border-l-rose-400" : "border-l-emerald-300"
                               )}
                             >
                               <div className="mb-1 flex flex-wrap items-center gap-1">
@@ -270,7 +340,11 @@ export function BinomesCalendar({
                                 <span
                                   className={cn(
                                     "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[0.65rem] font-bold tabular-nums",
-                                    h.need === 0 ? "text-slate-400" : h.missing > 0 ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"
+                                    h.need === 0
+                                      ? "text-slate-400"
+                                      : (equipes ? h.missing > 0 : h.assistants.length < h.need)
+                                        ? "bg-rose-50 text-rose-700"
+                                        : "bg-emerald-50 text-emerald-700"
                                   )}
                                   title="Présents / besoin"
                                 >
@@ -308,7 +382,9 @@ export function BinomesCalendar({
                                       renderOccupied(o, h.half, `${h.half}-occ-${o.userId}`)
                                     )
                                   )}
-                                  {h.missing > 0 && renderGap(`Manque ${h.missing}`)}
+                                  {equipes
+                                    ? h.missing > 0 && renderGap(`Manque ${h.missing}`)
+                                    : Array.from({ length: Math.max(0, h.need - h.assistants.length) }, (_, i) => renderVide(h.half, `${h.half}-vide-${h.assistants.length + i}`))}
                                 </div>
                               )}
                             </div>

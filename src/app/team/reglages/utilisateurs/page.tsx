@@ -38,6 +38,7 @@ import { InvitationEmail } from "@/components/team/users/InvitationEmail";
 import { fullName } from "@/lib/team";
 import { TeamUser, UserStatus } from "@/types/team";
 import { cn } from "@/lib/utils";
+import { useVersion } from "@/components/team/Version";
 
 type Filter = "tous" | UserStatus;
 
@@ -55,6 +56,7 @@ function Utilisateurs() {
   const params = useSearchParams();
   const { open: openPerson } = usePersonSheet();
   const { users, profiles, findUser, can, resendInvite, reactivateUser, simulateActivation } = useTeam();
+  const rattachement = useVersion().has("equipes");
   const [filter, setFilter] = usePersistentState<Filter>("utilisateurs-filtre", "tous");
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -218,7 +220,7 @@ function Utilisateurs() {
                             disabled={!canEdit}
                             onSelect={() => {
                               reactivateUser(u.id);
-                              toast.success(`${fullName(u)} réactivé(e)`, { description: "Pensez à le/la rattacher à nouveau à une équipe." });
+                              toast.success(`${fullName(u)} réactivé(e)`, rattachement ? { description: "Pensez à le/la rattacher à nouveau à une équipe." } : undefined);
                             }}
                           >
                             <RotateCcw /> Réactiver

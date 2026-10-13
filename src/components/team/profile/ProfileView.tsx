@@ -158,7 +158,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
       {/* Missions : seulement pour les salariés, un praticien libéral n'a pas de fiche de poste. */}
       {!liberal && <MissionsCard user={user} canManage={rights.canManage} canCheck={self || rights.canManage} simple={!has("missionsSuivies")} />}
 
-      {profile && <EquipeCard profile={profile} canEdit={canEdit} />}
+      {profile && has("equipes") && <EquipeCard profile={profile} canEdit={canEdit} />}
       {profile && has("affinite") && <AffinitesCard profile={profile} />}
 
       {/* Praticien libéral : pas de salaire versé par le cabinet. */}

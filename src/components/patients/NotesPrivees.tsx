@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, EyeOff, Lock, Pin, PinOff, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, Eye, EyeOff, Lock, Pin, PinOff, Plus, Save, Trash2, Users, X } from "lucide-react";
 import type { NotePrivee } from "@/data/dossierPatient";
 
 const AUTEUR = "Dr. Perche";
@@ -113,20 +113,19 @@ export function NotesModalActuelle({ notes, onChange, onSaved, onClose }: ListPr
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Proposition : un petit panneau ancré sous l'icône, sans fond assombri.
- * Saisie directe (Entrée), épingler / désépingler, suppression avec annulation.
+ * Proposition : rien sur la fiche, un aperçu au survol de l'icône, et un petit
+ * panneau au clic. Le panneau sert d'abord à écrire (saisie en focus auto) : les
+ * notes déjà enregistrées y sont floutées par sécurité, « Afficher » les révèle.
  * ──────────────────────────────────────────────────────────────────────────── */
-interface PopoverProps extends ListProps {
-  masque: boolean;
-  onMasque: (v: boolean) => void;
-}
-
-export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasque }: PopoverProps) {
+export function NotesPopover({ notes, onChange, onSaved, onClose }: ListProps) {
   const [draft, setDraft] = useState("");
   const [pinDraft, setPinDraft] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [supprimee, setSupprimee] = useState<{ note: NotePrivee; index: number } | null>(null);
+  // Masquées à chaque ouverture : un écran partagé ou vu par le patient ne montre rien par défaut.
+  const [visibles, setVisibles] = useState(false);
+  const [onglet, setOnglet] = useState<"privees" | "ops">("privees");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -137,7 +136,10 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
 
   const ajouter = () => {
     if (!draft.trim()) return;
-    onChange([{ id: nouvelId(), date: aujourdhui(), auteur: AUTEUR, texte: draft.trim(), epinglee: pinDraft }, ...notes]);
+    const note: NotePrivee = { id: nouvelId(), date: aujourdhui(), auteur: AUTEUR, texte: draft.trim(), epinglee: pinDraft, operationnelle: onglet === "ops" };
+    onChange([note, ...notes]);
+    // Une note privée rejoint les autres, masquées : on l'affiche ensuite si on le souhaite.
+    if (onglet === "privees") setVisibles(false);
     setDraft("");
     setPinDraft(false);
     onSaved();
@@ -161,11 +163,22 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
     setSupprimee(null);
   };
 
-  const epinglees = notes.filter((n) => n.epinglee);
-  const autres = notes.filter((n) => !n.epinglee);
+  const privees = notes.filter((n) => !n.operationnelle);
+  const ops = notes.filter((n) => n.operationnelle);
+  const liste = onglet === "ops" ? ops : privees;
+  // Seules les notes privées sont masquées : les opérationnelles servent à toute l'équipe.
+  const masque = onglet === "privees" && !visibles;
+  const epinglees = liste.filter((n) => n.epinglee);
+  const autres = liste.filter((n) => !n.epinglee);
+
+  const changerOnglet = (o: "privees" | "ops") => {
+    setOnglet(o);
+    setEditId(null);
+    inputRef.current?.focus();
+  };
 
   const row = (n: NotePrivee, pinned: boolean) => (
-    <li key={n.id} className={`group relative rounded-lg px-2.5 py-2 ${pinned ? "bg-white shadow-[0_1px_2px_rgba(146,64,14,0.08)] hover:bg-amber-50/40" : "hover:bg-slate-50"}`}>
+    <li key={n.id} className="group relative rounded-lg px-2.5 py-2 hover:bg-slate-50">
       {editId === n.id ? (
         <textarea
           autoFocus
@@ -191,24 +204,26 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
       ) : (
         <button
           onClick={() => {
+            if (masque) return setVisibles(true);
             setEditId(n.id);
             setEditText(n.texte);
           }}
-          className="block w-full pr-14 text-left text-[13px] leading-snug text-slate-800"
-          title="Cliquer pour modifier"
+          className={`block w-full pr-14 text-left text-[13px] leading-snug text-slate-800 transition-[filter] duration-200 ${masque ? "select-none blur-[5px]" : ""}`}
+          title={masque ? "Cliquer pour afficher les notes" : "Cliquer pour modifier"}
         >
           {n.texte}
         </button>
       )}
-      <div className="mt-0.5 text-[11px] text-slate-400">
+      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+        {pinned && <Pin className="h-2.5 w-2.5 text-amber-400" />}
         {n.date} · {n.auteur}
       </div>
-      {editId !== n.id && (
+      {editId !== n.id && !masque && (
         <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={() => majNote(n.id, { epinglee: !n.epinglee })}
             className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-amber-600"
-            title={n.epinglee ? "Désépingler" : "Épingler sur la fiche"}
+            title={n.epinglee ? "Désépingler" : "Épingler en tête"}
           >
             {n.epinglee ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
           </button>
@@ -228,11 +243,35 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
     <>
       <button className="fixed inset-0 z-40 cursor-default" aria-hidden tabIndex={-1} onClick={onClose} />
       <div className="absolute right-0 top-full z-50 mt-2 w-[360px] rounded-xl border border-slate-200 bg-white shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] animate-in fade-in slide-in-from-top-1 duration-150">
-        <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
-          <span className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
-            <Lock className="h-3.5 w-3.5 text-slate-400" /> Notes privées
-          </span>
-          <span className="text-[11px] text-slate-400">Jamais visibles par le patient</span>
+        <div className="flex items-center justify-between border-b border-slate-100 px-2.5 py-2">
+          <div className="flex rounded-lg bg-slate-100 p-0.5 text-[12px]">
+            {(
+              [
+                ["privees", "Privées", privees.length],
+                ["ops", "Opérationnelles", ops.length],
+              ] as const
+            ).map(([id, label, n]) => (
+              <button
+                key={id}
+                onClick={() => changerOnglet(id)}
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${onglet === id ? "bg-white font-medium text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+              >
+                {id === "privees" && <Lock className="h-3 w-3" />}
+                {label}
+                <span className="text-[10px] tabular-nums text-slate-400">{n}</span>
+              </button>
+            ))}
+          </div>
+          {onglet === "privees" && privees.length > 0 && (
+            <button
+              onClick={() => setVisibles((v) => !v)}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              title={visibles ? "Masquer les notes privées" : "Afficher les notes privées"}
+            >
+              {visibles ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {visibles ? "Masquer" : "Afficher"}
+            </button>
+          )}
         </div>
 
         <div className="px-2.5 pt-2.5">
@@ -249,13 +288,14 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
                 }
               }}
               rows={1}
-              placeholder="Nouvelle note… (Entrée)"
-              className="field-sizing-content max-h-28 min-w-0 flex-1 resize-none bg-transparent py-0.5 text-[13px] outline-none placeholder:text-slate-400"
+              placeholder={onglet === "ops" ? "Note pour l'équipe… (Entrée)" : "Note privée… (Entrée)"}
+              // Note privée : le texte se floute pendant la frappe (écran partagé, patient à côté). L'opérationnelle reste lisible.
+              className={`field-sizing-content max-h-28 min-w-0 flex-1 resize-none bg-transparent py-0.5 text-[13px] outline-none placeholder:text-slate-400 ${onglet === "privees" && draft ? "blur-[4px]" : ""}`}
             />
             <button
               onClick={() => setPinDraft((v) => !v)}
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${pinDraft ? "bg-amber-100 text-amber-700" : "text-slate-300 hover:text-slate-500"}`}
-              title={pinDraft ? "Sera épinglée sur la fiche" : "Épingler sur la fiche"}
+              title={pinDraft ? "Sera épinglée en tête" : "Épingler en tête"}
             >
               <Pin className="h-3.5 w-3.5" />
             </button>
@@ -272,58 +312,96 @@ export function NotesPopover({ notes, onChange, onSaved, onClose, masque, onMasq
             </div>
           )}
           {epinglees.length > 0 && (
-            <section className="mx-1.5 mt-1.5 rounded-lg bg-amber-50 p-1 ring-1 ring-amber-200/80">
-              <p className="flex items-center gap-1.5 px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
-                <Pin className="h-3 w-3 fill-amber-500 text-amber-600" /> Épinglées sur la fiche
-                <span className="ml-auto rounded-full bg-amber-200/70 px-1.5 text-[10px] text-amber-800">{epinglees.length}</span>
-              </p>
-              <ul className="space-y-0.5">{epinglees.map((n) => row(n, true))}</ul>
-            </section>
+            <>
+              <Separateur label="Épinglées" count={epinglees.length} />
+              <ul>{epinglees.map((n) => row(n, true))}</ul>
+            </>
           )}
           {autres.length > 0 && (
             <>
-              {epinglees.length > 0 && (
-                <div className="mx-3 mb-1 mt-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Autres notes
-                  <span className="h-px flex-1 bg-slate-200" />
-                  <span className="text-[10px]">{autres.length}</span>
-                </div>
-              )}
+              {epinglees.length > 0 && <Separateur label="Autres notes" count={autres.length} />}
               <ul>{autres.map((n) => row(n, false))}</ul>
             </>
           )}
-          {notes.length === 0 && !supprimee && <p className="px-3 py-4 text-center text-[12px] text-slate-400">Aucune note pour ce patient</p>}
+          {liste.length === 0 && !supprimee && (
+            <p className="px-3 py-4 text-center text-[12px] text-slate-400">
+              {onglet === "ops" ? "Aucune note opérationnelle (préférences, paiement, accueil…)" : "Aucune note privée"}
+            </p>
+          )}
         </div>
 
-        <label className="flex cursor-pointer items-center justify-between border-t border-slate-100 px-3.5 py-2 text-[12px] text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <EyeOff className="h-3.5 w-3.5" /> Flouter les notes épinglées (survol pour lire)
-          </span>
-          <input type="checkbox" checked={masque} onChange={(e) => onMasque(e.target.checked)} className="accent-slate-700" />
-        </label>
+        <p className="flex items-center gap-1.5 border-t border-slate-100 px-3.5 py-2 text-[11px] text-slate-400">
+          {onglet === "ops" ? (
+            <>
+              <Users className="h-3 w-3" /> Visibles par toute l&apos;équipe, jamais par le patient.
+            </>
+          ) : (
+            <>
+              <Lock className="h-3 w-3" /> Jamais visibles par le patient. Masquées à chaque ouverture.
+            </>
+          )}
+        </p>
       </div>
     </>
   );
 }
 
-/** Les notes épinglées, en une ligne discrète sous les alertes de la fiche. */
-export function NotesEpinglees({ notes, masque, onOpen }: { notes: NotePrivee[]; masque: boolean; onOpen: () => void }) {
-  const pins = notes.filter((n) => n.epinglee);
-  if (pins.length === 0) return null;
-  const shown = pins.slice(0, 2);
+/** Petit intertitre discret entre les groupes de notes. */
+function Separateur({ label, count }: { label: string; count: number }) {
   return (
-    <button onClick={onOpen} className="group mt-2 flex w-full flex-col items-start gap-1 text-left" title="Notes privées épinglées">
-      {shown.map((n) => (
-        <span
-          key={n.id}
-          className="flex max-w-full items-center gap-1.5 rounded-md border border-amber-200/70 bg-amber-50/70 px-2 py-0.5 text-[12px] text-amber-900 transition-colors group-hover:border-amber-300"
-        >
-          <Pin className="h-3 w-3 shrink-0 text-amber-500" />
-          <span className={`truncate transition-[filter] duration-200 ${masque ? "blur-[4px] group-hover:blur-none" : ""}`}>{n.texte}</span>
-        </span>
-      ))}
-      {pins.length > shown.length && <span className="pl-1 text-[11px] text-amber-700">+{pins.length - shown.length} épinglée{pins.length - shown.length > 1 ? "s" : ""}</span>}
-    </button>
+    <div className="mx-2.5 mb-0.5 mt-2 flex items-center gap-2 text-[11px] font-medium text-slate-400">
+      {label}
+      <span className="h-px flex-1 bg-slate-100" />
+      <span className="text-[10px] tabular-nums">{count}</span>
+    </div>
+  );
+}
+
+/**
+ * Aperçu au survol de l'icône : les notes opérationnelles en clair, les privées floutées
+ * (on descend la souris sur une note pour la lire). Un clic ouvre le panneau.
+ */
+export function NotesApercu({ notes, onOpen }: { notes: NotePrivee[]; onOpen: () => void }) {
+  if (notes.length === 0) return null;
+  const tri = (l: NotePrivee[]) => [...l].sort((a, b) => Number(b.epinglee) - Number(a.epinglee));
+  const ops = tri(notes.filter((n) => n.operationnelle)).slice(0, 3);
+  const privees = tri(notes.filter((n) => !n.operationnelle)).slice(0, 3);
+  const caches = notes.length - ops.length - privees.length;
+
+  const ligne = (n: NotePrivee, flou: boolean) => (
+    <li key={n.id}>
+      <button onClick={onOpen} className="group flex w-full gap-1.5 rounded-md px-1.5 py-1 text-left text-[12px] leading-snug text-slate-800 hover:bg-slate-50">
+        {n.epinglee ? <Pin className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" /> : <span className="w-3 shrink-0 text-center text-slate-300">•</span>}
+        <span className={`line-clamp-2 ${flou ? "select-none blur-[4px] transition-[filter] duration-150 group-hover:select-text group-hover:blur-none" : ""}`}>{n.texte}</span>
+      </button>
+    </li>
+  );
+
+  return (
+    // pt-2 plutôt que mt-2 : la marge reste survolable, l'aperçu ne se ferme pas en descendant.
+    <div className="absolute right-0 top-full z-50 w-[300px] pt-2">
+      <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] animate-in fade-in slide-in-from-top-1 duration-100">
+        {ops.length > 0 && (
+          <>
+            <p className="flex items-center gap-1.5 px-1.5 pb-0.5 text-[11px] font-medium text-slate-400">
+              <Users className="h-3 w-3" /> Opérationnelles
+            </p>
+            <ul className="space-y-0.5">{ops.map((n) => ligne(n, false))}</ul>
+          </>
+        )}
+        {privees.length > 0 && (
+          <>
+            <p className={`flex items-center gap-1.5 px-1.5 pb-0.5 text-[11px] font-medium text-slate-400 ${ops.length ? "mt-1.5" : ""}`}>
+              <Lock className="h-3 w-3" /> Privées · survoler pour lire
+            </p>
+            <ul className="space-y-0.5">{privees.map((n) => ligne(n, true))}</ul>
+          </>
+        )}
+        <p className="px-1.5 pt-1 text-[11px] text-slate-400">
+          {caches > 0 ? `+${caches} autre${caches > 1 ? "s" : ""} · ` : ""}Cliquer pour ajouter une note
+        </p>
+      </div>
+    </div>
   );
 }
 

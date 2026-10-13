@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, ListChecks, Minus, Package, PackageCheck, Plus, ShoppingCart, Truck, X } from "lucide-react";
+import { ArrowRight, Check, ListChecks, Minus, Package, PackageCheck, Plus, RotateCcw, ShoppingCart, Sparkles, Truck, X } from "lucide-react";
 import { CATALOGUE, FOURNISSEURS, type ItemChecklist, type StatutCommande } from "@/data/dossierPatient";
+import { materiel, useDossiers } from "@/context/DossiersContext";
 
 export const STATUTS: Record<StatutCommande, { label: string; chip: string; icon: typeof Package }> = {
   "a-commander": { label: "À commander", chip: "border-amber-300 bg-amber-50 text-amber-800", icon: ShoppingCart },
@@ -22,18 +23,33 @@ interface Props {
 export function Checklist({ items, onChange }: Props) {
   const [draft, setDraft] = useState("");
   const [focus, setFocus] = useState(false);
+  const { stock, ajusterStock, commandesCabinet, recommander } = useDossiers();
 
   const set = (id: string, patch: Partial<ItemChecklist>) => onChange(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  const qte = (i: ItemChecklist) => i.quantite ?? i.commande?.quantite ?? 1;
+  const reassortEnCours = (label: string) => commandesCabinet.some((c) => c.label === label && c.statut !== "recu");
 
-  const ajouter = (label: string, fournisseur?: string) => {
+  // Cocher le matériel = il a servi pendant le RDV : on le décompte du stock (et on le rend si on décoche).
+  const toggleFait = (i: ItemChecklist) => {
+    const m = materiel(i.label);
+    const enAttente = i.commande && i.commande.statut !== "recu";
+    if (m && !m.surMesure && !enAttente) ajusterStock(m.label, i.fait ? qte(i) : -qte(i));
+    set(i.id, { fait: !i.fait });
+  };
+
+  /** Matériel du catalogue : on regarde le stock avant de déclencher une commande. */
+  const ajouter = (label: string) => {
     if (!label.trim()) return;
+    const m = materiel(label);
+    const manque = m && (m.surMesure || (stock[m.label] ?? 0) < 1);
     onChange([
       ...items,
       {
         id: nouvelId(),
-        label: label.trim(),
+        label: m?.label ?? label.trim(),
         fait: false,
-        commande: fournisseur ? { statut: "a-commander", quantite: 1, fournisseur } : undefined,
+        quantite: m ? 1 : undefined,
+        commande: m && manque ? { statut: "a-commander", quantite: 1, fournisseur: m.fournisseur } : undefined,
       },
     ]);
     setDraft("");
@@ -45,7 +61,7 @@ export function Checklist({ items, onChange }: Props) {
       return;
     }
     const connu = CATALOGUE.find((c) => normalise(c.label) === normalise(i.label));
-    set(i.id, { commande: { statut: "a-commander", quantite: 1, fournisseur: connu?.fournisseur ?? FOURNISSEURS[0] } });
+    set(i.id, { commande: { statut: "a-commander", quantite: qte(i), fournisseur: connu?.fournisseur ?? FOURNISSEURS[0] } });
   };
 
   const suggestions = draft.trim().length >= 2 ? CATALOGUE.filter((c) => normalise(c.label).includes(normalise(draft.trim()))).slice(0, 5) : [];
@@ -76,13 +92,21 @@ export function Checklist({ items, onChange }: Props) {
           return (
             <li key={i.id} className="group flex min-h-9 items-center gap-2.5 rounded-lg px-1.5 py-1 hover:bg-slate-50">
               <button
-                onClick={() => set(i.id, { fait: !i.fait })}
+                onClick={() => toggleFait(i)}
                 className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${i.fait ? "border-slate-700 bg-slate-700 text-white" : "border-slate-300 bg-white hover:border-slate-500"}`}
                 aria-label={i.fait ? "Marquer non fait" : "Marquer fait"}
               >
                 {i.fait && <Check className="h-3 w-3" strokeWidth={3} />}
               </button>
-              <span className={`min-w-0 flex-1 truncate text-[13px] ${i.fait ? "text-slate-400 line-through" : "text-slate-800"}`}>{i.label}</span>
+              <span className={`min-w-0 flex-1 truncate text-[13px] ${i.fait ? "text-slate-400 line-through" : "text-slate-800"}`}>
+                {i.label}
+                {i.selonActe && (
+                  <span className="ml-1.5 inline-flex items-center gap-0.5 align-middle text-[10px] text-violet-500" title={`Ajouté selon l'acte : ${i.selonActe}`}>
+                    <Sparkles className="h-2.5 w-2.5" /> selon l&apos;acte
+                  </span>
+                )}
+              </span>
+              {!i.fait && <StockInfo item={i} qte={qte(i)} stock={stock} reassort={reassortEnCours(i.label)} onRecommander={recommander} />}
 
               {i.commande && st && (
                 <span className="flex shrink-0 items-center gap-1.5">
@@ -165,21 +189,27 @@ export function Checklist({ items, onChange }: Props) {
         </div>
         {focus && suggestions.length > 0 && (
           <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-            <p className="px-2 py-1 text-[11px] text-slate-400">Matériel du catalogue · ajouté directement à commander</p>
-            {suggestions.map((c) => (
-              <button
-                key={c.label}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => ajouter(c.label, c.fournisseur)}
-                className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-amber-50"
-              >
-                <span className="flex items-center gap-2">
-                  <ShoppingCart className="h-3.5 w-3.5 text-amber-600" />
-                  {c.label}
-                </span>
-                <span className="text-[11px] text-slate-400">{c.fournisseur}</span>
-              </button>
-            ))}
+            <p className="px-2 py-1 text-[11px] text-slate-400">Matériel du cabinet · commandé seulement s&apos;il n&apos;y en a plus</p>
+            {suggestions.map((c) => {
+              const n = stock[c.label] ?? 0;
+              const vide = c.surMesure || n === 0;
+              return (
+                <button
+                  key={c.label}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => ajouter(c.label)}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] ${vide ? "hover:bg-amber-50" : "hover:bg-slate-50"}`}
+                >
+                  <span className="flex items-center gap-2">
+                    {vide ? <ShoppingCart className="h-3.5 w-3.5 text-amber-600" /> : <Package className="h-3.5 w-3.5 text-slate-400" />}
+                    {c.label}
+                  </span>
+                  <span className={`text-[11px] ${vide ? "text-amber-700" : n <= c.seuil ? "text-amber-600" : "text-slate-400"}`}>
+                    {c.surMesure ? "Sur mesure · à commander" : vide ? "Plus en stock · à commander" : `${n} en stock`}
+                  </span>
+                </button>
+              );
+            })}
             <button
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => ajouter(draft)}
@@ -192,4 +222,48 @@ export function Checklist({ items, onChange }: Props) {
       </div>
     </div>
   );
+}
+
+/**
+ * Ce qu'il reste au cabinet pour ce matériel. Assez : « ×1 · stock N ». Bientôt vide : « Reste 2 · penser
+ * à recommander » (réassort du cabinet). Plus assez : le nombre restant, la commande est sur la ligne.
+ */
+function StockInfo({
+  item,
+  qte,
+  stock,
+  reassort,
+  onRecommander,
+}: {
+  item: ItemChecklist;
+  qte: number;
+  stock: Record<string, number>;
+  reassort: boolean;
+  onRecommander: (label: string, n: number) => void;
+}) {
+  const m = materiel(item.label);
+  if (!m || m.surMesure) return null;
+  const n = stock[m.label] ?? 0;
+  if (item.commande && item.commande.statut !== "recu") {
+    return <span className={`shrink-0 text-[11px] tabular-nums ${n === 0 ? "text-red-600" : "text-slate-400"}`}>Reste {n}</span>;
+  }
+  if (n < qte) {
+    return <span className="shrink-0 rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-red-700">Reste {n} · ×{qte} prévu</span>;
+  }
+  if (n - qte <= m.seuil) {
+    return reassort ? (
+      <span className="flex shrink-0 items-center gap-1 text-[11px] text-sky-700">
+        <RotateCcw className="h-3 w-3" /> Reste {n} · réassort demandé
+      </span>
+    ) : (
+      <button
+        onClick={() => onRecommander(m.label, Math.max(m.seuil * 2, qte))}
+        className="flex shrink-0 items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800 hover:bg-amber-100"
+        title="Ajoute un réassort du cabinet dans le stock"
+      >
+        Reste {n} · penser à recommander
+      </button>
+    );
+  }
+  return <span className="shrink-0 text-[11px] tabular-nums text-slate-400">×{qte} · stock {n}</span>;
 }

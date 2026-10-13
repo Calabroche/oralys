@@ -24,6 +24,8 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
   const { open } = usePersonSheet();
   // Suivi des missions (pastille, taux) : V1.
   const suivi = useVersion().has("missionsSuivies");
+  // « Travaille avec » vient des équipes rattachées : V1.
+  const equipes = useVersion().has("equipes");
   const today = toISODate(now());
   const sensitive = can("param.cabinet") || (!!sessionUser && isHealthProfessional(sessionUser, roles)) || can("compta");
   const actifs = (users ?? all).filter((u) => u.status === "actif");
@@ -48,7 +50,7 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
               .map((u) => {
                 const abs = absenceOn(u.id, today, absences);
                 const works = worksOn(u, today);
-                const avec = travailleAvec(u, profiles);
+                const avec = equipes ? travailleAvec(u, profiles) : undefined;
                 const ms = sensitive && suivi ? missionsSummary(u, today) : null;
                 // Pastille : la couleur suit le taux de réalisation sur 8 semaines, du rouge au vert.
                 const rate = sensitive && suivi ? personMissionRate(u, today, (iso) => worksOn(u, iso)) : null;

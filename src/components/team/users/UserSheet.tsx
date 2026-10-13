@@ -204,10 +204,13 @@ function SheetRecap({ user }: { user: TeamUser }) {
           <dt className="text-xs text-slate-500">Date d&apos;entrée</dt>
           <dd className="font-medium text-slate-800">{formatShortDate(dateEntree(user))}</dd>
         </div>
-        <div>
-          <dt className="text-xs text-slate-500">Travaille avec</dt>
-          <dd className="font-medium text-slate-800">{avec ? avec.label : equipe || "Non renseigné"}</dd>
-        </div>
+        {/* « Travaille avec » vient des équipes rattachées : V1. */}
+        {has("equipes") && (
+          <div>
+            <dt className="text-xs text-slate-500">Travaille avec</dt>
+            <dd className="font-medium text-slate-800">{avec ? avec.label : equipe || "Non renseigné"}</dd>
+          </div>
+        )}
         <div>
           <dt className="text-xs text-slate-500">Téléphone</dt>
           <dd className="font-medium text-slate-800 tabular-nums">{user.phone ?? "Non renseigné"}</dd>

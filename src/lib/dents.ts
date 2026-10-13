@@ -89,10 +89,12 @@ export function resumeDents(zone: ZoneRdv, opts: { sextants?: boolean } = {}): D
     }
   }
 
-  // Quadrant ou sextants : on garde le découpage le plus court, les sextants en cas d'égalité (la paro se facture par sextant).
+  // Quadrant ou sextants : on garde le découpage le plus court. À égalité, les sextants en paro (facturée
+  // par sextant), le quadrant ailleurs (« Surfaçage · Q3 » plutôt que « 31-38 »).
   const parSextants = groupes(set, zone, false, sextants);
   const parQuadrants = groupes(set, zone, true, sextants);
-  chips.push(...(parQuadrants.length < parSextants.length ? parQuadrants : parSextants));
+  const quadrant = sextants ? parQuadrants.length < parSextants.length : parQuadrants.length <= parSextants.length;
+  chips.push(...(quadrant ? parQuadrants : parSextants));
 
   if (zone.cavite) chips.push({ label: "Bouche", title: "Cavité buccale", kind: "bouche" });
   return [...chips, ...site];

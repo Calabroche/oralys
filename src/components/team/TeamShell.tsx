@@ -57,6 +57,7 @@ import {
 import { TEAM_CABINET_NAME } from "@/data/teamMockData";
 import { fullName, roleNames } from "@/lib/team";
 import { cn } from "@/lib/utils";
+import { SOINS_URL } from "@/lib/soins";
 
 const TABS: {
   label: string;
@@ -78,7 +79,7 @@ export const PLANETS = [
   {
     id: "soins",
     label: "Soins",
-    href: "/agenda",
+    href: SOINS_URL ?? "/agenda",
     dot: "bg-lime-300",
     hint: "Agenda, patients, actes",
   },
@@ -117,7 +118,12 @@ function PlanetSwitcher() {
           <DropdownMenuItem
             key={p.id}
             disabled={!p.href}
-            onSelect={() => p.href && p.id !== "team" && router.push(p.href)}
+            onSelect={() => {
+              if (!p.href || p.id === "team") return;
+              // Dans la démo, le vrai Soins n'est pas une page Next : rechargement complet.
+              if (p.id === "soins" && SOINS_URL) window.location.assign(p.href);
+              else router.push(p.href);
+            }}
             className="flex items-start gap-2.5 py-2"
           >
             <span
@@ -256,7 +262,8 @@ function Header() {
       {/* Le liseré rose sous l'en-tête signale qu'on est sur la planète Team (vert = Soins). */}
       <header className="border-b-[3px] border-pink-300 bg-white">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
-          <div className="flex items-center gap-3">
+          {/* Même écart logo / sélecteur d'univers que dans l'en-tête de Soins (ml-4) */}
+          <div className="flex items-center gap-4">
             <Link href="/team/accueil" aria-label="Accueil Oralys Team">
               <OralysLogo />
             </Link>

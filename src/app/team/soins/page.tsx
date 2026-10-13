@@ -3,6 +3,7 @@
 import { useAccess } from "@/components/team/Access";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SoinsLink } from "@/lib/soins";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -72,9 +73,9 @@ export default function SoinsPreviewPage() {
         description="Simulation des points de contact : ce que Soins fait des données Team, à jour en temps réel."
         actions={
           <Button variant="outline" asChild>
-            <Link href="/agenda">
+            <SoinsLink href="/agenda">
               Ouvrir Oralys Soins <ArrowUpRight />
-            </Link>
+            </SoinsLink>
           </Button>
         }
       />
@@ -579,9 +580,9 @@ function AgendaFerme() {
               <Link href="/team/planning?tab=liste">Toutes les absences</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/reglages/agenda#periodes-absence">
+              <SoinsLink href="/reglages/agenda#periodes-absence">
                 Voir dans Soins <ArrowUpRight />
-              </Link>
+              </SoinsLink>
             </Button>
           </div>
         </CardContent>

@@ -54,13 +54,16 @@ export function DayStaffingView({
                   <p className="text-xs text-slate-500">{needSummary(profile)}</p>
                 </div>
               </div>
-              <div className="text-right text-[0.7rem] leading-snug text-slate-500">
-                <span className="text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} : </span>
-                {titulaires.map((l) => findUser(l.userId)?.firstName ?? "?").join(", ") || "aucun"}
-                <br />
-                <span className="text-sky-700">Back-up : </span>
-                {backups.map((l) => findUser(l.userId)?.firstName ?? "?").join(", ") || "aucun"}
-              </div>
+              {/* Titulaires et back-ups : équipes rattachées, en V1. */}
+              {has("equipes") && (
+                <div className="text-right text-[0.7rem] leading-snug text-slate-500">
+                  <span className="text-emerald-700">Titulaire{titulaires.length > 1 ? "s" : ""} : </span>
+                  {titulaires.map((l) => findUser(l.userId)?.firstName ?? "?").join(", ") || "aucun"}
+                  <br />
+                  <span className="text-sky-700">Back-up : </span>
+                  {backups.map((l) => findUser(l.userId)?.firstName ?? "?").join(", ") || "aucun"}
+                </div>
+              )}
             </div>
 
             <div className="mt-3">

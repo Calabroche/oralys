@@ -418,7 +418,8 @@ function shortAxisDate(iso: string): string {
 function SalaryChart({ history }: { history: SalaryInfo["history"] }) {
   const chartId = useId();
   const [hovered, setHovered] = useState<number | null>(null);
-  if (history.length < 2) return null;
+  // Un seul point (nouvel embauché) : la courbe commence, même présentation que les autres.
+  if (history.length === 0) return null;
   const w = 560;
   const h = 170;
   const padX = 34;
@@ -429,12 +430,12 @@ function SalaryChart({ history }: { history: SalaryInfo["history"] }) {
   const min = Math.min(...allValues);
   const max = Math.max(...allValues);
   const span = max - min || 1;
-  const x = (i: number) => padX + (i / (sorted.length - 1)) * (w - padX * 2);
+  const x = (i: number) => (sorted.length === 1 ? w / 2 : padX + (i / (sorted.length - 1)) * (w - padX * 2));
   const y = (v: number) => h - padBottom - ((v - min) / span) * (h - padTop - padBottom);
   const netPoints = sorted.map((p, i) => [x(i), y(p.net)] as const);
   const brutPoints = sorted.map((p, i) => [x(i), y(p.brut)] as const);
   const line = (pts: readonly (readonly [number, number])[]) => pts.map(([px, py]) => `${px},${py}`).join(" ");
-  const area = `${padX},${h - padBottom} ${line(netPoints)} ${x(sorted.length - 1)},${h - padBottom}`;
+  const area = sorted.length > 1 ? `${padX},${h - padBottom} ${line(netPoints)} ${x(sorted.length - 1)},${h - padBottom}` : "";
   const gridValues = [min, (min + max) / 2, max];
   const active = hovered !== null ? sorted[hovered] : null;
 
@@ -467,7 +468,7 @@ function SalaryChart({ history }: { history: SalaryInfo["history"] }) {
             <text
               x={x(i)}
               y={h - 6}
-              textAnchor={i === 0 ? "start" : i === sorted.length - 1 ? "end" : "middle"}
+              textAnchor={sorted.length === 1 ? "middle" : i === 0 ? "start" : i === sorted.length - 1 ? "end" : "middle"}
               className="fill-slate-400 text-[9px]"
             >
               {shortAxisDate(p.date)}
@@ -755,7 +756,7 @@ export function SalaryCard({ user, canSee, canEdit }: { user: TeamUser; canSee: 
         ) : (
           <p className="text-sm text-slate-400">Pas encore renseignée par le gestionnaire.</p>
         )}
-        {salary && salary.history.length >= 2 && (
+        {salary && salary.history.length > 0 && (
           <div>
             <p className="mb-1 text-xs font-medium tracking-wide text-slate-500 uppercase">Évolution de la rémunération</p>
             <SalaryChart history={salary.history} />

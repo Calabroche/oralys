@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { TYPES_RDV, type Patient, type Rdv } from "@/data/dossierPatient";
 import { allRdvs } from "@/context/DossiersContext";
-import { resumeDents } from "@/lib/dents";
+import { groupesGestes, noteDuRdv, texteGroupe } from "@/components/patients/gestes";
 import { formatDateCourte } from "@/components/patients/format";
 
 /** Étoile à 4 branches en dégradé, le code visuel habituel de l'IA (Gemini, etc.). */
@@ -23,16 +23,10 @@ export function IconeIA({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-const zoneTexte = (r: Rdv) =>
-  resumeDents(r.zone, { sextants: r.type === "paro" })
-    .filter((c) => c.kind !== "bouche")
-    .map((c) => c.label)
-    .join(", ");
-
-const ligneRdv = (r: Rdv) => {
-  const zone = zoneTexte(r);
-  return [r.motif || TYPES_RDV[r.type].label, zone].filter(Boolean).join(" · ");
-};
+const ligneRdv = (r: Rdv) =>
+  groupesGestes(r)
+    .map((g) => texteGroupe({ ...g, label: g.label || TYPES_RDV[r.type].label }, r.type === "paro"))
+    .join(" + ");
 
 /**
  * Résumé du dossier façon IA, calculé à partir des données (prototype) :
@@ -63,7 +57,7 @@ function resumer(patient: Patient) {
     id: r.id,
     date: formatDateCourte(r.date!),
     texte: ligneRdv(r),
-    detail: r.observations?.at(-1),
+    detail: noteDuRdv(r),
   }));
   const aVenir = [
     ...futurs.slice(0, 2).map((r) => ({ id: r.id, date: formatDateCourte(r.date!), texte: ligneRdv(r) })),

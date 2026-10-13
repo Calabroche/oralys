@@ -6,6 +6,7 @@ import {
   AuditEntry,
   DayNeed,
   DayOverride,
+  HalfDay,
   PermissionId,
   Punch,
   PunchKind,
@@ -129,6 +130,8 @@ function loadData(): PersistedTeamData {
           missions: (!done.includes("missions-suivies") || !done.includes("missions-historique")) && s?.missions ? s.missions : missionsOf(u),
           // Primes et recadrages (réunion du 06/10) : ceux de la démo, une seule fois.
           ...(!done.includes("primes-recadrages") ? { primes: u.primes ?? s?.primes, recadrages: u.recadrages ?? s?.recadrages } : {}),
+          // Courbe de rémunération pour tous les salariés (retour du 09/10) : un seul point jusqu'ici, on reprend l'historique de la démo.
+          ...(!done.includes("salaires-historique") && (u.salary?.history.length ?? 0) < 2 && s?.salary ? { salary: s.salary } : {}),
           // Semaine type avec la mission de chaque plage (retour du 06/10).
           ...(!done.includes("semaine-type-salaries") && s?.schedule ? { schedule: labelSchedule(u.schedule, s.schedule) } : {}),
           ...(!done.includes("demi-journees") && !u.halfDays && s?.halfDays ? { halfDays: s.halfDays } : {}),
@@ -184,7 +187,7 @@ function loadData(): PersistedTeamData {
         ...(profiles ? { profiles } : {}),
         ...(rdvs ? { rdvs } : {}),
         ...(absences ? { absences } : {}),
-        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation", "missions-suivies", "semaine-type-salaries", "missions-historique", "primes-recadrages", "modeles-fiches-poste"])],
+        migrations: [...new Set([...done, "assistant-sans-rdv", "secretaire-planning", "secretaire-lecture-seule", "demi-journees", "semaine-type", "absences-passees", "praticien-sans-validation", "missions-suivies", "semaine-type-salaries", "missions-historique", "primes-recadrages", "modeles-fiches-poste", "salaires-historique"])],
       };
     }
   } catch {
@@ -239,6 +242,8 @@ interface TeamDataContextValue extends PersistedTeamData {
   /** Prête un assistant à un praticien pour une journée (sans toucher aux rattachements). */
   lendAssistant: (date: string, assistantId: string, praticienId: string) => DayOverride;
   removeLoan: (id: string) => void;
+  /** Place un assistant chez un praticien pour une demi-journée (planning rempli à la main, MVP). */
+  placerAssistant: (date: string, half: HalfDay, assistantId: string, praticienId: string) => DayOverride;
   /** Ajuste le besoin en assistants d'un praticien pour une seule journée (sans toucher à sa fiche). */
   setDayNeed: (date: string, praticienId: string, need: number) => DayNeed;
   removeDayNeed: (id: string) => void;
@@ -828,6 +833,25 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
       return o;
     },
 
+    placerAssistant: (date, half, assistantId, praticienId) => {
+      const o: DayOverride = { id: newId("place"), date, half, assistantId, praticienId };
+      const a = latest.current.users.find((u) => u.id === assistantId);
+      const p = latest.current.users.find((u) => u.id === praticienId);
+      mutate(
+        (d) => ({
+          ...d,
+          // Une seule place par assistant et par demi-journée : on remplace une éventuelle autre.
+          dayOverrides: [...d.dayOverrides.filter((x) => !(x.date === date && x.half === half && x.assistantId === assistantId)), o],
+        }),
+        {
+          action: "binome.pret",
+          summary: `${a ? fullName(a) : "?"} placé(e) avec ${p ? displayName(p) : "?"} le ${shortDate(date)} (${half === "matin" ? "matin" : "après-midi"})`,
+          extra: { targetUserId: assistantId },
+        }
+      );
+      return o;
+    },
+
     removeLoan: (id) => {
       const o = latest.current.dayOverrides.find((x) => x.id === id);
       const a = latest.current.users.find((u) => u.id === o?.assistantId);
@@ -843,7 +867,9 @@ export function TeamDataProvider({ children }: { children: ReactNode }) {
         }),
         {
         action: "binome.pret",
-        summary: `Prêt de ${a ? fullName(a) : "?"} annulé${o ? ` (${shortDate(o.date)})` : ""}`,
+        summary: o?.half
+          ? `${a ? fullName(a) : "?"} retiré(e) du planning (${shortDate(o.date)}, ${o.half === "matin" ? "matin" : "après-midi"})`
+          : `Prêt de ${a ? fullName(a) : "?"} annulé${o ? ` (${shortDate(o.date)})` : ""}`,
         extra: a ? { targetUserId: a.id } : undefined,
       });
     },

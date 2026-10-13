@@ -449,9 +449,17 @@ function defaultRH(u: TeamUser): Partial<TeamUser> {
     const [netRatio, coutRatio] = statut === "cadre" ? [0.75, 1.48] : [0.78, 1.42];
     const brutBase = u.poste === "gestion" ? 2900 : u.poste === "secretariat" ? 1950 : 2000;
     const brut = brutBase + jrange(`${u.id}-brut`, -150, 250);
-    const net = Math.round(brut * netRatio);
-    const coutEntreprise = Math.round(brut * coutRatio);
-    out.salary = { statut, brut, net, coutEntreprise, history: [{ date: embauche, brut, net, coutEntreprise, motif: "Embauche" }] };
+    // Historique : l'embauche puis une révision chaque 1er septembre (les deux dernières), pour que chaque
+    // salarié ait la même courbe d'évolution que les fiches sur mesure.
+    const annee = Number(embauche.slice(0, 4));
+    const revisions = [2024, 2025, 2026].filter((y) => y > annee && `${y}-09-01` > embauche).slice(-2);
+    const pas = jrange(`${u.id}-pas`, 60, 130);
+    const montant = (b: number) => ({ brut: b, net: Math.round(b * netRatio), coutEntreprise: Math.round(b * coutRatio) });
+    const history = [
+      { date: embauche, ...montant(brut - pas * revisions.length), motif: "Embauche" },
+      ...revisions.map((y, i) => ({ date: `${y}-09-01`, ...montant(brut - pas * (revisions.length - 1 - i)), motif: "Révision annuelle" })),
+    ];
+    out.salary = { statut, ...montant(brut), history };
     out.contrat = { type: "cdi", tempsPartiel: u.workDays.length < 5, dateEmbauche: embauche };
     out.congesPayes = { prisHorsAppli: jrange(`${u.id}-pris`, 0, 3) };
   } else {

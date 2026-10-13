@@ -13,7 +13,7 @@ export function InvitationEmail({ user }: { user: TeamUser }) {
         <span className="ml-auto">no-reply@oralys.fr</span>
       </div>
       <div className="space-y-3 p-5 text-sm text-slate-700">
-        <OralysLogo className="text-lg" />
+        <OralysLogo className="h-5" />
         <p className="font-medium text-slate-900">Bonjour {user.firstName},</p>
         <p>
           {TEAM_CABINET_NAME} vous a créé un accès à Oralys. Pour activer votre compte, définissez votre mot de passe

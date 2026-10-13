@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTeam } from "@/context/TeamDataContext";
-import { RoleBadges, UserAvatar, toneFor } from "@/components/team/shared";
+import { useProfilsPlanning } from "@/components/team/useProfilsPlanning";
+import { RoleBadges, UserAvatar, photoDe, toneFor } from "@/components/team/shared";
 import { ContractHoursField, HoursEditor } from "@/components/team/WorkSchedule";
 import { usePersonRights } from "@/components/team/profile/rights";
 import { useVersion } from "@/components/team/Version";
@@ -93,7 +94,7 @@ function PhotoEditor({ user }: { user: TeamUser }) {
         }}
       />
       <Button variant="outline" size="xs" onClick={() => input.current?.click()}>
-        <Camera /> {user.photo ? "Changer la photo" : "Ajouter une photo"}
+        <Camera /> {photoDe(user) ? "Changer la photo" : "Ajouter une photo"}
       </Button>
       {user.photo && (
         <Button variant="ghost" size="xs" onClick={() => updateUser({ ...user, photo: undefined })} aria-label="Retirer la photo">
@@ -147,7 +148,8 @@ function PhoneField({ user, editable }: { user: TeamUser; editable: boolean }) {
 export function IdentityCard({ user, profile, extra }: { user: TeamUser; profile?: PraticienProfile; extra?: React.ReactNode }) {
   const { profiles } = useTeam();
   const rights = usePersonRights(user);
-  const avec = travailleAvec(user, profiles);
+  // « Travaille avec » vient des équipes rattachées : V1.
+  const avec = useVersion().has("equipes") ? travailleAvec(user, profiles) : undefined;
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -543,7 +545,8 @@ export function SemaineCollaborateur({ user }: { user: TeamUser }) {
  * ce que le planning en a fait (absence, qui est à ses côtés, back-up, manque). Les écarts sont en orange.
  */
 export function SemainePraticien({ profile }: { profile: PraticienProfile }) {
-  const { now, absences, profiles, users, dayOverrides, dayNeeds, findUser } = useTeam();
+  const { now, absences, users, dayOverrides, dayNeeds, findUser } = useTeam();
+  const profilsPlanning = useProfilsPlanning();
   const [vue, setVue] = useState<"type" | "semaine">("type");
   const [decalage, setDecalage] = useState(0);
   const today = toISODate(now());
@@ -560,7 +563,7 @@ export function SemainePraticien({ profile }: { profile: PraticienProfile }) {
     const info: TimetableDay = { date: iso };
     const abs = absenceOn(profile.praticienUserId, iso, absences);
     if (abs) info.absence = abs.source === "soins" ? `${abs.motif?.replace(" (agenda Soins)", "") ?? "Fermé"} · agenda Soins` : `${ABSENCE_TYPE_LABELS[abs.type]} · agenda fermé`;
-    const day = slots.some((sl) => sl.day === d) && !abs ? dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds).praticiens.find((p) => p.profile.id === profile.id) : undefined;
+    const day = slots.some((sl) => sl.day === d) && !abs ? dayStaffing(iso, profilsPlanning, users, absences, dayOverrides, dayNeeds).praticiens.find((p) => p.profile.id === profile.id) : undefined;
     const ecarts: string[] = [];
     week[d] = slots
       .filter((sl) => sl.day === d)
@@ -615,6 +618,7 @@ function missionsSemaineType(user: TeamUser, hours: WeekHours): Partial<Record<W
  */
 function useSemaineEnCours(user: TeamUser, hours: WeekHours, decalage = 0) {
   const { now, absences, profiles, users, dayOverrides, dayNeeds } = useTeam();
+  const profilsPlanning = useProfilsPlanning();
   const today = toISODate(now());
   const monday = addDays(startOfWeek(fromISODate(today)), decalage * 7);
   const habituel = profiles.find((p) => p.id === user.defaultEnvironmentId);
@@ -636,7 +640,7 @@ function useSemaineEnCours(user: TeamUser, hours: WeekHours, decalage = 0) {
     const ecarts = new Set<string>();
     if (modif) ecarts.add(modif.length ? "Horaires changés pour ce jour" : "Repos ce jour-là");
     if (!abs && ranges.length && chair) {
-      const st = dayStaffing(iso, profiles, users, absences, dayOverrides, dayNeeds);
+      const st = dayStaffing(iso, profilsPlanning, users, absences, dayOverrides, dayNeeds);
       ranges = ranges.map((r) => {
         // Une plage qui n'est pas au fauteuil (stérilisation, stock…) garde ce qu'on y a mis.
         if (r.label && !r.label.startsWith("Fauteuil")) return r;

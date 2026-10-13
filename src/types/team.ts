@@ -359,6 +359,11 @@ export interface DayOverride {
   date: string;
   assistantId: string;
   praticienId: string;
+  /**
+   * Placé à la main par le gestionnaire sur une seule demi-journée (MVP, sans équipes rattachées :
+   * le planning se remplit semaine après semaine). Absent : prêt pour toute la journée.
+   */
+  half?: HalfDay;
   /** RDV du jour réaffectés à l'assistant prêté (pour pouvoir revenir en arrière). */
   reassigned?: { rdvId: string; prev: string | null }[];
 }

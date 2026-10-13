@@ -35,21 +35,21 @@ export const VERSIONS: VersionInfo[] = [
   {
     id: "mvp",
     label: "MVP",
-    title: "Qui est là, qui manque, qui remplace",
-    pitch: "Gérer les comptes, les absences et les équipes des praticiens, voir les manques et remplacer les absents.",
-    problem: "Aujourd'hui, les absences vivent dans un tableau à part, l'alerte passe par téléphone et les remplacements se font de tête.",
+    title: "Qui est là, qui manque",
+    pitch: "Les comptes, les absences et un planning rempli à la main : on voit qui est là et où il manque du monde.",
+    problem: "Aujourd'hui, les absences vivent dans un tableau à part, l'alerte passe par téléphone et le planning se fait de tête.",
     canDo: [
       "Créer, inviter, archiver ou réactiver un utilisateur (un email déjà pris est bloqué)",
-      "Retrouver tout ce qui concerne une personne dans son profil : absences et, pour un praticien, sa semaine type venue de Soins et son équipe rattachée",
+      "Retrouver tout ce qui concerne une personne dans son profil : absences et, pour un praticien, sa semaine type venue de Soins",
       "Dans Soins, régler pour chaque praticien le nombre d'assistants par type d'activité (ex. bloc 4 pour Dr Martin) : avec sa semaine type, Team en déduit le besoin de chaque demi-journée",
       "Déclarer une absence partout (planning, profil, tableau de bord), la valider ou la refuser : onglets « Demandes à valider » et « Toutes les absences »",
-      "Voir qui est présent chaque jour et avec qui travaille chaque praticien, par personne ou par équipe ; un manque est signalé, sans action possible (le combler arrive en V1)",
+      "Voir qui est présent chaque jour et remplir le planning à la main : le gestionnaire place les assistants avec chaque praticien, demi-journée par demi-journée ; une place vide est signalée (la combler depuis une équipe arrive en V1)",
       "Se mettre sur son profil en quelques secondes (changer d'utilisateur par code PIN), avec son nom affiché en haut de l'écran",
       "Voir le planning sur un nombre de jours au choix (2, 3, 5, 10 ou 15), en plus de Jour / Semaine / Mois — même sélecteur dans l'agenda Soins",
       "Tableau de bord : présents aujourd'hui, absences de dernier moment, utilisateurs actifs, et le trombinoscope du cabinet",
       "Être alerté d'une absence de dernier moment (sirène, compteur sur le tableau de bord), et fermer l'agenda Soins d'un praticien absent",
       "La secrétaire voit tout le planning mais ne peut rien y valider : lecture seule, à part déclarer sa propre absence",
-      "Trombinoscope ouvert à tous ; un clic ouvre le récap : poste, date d'entrée, avec qui la personne travaille, téléphone, missions de la fiche de poste, et pour le gestionnaire et les praticiens assiduité, congés et salaire",
+      "Trombinoscope ouvert à tous ; un clic ouvre le récap : poste, date d'entrée, téléphone, missions de la fiche de poste, et pour le gestionnaire et les praticiens assiduité, congés et salaire",
       "Dossier du personnel (Administration → Dossiers du personnel) : contrat, rémunération (brut, net, brut annuel), missions de la fiche de poste, rappels RH, documents ; chacun voit le sien en lecture seule",
       "Congés payés : 25 jours fixes pour tous les salariés, jours pris et solde calculés tout seuls depuis les congés validés",
     ],
@@ -59,10 +59,11 @@ export const VERSIONS: VersionInfo[] = [
   {
     id: "v1",
     label: "V1",
-    title: "Intelligence et conformité",
-    pitch: "Des remplaçants mieux choisis, des droits sur mesure et une trace de chaque action.",
-    problem: "Les remplacements fonctionnent : il faut les rendre plus justes et savoir qui a fait quoi.",
+    title: "Équipes, remplacements et suivi RH",
+    pitch: "Les équipes remplissent le planning, on remplace les absents, et on suit horaires, missions et primes.",
+    problem: "Le planning tient à la main : il faut qu'il se remplisse tout seul, que les absents soient remplacés et que le suivi RH vive dans l'outil.",
     canDo: [
+      "Rattacher les assistants aux praticiens : équipe rattachée sur le profil du praticien (titulaires et back-ups dans l'ordre d'appel, jours avec le praticien), praticien de rattachement à la création d'un assistant, Réglages → Équipes et disponibilités ; le planning se remplit tout seul et « Travaille avec » apparaît sur le trombinoscope, le récap et la fiche",
       "Remplir les horaires habituels (plages par jour), par le gestionnaire ou le praticien ; en MVP, le planning prend les jours de travail par défaut",
       "Primes dans la rémunération (date, montant brut, motif), reprises dans le récapitulatif",
       "Combler un manque depuis le planning : affecter un assistant, déplacer depuis un autre praticien, récupérer un prêt, retirer une absence ou confirmer qu'un assistant de moins suffit ; onglet « Manques à couvrir »",
@@ -135,7 +136,8 @@ export const VERSIONS: VersionInfo[] = [
 /** Version à partir de laquelle chaque fonctionnalité existe. */
 export const FEATURES = {
   binomes: "mvp",
-  equipes: "mvp",
+  /** Rattacher les assistants aux praticiens : équipe rattachée, praticien de rattachement, Réglages → Équipes. */
+  equipes: "v1",
   /** Combler un manque, onglets « Manques à couvrir » et « À remplacer » (grisés en MVP). */
   remplacements: "v1",
   /** Tableau de bord : « À traiter », manques d'assistants, RDV à réaffecter. */

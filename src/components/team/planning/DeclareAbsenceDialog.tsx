@@ -175,7 +175,7 @@ function Form({ prefill, onDone }: { prefill?: DeclarePrefill; onDone: () => voi
           <Alert variant="destructive">
             <Siren />
             <AlertTitle>Absence de dernier moment</AlertTitle>
-            <AlertDescription>Moins de 48h avant le début : traitement prioritaire, alerte immédiate vers Soins.</AlertDescription>
+            <AlertDescription>Moins de 48 h ouvrées avant le début (le week-end ne compte pas) : traitement prioritaire, alerte immédiate vers Soins.</AlertDescription>
           </Alert>
         )}
         {affected.length > 0 && (
