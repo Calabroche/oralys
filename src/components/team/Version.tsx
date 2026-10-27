@@ -49,9 +49,8 @@ export const VERSIONS: VersionInfo[] = [
       "Tableau de bord : présents aujourd'hui, absences de dernier moment, utilisateurs actifs, et le trombinoscope du cabinet",
       "Être alerté d'une absence de dernier moment (sirène, compteur sur le tableau de bord), et fermer l'agenda Soins d'un praticien absent",
       "La secrétaire voit tout le planning mais ne peut rien y valider : lecture seule, à part déclarer sa propre absence",
-      "Trombinoscope ouvert à tous ; un clic ouvre le récap : poste, date d'entrée, téléphone, missions de la fiche de poste, et pour le gestionnaire et les praticiens assiduité, congés et salaire",
+      "Trombinoscope ouvert à tous ; un clic ouvre le récap : poste, date d'entrée, téléphone, missions de la fiche de poste, et pour le gestionnaire et les praticiens assiduité et salaire",
       "Dossier du personnel (Administration → Dossiers du personnel) : contrat, rémunération (brut, net, brut annuel), missions de la fiche de poste, rappels RH, documents ; chacun voit le sien en lecture seule",
-      "Congés payés : 25 jours fixes pour tous les salariés, jours pris et solde calculés tout seuls depuis les congés validés",
     ],
     tryHref: "/team/planning?view=binomes",
     screens: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28, 29, 30, 36, 37, 38, 39, 40, 41, 43, 44, 53, 54, 55, 56, 59, 60, 61, 66, 67, 68, 69, 70],
@@ -87,11 +86,12 @@ export const VERSIONS: VersionInfo[] = [
     id: "v2",
     label: "V2",
     title: "Le collaborateur",
-    pitch: "Chacun renseigne ses compétences et ses préférences d'équipe.",
+    pitch: "Chacun renseigne ses compétences et ses préférences d'équipe, et suit ses congés payés.",
     problem: "Le collaborateur devient acteur de son planning, au lieu de le subir.",
     canDo: [
       "Renseigner ses compétences et ses actes préférés",
       "Dire avec qui l'on préfère travailler, de façon confidentielle",
+      "Suivre ses congés payés : 25 jours par an pour chaque salarié, jours pris et solde restant calculés tout seuls depuis les congés validés (profil, récap du trombinoscope, dossiers du personnel)",
     ],
     tryHref: "/team/moi",
     screens: [42],
@@ -161,6 +161,8 @@ export const FEATURES = {
   journal: "v1",
   postes: "v1",
   profil: "v2",
+  /** Compteur de congés payés (acquis, pris, solde) : en MVP, un congé est une absence comme une autre. */
+  congesPayes: "v2",
   pointage: "v3",
   multiSalles: "v4",
 } as const satisfies Record<string, Version>;

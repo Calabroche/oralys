@@ -91,11 +91,12 @@ export const PLANETS = [
     hint: "Équipe, droits, planning",
   },
   {
-    id: "compta",
-    label: "Compta",
-    href: null,
-    dot: "bg-slate-300",
-    hint: "Bientôt disponible",
+    // Oralys Manage vit dans le vrai Soins de la démo (sous /manage) : absent hors démo.
+    id: "manage",
+    label: "Manage",
+    href: SOINS_URL ? `${SOINS_URL.replace(/\/$/, "")}/manage` : null,
+    dot: "bg-amber-400",
+    hint: SOINS_URL ? "Pilotage, compta, devis" : "Dans la démo Oralys",
   },
 ];
 
@@ -104,7 +105,7 @@ function PlanetSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-sm font-medium text-pink-900 hover:bg-pink-100">
+        <button className="ml-4 flex flex-none items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-sm font-medium text-pink-900 hover:bg-pink-100">
           <span className="size-2 rounded-full bg-pink-400" />
           Team
           <ChevronDown className="size-3.5 text-pink-700" />
@@ -120,8 +121,8 @@ function PlanetSwitcher() {
             disabled={!p.href}
             onSelect={() => {
               if (!p.href || p.id === "team") return;
-              // Dans la démo, le vrai Soins n'est pas une page Next : rechargement complet.
-              if (p.id === "soins" && SOINS_URL) window.location.assign(p.href);
+              // Dans la démo, le vrai Soins (et Manage) n'est pas une page Next : rechargement complet.
+              if ((p.id === "soins" || p.id === "manage") && SOINS_URL) window.location.assign(p.href);
               else router.push(p.href);
             }}
             className="flex items-start gap-2.5 py-2"
@@ -187,7 +188,7 @@ function Notifications() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="relative size-10 rounded-full bg-slate-100 hover:bg-slate-200"
           aria-label="Notifications"
         >
           <Bell />
@@ -259,59 +260,53 @@ function Header() {
 
   return (
     <>
-      {/* Le liseré rose sous l'en-tête signale qu'on est sur la planète Team (vert = Soins). */}
-      <header className="border-b-[3px] border-pink-300 bg-white">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-3">
-          {/* Même écart logo / sélecteur d'univers que dans l'en-tête de Soins (ml-4) */}
-          <div className="flex items-center gap-4">
+      {/*
+        Même gabarit que l'en-tête de Soins (MainLayout du vrai Oralys), la référence : carte blanche arrondie sur fond
+        gris, rangée haute de 64 px (logo, sélecteur d'univers, cabinet au centre, boutons ronds et avatar), liseré de
+        couleur de la planète (rose = Team, vert = Soins), rangée basse d'onglets en pastilles.
+      */}
+      <div className="sticky top-0 z-50 mx-auto w-full max-w-[1700px] shrink-0 bg-[#DDDFEA] px-4 pt-4">
+      <header className="flex flex-col rounded-t-[25px] border-b bg-white">
+        <div className="relative flex h-16 w-full items-center px-6">
+          <div className="flex flex-none items-center">
             <Link href="/team/accueil" aria-label="Accueil Oralys Team">
               <OralysLogo />
             </Link>
             <PlanetSwitcher />
-            <VersionBadge />
+            <span className="ml-2"><VersionBadge /></span>
           </div>
-          <button className="flex items-center gap-1.5 text-base font-medium text-slate-800">
-            {TEAM_CABINET_NAME}
-            <ChevronDown className="size-4 text-slate-500" />
-          </button>
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex-1 text-center">
+            <button className="inline-flex items-center gap-2 text-lg font-medium text-slate-900">
+              {TEAM_CABINET_NAME}
+              <ChevronDown className="size-4" />
+            </button>
+          </div>
+          <div className="flex flex-none items-center justify-end gap-2">
             {has("pointage") && <PunchClock onSwitchUser={() => setSwitchOpen(true)} />}
             {/* Changer de profil existe dans toutes les versions : chacun doit pouvoir se mettre sur son profil. */}
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
+              className="size-10 rounded-full bg-slate-100 hover:bg-slate-200"
               onClick={() => setSwitchOpen(true)}
+              title="Changer d'utilisateur"
+              aria-label="Changer d'utilisateur"
             >
-              <Users /> Changer d&apos;utilisateur
+              <Users />
             </Button>
             <Notifications />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center gap-2 rounded-full py-0.5 pr-2 pl-0.5 text-left hover:bg-slate-50"
+                  className="rounded-full"
                   aria-label="Menu utilisateur"
+                  title={sessionUser ? `${fullName(sessionUser)} · ${roleNames(sessionUser, roles)[0] ?? ""}${workstation ? ` · ${workstation}` : ""}` : undefined}
                 >
                   {sessionUser && hydrated ? (
-                    <UserAvatar user={sessionUser} className="size-9" />
+                    <UserAvatar user={sessionUser} className="size-10 border border-gray-300" />
                   ) : (
-                    <span className="size-9 rounded-full bg-slate-100" />
+                    <span className="block size-10 rounded-full bg-slate-100" />
                   )}
-                  {/* Nom en clair : sur un poste partagé, chacun vérifie d'un coup d'œil qu'il est sur son profil. */}
-                  {sessionUser && (
-                    <span className="hidden leading-tight sm:block">
-                      <span className="block text-sm font-medium whitespace-nowrap text-slate-900">{fullName(sessionUser)}</span>
-                      <span className="flex items-center gap-1 text-xs text-slate-500">
-                        {roleNames(sessionUser, roles)[0]}
-                        {workstation && (
-                          <>
-                            <span>·</span>
-                            <MonitorSmartphone className="size-3" /> {workstation}
-                          </>
-                        )}
-                      </span>
-                    </span>
-                  )}
-                  <ChevronDown className="size-4 text-slate-500" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-96">
@@ -381,10 +376,10 @@ function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          <div className="absolute right-0 bottom-0 left-0 h-1 rounded-full bg-pink-400" />
         </div>
-      </header>
-      <nav className="border-b border-slate-200 bg-gradient-to-b from-pink-50/70 to-white px-6">
-        <ul className="flex items-center gap-1 text-sm">
+      <nav className="flex h-[53px] w-full items-center bg-gradient-to-b from-[#F2F4F8] to-white px-4">
+        <ul className="flex flex-wrap items-center gap-1">
           {TABS.filter((t) => (!t.feature || has(t.feature)) && (!t.access || allowed(t.access))).map((t) => {
             const active = t.exact
               ? pathname === t.href
@@ -394,22 +389,21 @@ function Header() {
                 <Link
                   href={t.href}
                   className={cn(
-                    "relative block px-3 py-3 font-medium transition-colors",
+                    "inline-flex h-9 items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                     active
-                      ? "text-slate-900"
-                      : "text-slate-500 hover:text-slate-800",
+                      ? "border-gray-200 bg-white text-slate-900"
+                      : "border-transparent bg-transparent text-slate-900 hover:bg-slate-100",
                   )}
                 >
                   {t.label}
-                  {active && (
-                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-pink-400" />
-                  )}
                 </Link>
               </li>
             );
           })}
         </ul>
       </nav>
+      </header>
+      </div>
       <QuickSwitchDialog open={switchOpen} onOpenChange={setSwitchOpen} />
     </>
   );
@@ -437,9 +431,11 @@ export function TeamShell({ children }: { children: ReactNode }) {
         <SoinsSync />
         <TooltipProvider delayDuration={200}>
           <PersonSheetProvider>
-            <div className="flex min-h-screen flex-col bg-white">
+            <div className="flex min-h-screen flex-col bg-[#DDDFEA]">
               <Header />
-              <div className="flex-1">{children}</div>
+              <div className="mx-auto flex w-full max-w-[1700px] flex-1 flex-col px-4">
+                <div className="flex-1 bg-white px-4 pb-4">{children}</div>
+              </div>
             </div>
           </PersonSheetProvider>
           <Toaster position="bottom-right" richColors closeButton />

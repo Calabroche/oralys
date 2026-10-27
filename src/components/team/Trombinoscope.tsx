@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Phone, UsersRound } from "lucide-react";
 import { useTeam } from "@/context/TeamDataContext";
 import { RoleBadges, UserAvatar } from "@/components/team/shared";
@@ -17,17 +19,22 @@ import { cn } from "@/lib/utils";
 /**
  * Trombinoscope du cabinet, visible par tout le monde : photo, nom, rôle, avec qui la personne travaille,
  * et si elle est là aujourd'hui. Le gestionnaire et les praticiens voient en plus l'état des missions
- * et l'assiduité. Un clic ouvre le récapitulatif de la personne.
+ * et l'assiduité. Un clic ouvre le récapitulatif de la personne. Un double-clic ouvre directement le profil :
+ * le gestionnaire pour tout le monde (là où il peut tout modifier), les autres seulement sur leur propre carte.
  */
 export function Trombinoscope({ users }: { users?: TeamUser[] }) {
   const { users: all, profiles, absences, now, can, sessionUser, roles } = useTeam();
-  const { open } = usePersonSheet();
+  const { open, close } = usePersonSheet();
+  const router = useRouter();
+  // Le récap s'ouvre avec un court délai : sinon son voile intercepte le second clic d'un double-clic (et le referme).
+  const clicTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Suivi des missions (pastille, taux) : V1.
   const suivi = useVersion().has("missionsSuivies");
   // « Travaille avec » vient des équipes rattachées : V1.
   const equipes = useVersion().has("equipes");
   const today = toISODate(now());
-  const sensitive = can("param.cabinet") || (!!sessionUser && isHealthProfessional(sessionUser, roles)) || can("compta");
+  const gestion = can("param.cabinet");
+  const sensitive = gestion || (!!sessionUser && isHealthProfessional(sessionUser, roles)) || can("compta");
   const actifs = (users ?? all).filter((u) => u.status === "actif");
   const groups = [...ROLE_ORDER, "autre"]
     .map((rid) => ({ rid, people: actifs.filter((u) => primaryRoleId(u) === rid || (rid === "autre" && !ROLE_ORDER.includes(primaryRoleId(u)))) }))
@@ -55,10 +62,21 @@ export function Trombinoscope({ users }: { users?: TeamUser[] }) {
                 // Pastille : la couleur suit le taux de réalisation sur 8 semaines, du rouge au vert.
                 const rate = sensitive && suivi ? personMissionRate(u, today, (iso) => worksOn(u, iso)) : null;
                 const ass = sensitive && hasCongesPayes(u) ? assiduite(u, absences, today) : null;
+                const versProfil = gestion || u.id === sessionUser?.id;
                 return (
                   <li key={u.id}>
                     <button
-                      onClick={() => open(u.id)}
+                      onClick={() => {
+                        if (clicTimer.current) clearTimeout(clicTimer.current);
+                        clicTimer.current = setTimeout(() => open(u.id), 250);
+                      }}
+                      onDoubleClick={() => {
+                        if (clicTimer.current) clearTimeout(clicTimer.current);
+                        // Pas d'accès au profil d'un collègue : le double-clic fait comme un clic.
+                        if (!versProfil) return open(u.id);
+                        close();
+                        router.push(u.id === sessionUser?.id ? "/team/moi" : `/team/profil/${u.id}`);
+                      }}
                       className="flex h-full w-full flex-col items-center gap-2 rounded-xl border bg-white p-4 text-center transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-pink-300 focus-visible:outline-none"
                     >
                       <span className="relative">

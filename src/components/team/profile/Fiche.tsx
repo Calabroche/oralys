@@ -225,7 +225,7 @@ export function RecapContent({ user, compact }: { user: TeamUser; compact?: bool
   const today = toISODate(now());
   const salarie = hasCongesPayes(user);
   const ass = salarie ? assiduite(user, absences, today) : null;
-  const cp = salarie ? cpSummary(user, absences, today) : null;
+  const cp = salarie && has("congesPayes") ? cpSummary(user, absences, today) : null;
   const ms = missionsSummary(user, today);
   const rate = personMissionRate(user, today, (iso) => worksOn(user, iso));
   const entretien = dernierEntretien(user);

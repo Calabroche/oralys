@@ -4,13 +4,13 @@ import { ReactNode, createContext, useContext, useState } from "react";
 import { UserSheet } from "@/components/team/users/UserSheet";
 import { cn } from "@/lib/utils";
 
-const PersonSheetContext = createContext<{ open: (userId: string) => void }>({ open: () => undefined });
+const PersonSheetContext = createContext<{ open: (userId: string) => void; close: () => void }>({ open: () => undefined, close: () => undefined });
 
 /** Une seule fiche personne pour tout Team : n'importe quel nom l'ouvre, elle relie ensuite les sections. */
 export function PersonSheetProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   return (
-    <PersonSheetContext.Provider value={{ open: setUserId }}>
+    <PersonSheetContext.Provider value={{ open: setUserId, close: () => setUserId(null) }}>
       {children}
       <UserSheet userId={userId} onClose={() => setUserId(null)} />
     </PersonSheetContext.Provider>

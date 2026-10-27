@@ -62,7 +62,7 @@ function Dossiers() {
     <div className="space-y-6">
       <PageHeader
         title="Dossiers du personnel"
-        description="Contrat, rémunération, missions, rappels, congés payés et documents de chacun. Vous les remplissez ici ; chaque personne les retrouve en lecture seule sur son profil."
+        description={`Contrat, rémunération, missions, rappels${has("congesPayes") ? ", congés payés" : ""} et documents de chacun. Vous les remplissez ici ; chaque personne les retrouve en lecture seule sur son profil.`}
       />
       <Tabs defaultValue="liste">
         <TabsList variant="line">
@@ -83,7 +83,7 @@ function Dossiers() {
             <TableRow className="text-xs uppercase">
               <TableHead>Personne</TableHead>
               <TableHead>Contrat</TableHead>
-              <TableHead>Congés payés</TableHead>
+              {has("congesPayes") && <TableHead>Congés payés</TableHead>}
               <TableHead>Prochain rendez-vous</TableHead>
               {has("missionsSuivies") && <TableHead>Missions</TableHead>}
               <TableHead>Assiduité</TableHead>
@@ -127,6 +127,7 @@ function Dossiers() {
                       <span className="text-slate-400">—</span>
                     )}
                   </TableCell>
+                  {has("congesPayes") && (
                   <TableCell className="text-sm tabular-nums">
                     {cp ? (
                       <span className={cn(cp.solde < 0 && "text-rose-700")}>
@@ -137,6 +138,7 @@ function Dossiers() {
                       <span className="text-slate-400">—</span>
                     )}
                   </TableCell>
+                  )}
                   <TableCell className="text-sm">
                     {rdv ? (
                       <span className={cn(rdv.date < today && "text-rose-700")}>

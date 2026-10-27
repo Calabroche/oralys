@@ -166,7 +166,7 @@ export function ProfileView({ user }: { user: TeamUser }) {
       <RappelsCard user={user} canEdit={canEditRH} medecineOnly={liberal} />
       {!liberal && rights.canSeeRecadrages && has("recadrages") && <RecadragesCard user={user} canEdit={canEditRH} />}
       {!liberal && <ContratCard user={user} canEdit={canEditRH} />}
-      {!liberal && <CongesPayesCard user={user} canEdit={canEditRH} />}
+      {!liberal && has("congesPayes") && <CongesPayesCard user={user} canEdit={canEditRH} />}
       {profile && <DpcCard user={user} canEdit={canEditRH} />}
       <DocumentsCard user={user} canAdd={self || canEditRH} canManage={canEditRH} />
 
@@ -278,14 +278,14 @@ export function ProfileView({ user }: { user: TeamUser }) {
         <CardHeader>
           <CardTitle>{self ? "Mes absences" : "Absences"}</CardTitle>
           <CardDescription>
-            {liberal
+            {liberal || !has("congesPayes")
               ? "Congés, maladie, formation et autres absences. Cliquer une absence pour la voir en détail, la modifier ou l'annuler."
               : "Maladie, formation et autres absences, hors congés (à retrouver dans la carte Congés payés). Cliquer une absence pour la voir en détail, la modifier ou l'annuler."}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Un praticien n'a pas de carte Congés payés : ses congés restent ici avec le reste. */}
-          <PersonAbsences userId={user.id} types={liberal ? undefined : ["maladie", "formation", "autre"]} />
+          {/* Sans carte Congés payés (praticien, ou avant la V2), les congés restent ici avec le reste. */}
+          <PersonAbsences userId={user.id} types={liberal || !has("congesPayes") ? undefined : ["maladie", "formation", "autre"]} />
         </CardContent>
       </Card>
         </div>
